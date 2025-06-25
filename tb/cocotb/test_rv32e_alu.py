@@ -8,22 +8,22 @@ from cocotb.triggers import Timer
 from cocotb.binary import BinaryValue
 
 # ALU operation codes
-ALU_ADD  = 0x0  # Addition
-ALU_SUB  = 0x1  # Subtraction
-ALU_AND  = 0x2  # Bitwise AND
-ALU_OR   = 0x3  # Bitwise OR
-ALU_XOR  = 0x4  # Bitwise XOR
-ALU_SLL  = 0x5  # Logical left shift
-ALU_SRL  = 0x6  # Logical right shift
-ALU_SRA  = 0x7  # Arithmetic right shift
-ALU_SLT  = 0x8  # Set if less than (signed)
-ALU_SLTU = 0x9  # Set if less than (unsigned)
-ALU_SEQ  = 0xA  # Set if equal
-ALU_SNE  = 0xB  # Set if not equal
-ALU_SGE  = 0xC  # Set if greater than or equal (signed)
-ALU_SGEU = 0xD  # Set if greater than or equal (unsigned)
-ALU_SGT  = 0xE  # Set if greater than (signed)
-ALU_SGTU = 0xF  # Set if greater than (unsigned)
+ALU_ADD  = 0b0000  # Addition
+ALU_SUB  = 0b0001  # Subtraction
+ALU_AND  = 0b0010  # Bitwise AND
+ALU_OR   = 0b0011  # Bitwise OR
+ALU_XOR  = 0b0100  # Bitwise XOR
+ALU_SLL  = 0b0101  # Logical left shift
+ALU_SRL  = 0b0110  # Logical right shift
+ALU_SRA  = 0b0111  # Arithmetic right shift
+ALU_SLT  = 0b1000  # Set if less than (signed)
+ALU_SLTU = 0b1001  # Set if less than (unsigned)
+ALU_SEQ  = 0b1010  # Set if equal
+ALU_SNE  = 0b1011  # Set if not equal
+ALU_SGE  = 0b1100  # Set if greater than or equal (signed)
+ALU_SGEU = 0b1101  # Set if greater than or equal (unsigned)
+ALU_SGT  = 0b1110  # Set if greater than (signed)
+ALU_SGTU = 0b1111  # Set if greater than (unsigned)
 
 @cocotb.test()
 async def test_alu_addition(dut):
