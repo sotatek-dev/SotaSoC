@@ -1,4 +1,4 @@
-/* Simple testbench wrapper for cocotb */
+/* Testbench wrapper for RV32E ALU with cocotb */
 
 module test_rv32e_alu_tb;
     // Test signals
@@ -6,13 +6,19 @@ module test_rv32e_alu_tb;
     reg [31:0] a;
     reg [31:0] b;
     wire [31:0] result;
+    wire zero_flag;
+    wire negative_flag;
+    wire overflow_flag;
 
     // Instantiate the ALU
     rv32e_alu dut (
         .op(op),
         .a(a),
         .b(b),
-        .result(result)
+        .result(result),
+        .zero_flag(zero_flag),
+        .negative_flag(negative_flag),
+        .overflow_flag(overflow_flag)
     );
 
     // Waveform dump for cocotb
