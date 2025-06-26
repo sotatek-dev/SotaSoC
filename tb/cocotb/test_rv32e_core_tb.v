@@ -51,8 +51,8 @@ module test_rv32e_core_tb;
     
     // Monitor signals
     always @(posedge clk) begin
-        $display("Time: %0t, PC: %h, Instr: %h, Mem_Addr: %h, Mem_WE: %b, Mem_RE: %b", 
-                 $time, instr_addr, instr_data, mem_addr, mem_we, mem_re);
+        $display("Time %0t: TESTBENCH - PC=%h, Instr=%h, Mem_Addr=%h, Mem_Data=%h, Mem_Wdata=%h, Mem_WE=%b, Mem_RE=%b", 
+                 $time, instr_addr, instr_data, mem_addr, mem_data, mem_wdata, mem_we, mem_re);
     end
 
 endmodule 

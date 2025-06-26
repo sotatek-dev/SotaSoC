@@ -43,9 +43,13 @@ module rv32e_register (
             registers[13] <= 32'd0;
             registers[14] <= 32'd0;
             registers[15] <= 32'd0;
+            
+            $display("Time %0t: REG - Register file reset", $time);
         end else if (rd_we && rd_addr != 4'd0) begin
             // Write to register (x0 is always zero, so don't write to it)
             registers[rd_addr] <= rd_data;
+            $display("Time %0t: REG - Write: x%d = 0x%h (was 0x%h)", 
+                     $time, rd_addr, rd_data, registers[rd_addr]);
         end
     end
 

@@ -186,6 +186,8 @@ module rv32e_core (
             mem_wb_pc <= 32'd0;
             mem_wb_rd_addr <= 4'd0;
             mem_wb_reg_we <= 1'b0;
+            
+            $display("=== RV32E Core Reset ===");
         end else begin
             // Pipeline stage 1: Instruction Fetch
             pc <= pc_next;
@@ -250,6 +252,57 @@ module rv32e_core (
             pc_next = id_ex_pc + id_ex_imm;
         end else if (id_ex_instr[6:0] == 7'b1100111) begin // JALR
             pc_next = id_ex_rs1_data + id_ex_imm;
+        end
+    end
+
+    // Debug logging with $display statements
+    always @(posedge clk) begin
+        // Log instruction fetch
+        if (if_id_instr != 32'h00000013) begin
+            $display("Time %0t: IF - PC=0x%h, Instr=0x%h", $time, if_id_pc, if_id_instr);
+        end
+        
+        // Log instruction decode and register reads
+        if (id_ex_instr != 32'h00000013) begin
+            $display("Time %0t: ID - PC=0x%h, Instr=0x%h, rs1=x%d(0x%h), rs2=x%d(0x%h), rd=x%d", 
+                     $time, id_ex_pc, id_ex_instr, id_ex_rs1_addr, id_ex_rs1_data, 
+                     id_ex_rs2_addr, id_ex_rs2_data, id_ex_rd_addr);
+        end
+        
+        // Log ALU operations
+        if (id_ex_reg_we && id_ex_instr != 32'h00000013) begin
+            $display("Time %0t: EX - ALU: a=0x%h, b=0x%h, result=0x%h, rd=x%d", 
+                     $time, alu_a, alu_b, alu_result, id_ex_rd_addr);
+        end
+        
+        // Log memory operations
+        if (ex_mem_mem_we) begin
+            $display("Time %0t: MEM - Store: addr=0x%h, data=0x%h", 
+                     $time, ex_mem_result, ex_mem_rs2_data);
+        end
+        if (ex_mem_mem_re) begin
+            $display("Time %0t: MEM - Load: addr=0x%h, data=0x%h", 
+                     $time, ex_mem_result, mem_data);
+        end
+        
+        // Log register writes
+        if (mem_wb_reg_we) begin
+            $display("Time %0t: WB - Reg Write: x%d = 0x%h", 
+                     $time, mem_wb_rd_addr, mem_wb_result);
+        end
+        
+        // Log branches and jumps
+        if (id_ex_instr[6:0] == 7'b1100011 && id_ex_instr != 32'h00000013) begin
+            case (id_ex_alu_op)
+                4'b1000: $display("Time %0t: BRANCH - BEQ: rs1=0x%h, rs2=0x%h, zero=%b, taken=%b", 
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, alu_zero, alu_zero);
+                4'b1001: $display("Time %0t: BRANCH - BNE: rs1=0x%h, rs2=0x%h, zero=%b, taken=%b", 
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, alu_zero, !alu_zero);
+                4'b1100: $display("Time %0t: BRANCH - BLT: rs1=0x%h, rs2=0x%h, negative=%b, taken=%b", 
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, alu_negative, !alu_negative);
+                4'b1110: $display("Time %0t: BRANCH - BGE: rs1=0x%h, rs2=0x%h, negative=%b, zero=%b, taken=%b", 
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, alu_negative, alu_zero, (!alu_negative || alu_zero));
+            endcase
         end
     end
 

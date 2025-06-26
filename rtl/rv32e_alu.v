@@ -80,4 +80,44 @@ module rv32e_alu (
                        (op == SUB) ? sub_overflow : 1'b0;
     end
 
+    // Debug logging for ALU operations
+    always @(*) begin
+        case (op)
+            ADD:  $display("Time %0t: ALU - ADD: 0x%h + 0x%h = 0x%h, zero=%b, neg=%b, ovf=%b", 
+                          $time, a, b, result, zero_flag, negative_flag, overflow_flag);
+            SUB:  $display("Time %0t: ALU - SUB: 0x%h - 0x%h = 0x%h, zero=%b, neg=%b, ovf=%b", 
+                          $time, a, b, result, zero_flag, negative_flag, overflow_flag);
+            AND:  $display("Time %0t: ALU - AND: 0x%h & 0x%h = 0x%h, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            OR:   $display("Time %0t: ALU - OR:  0x%h | 0x%h = 0x%h, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            XOR:  $display("Time %0t: ALU - XOR: 0x%h ^ 0x%h = 0x%h, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SLL:  $display("Time %0t: ALU - SLL: 0x%h << %d = 0x%h, zero=%b, neg=%b", 
+                          $time, a, shift_amount, result, zero_flag, negative_flag);
+            SRL:  $display("Time %0t: ALU - SRL: 0x%h >> %d = 0x%h, zero=%b, neg=%b", 
+                          $time, a, shift_amount, result, zero_flag, negative_flag);
+            SRA:  $display("Time %0t: ALU - SRA: 0x%h >>> %d = 0x%h, zero=%b, neg=%b", 
+                          $time, a, shift_amount, result, zero_flag, negative_flag);
+            SLT:  $display("Time %0t: ALU - SLT: 0x%h < 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SLTU: $display("Time %0t: ALU - SLTU: 0x%h < 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SEQ:  $display("Time %0t: ALU - SEQ: 0x%h == 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SNE:  $display("Time %0t: ALU - SNE: 0x%h != 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SGE:  $display("Time %0t: ALU - SGE: 0x%h >= 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SGEU: $display("Time %0t: ALU - SGEU: 0x%h >= 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SGT:  $display("Time %0t: ALU - SGT: 0x%h > 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            SGTU: $display("Time %0t: ALU - SGTU: 0x%h > 0x%h = %d, zero=%b, neg=%b", 
+                          $time, a, b, result, zero_flag, negative_flag);
+            default: $display("Time %0t: ALU - UNKNOWN OP: %b, a=0x%h, b=0x%h, result=0x%h", 
+                             $time, op, a, b, result);
+        endcase
+    end
+
 endmodule 
