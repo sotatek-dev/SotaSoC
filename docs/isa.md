@@ -65,7 +65,7 @@ RV32E uses the same instruction formats as RV32I:
 
 ### B-Type (Branch)
 ```
-31           25 24    20 19    15 14    12 11    7 6      0
+31           25 24    20 19    15 14    12 11          7 6      0
   imm[12,10:5] |  rs2   |  rs1   | funct3 | imm[4:1,11] | opcode
 ```
 
@@ -87,87 +87,87 @@ RV32E uses the same instruction formats as RV32I:
 
 #### Integer Register-Register Operations (R-Type)
 
-| Instruction | Opcode | funct3 | funct7 | Operation |
-|-------------|--------|--------|--------|-----------|
-| ADD rd, rs1, rs2 | 0110011 | 000 | 0000000 | rd = rs1 + rs2 |
-| SUB rd, rs1, rs2 | 0110011 | 000 | 0100000 | rd = rs1 - rs2 |
-| SLL rd, rs1, rs2 | 0110011 | 001 | 0000000 | rd = rs1 << rs2[4:0] |
-| SLT rd, rs1, rs2 | 0110011 | 010 | 0000000 | rd = (rs1 < rs2) ? 1 : 0 (signed) |
-| SLTU rd, rs1, rs2 | 0110011 | 011 | 0000000 | rd = (rs1 < rs2) ? 1 : 0 (unsigned) |
-| XOR rd, rs1, rs2 | 0110011 | 100 | 0000000 | rd = rs1 ^ rs2 |
-| SRL rd, rs1, rs2 | 0110011 | 101 | 0000000 | rd = rs1 >> rs2[4:0] (logical) |
-| SRA rd, rs1, rs2 | 0110011 | 101 | 0100000 | rd = rs1 >> rs2[4:0] (arithmetic) |
-| OR rd, rs1, rs2 | 0110011 | 110 | 0000000 | rd = rs1 \| rs2 |
-| AND rd, rs1, rs2 | 0110011 | 111 | 0000000 | rd = rs1 & rs2 |
+| Instruction       | Opcode  | funct3 | funct7  | Operation                           |
+|-------------------|---------|--------|---------|-------------------------------------|
+| ADD rd, rs1, rs2  | 0110011 | 000    | 0000000 | rd = rs1 + rs2                      |
+| SUB rd, rs1, rs2  | 0110011 | 000    | 0100000 | rd = rs1 - rs2                      |
+| SLL rd, rs1, rs2  | 0110011 | 001    | 0000000 | rd = rs1 << rs2[4:0]                |
+| SLT rd, rs1, rs2  | 0110011 | 010    | 0000000 | rd = (rs1 < rs2) ? 1 : 0 (signed)   |
+| SLTU rd, rs1, rs2 | 0110011 | 011    | 0000000 | rd = (rs1 < rs2) ? 1 : 0 (unsigned) |
+| XOR rd, rs1, rs2  | 0110011 | 100    | 0000000 | rd = rs1 ^ rs2                      |
+| SRL rd, rs1, rs2  | 0110011 | 101    | 0000000 | rd = rs1 >> rs2[4:0] (logical)      |
+| SRA rd, rs1, rs2  | 0110011 | 101    | 0100000 | rd = rs1 >> rs2[4:0] (arithmetic)   |
+| OR rd, rs1, rs2   | 0110011 | 110    | 0000000 | rd = rs1 \| rs2                     |
+| AND rd, rs1, rs2  | 0110011 | 111    | 0000000 | rd = rs1 & rs2                      |
 
 #### Integer Register-Immediate Operations (I-Type)
 
-| Instruction | Opcode | funct3 | Operation |
-|-------------|--------|--------|-----------|
-| ADDI rd, rs1, imm | 0010011 | 000 | rd = rs1 + sign_extend(imm) |
-| SLTI rd, rs1, imm | 0010011 | 010 | rd = (rs1 < sign_extend(imm)) ? 1 : 0 |
-| SLTIU rd, rs1, imm | 0010011 | 011 | rd = (rs1 < sign_extend(imm)) ? 1 : 0 (unsigned) |
-| XORI rd, rs1, imm | 0010011 | 100 | rd = rs1 ^ sign_extend(imm) |
-| ORI rd, rs1, imm | 0010011 | 110 | rd = rs1 \| sign_extend(imm) |
-| ANDI rd, rs1, imm | 0010011 | 111 | rd = rs1 & sign_extend(imm) |
-| SLLI rd, rs1, shamt | 0010011 | 001 | rd = rs1 << shamt |
-| SRLI rd, rs1, shamt | 0010011 | 101 | rd = rs1 >> shamt (logical) |
-| SRAI rd, rs1, shamt | 0010011 | 101 | rd = rs1 >> shamt (arithmetic) |
+| Instruction        | Opcode  | funct3 | Operation                           |
+|--------------------|---------|--------|-------------------------------------|
+| ADDI rd, rs1, imm  | 0010011 | 000    | rd = rs1 + sign_extend(imm)        |
+| SLTI rd, rs1, imm  | 0010011 | 010    | rd = (rs1 < sign_extend(imm)) ? 1 : 0 |
+| SLTIU rd, rs1, imm | 0010011 | 011    | rd = (rs1 < sign_extend(imm)) ? 1 : 0 (unsigned) |
+| XORI rd, rs1, imm  | 0010011 | 100    | rd = rs1 ^ sign_extend(imm)        |
+| ORI rd, rs1, imm   | 0010011 | 110    | rd = rs1 \| sign_extend(imm)       |
+| ANDI rd, rs1, imm  | 0010011 | 111    | rd = rs1 & sign_extend(imm)        |
+| SLLI rd, rs1, shamt| 0010011 | 001    | rd = rs1 << shamt                  |
+| SRLI rd, rs1, shamt| 0010011 | 101    | rd = rs1 >> shamt (logical)        |
+| SRAI rd, rs1, shamt| 0010011 | 101    | rd = rs1 >> shamt (arithmetic)     |
 
 ### 2. Load and Store Instructions
 
 #### Load Instructions (I-Type)
 
-| Instruction | Opcode | funct3 | Operation |
-|-------------|--------|--------|-----------|
-| LB rd, offset(rs1) | 0000011 | 000 | rd = sign_extend(M[rs1 + offset][7:0]) |
-| LH rd, offset(rs1) | 0000011 | 001 | rd = sign_extend(M[rs1 + offset][15:0]) |
-| LW rd, offset(rs1) | 0000011 | 010 | rd = M[rs1 + offset] |
-| LBU rd, offset(rs1) | 0000011 | 100 | rd = zero_extend(M[rs1 + offset][7:0]) |
-| LHU rd, offset(rs1) | 0000011 | 101 | rd = zero_extend(M[rs1 + offset][15:0]) |
+| Instruction        | Opcode  | funct3 | Operation                           |
+|--------------------|---------|--------|-------------------------------------|
+| LB rd, offset(rs1) | 0000011 | 000    | rd = sign_extend(M[rs1 + offset][7:0]) |
+| LH rd, offset(rs1) | 0000011 | 001    | rd = sign_extend(M[rs1 + offset][15:0]) |
+| LW rd, offset(rs1) | 0000011 | 010    | rd = M[rs1 + offset]               |
+| LBU rd, offset(rs1)| 0000011 | 100    | rd = zero_extend(M[rs1 + offset][7:0]) |
+| LHU rd, offset(rs1)| 0000011 | 101    | rd = zero_extend(M[rs1 + offset][15:0]) |
 
 #### Store Instructions (S-Type)
 
-| Instruction | Opcode | funct3 | Operation |
-|-------------|--------|--------|-----------|
-| SB rs2, offset(rs1) | 0100011 | 000 | M[rs1 + offset] = rs2[7:0] |
-| SH rs2, offset(rs1) | 0100011 | 001 | M[rs1 + offset] = rs2[15:0] |
-| SW rs2, offset(rs1) | 0100011 | 010 | M[rs1 + offset] = rs2 |
+| Instruction        | Opcode  | funct3 | Operation                           |
+|--------------------|---------|--------|-------------------------------------|
+| SB rs2, offset(rs1)| 0100011 | 000    | M[rs1 + offset] = rs2[7:0]         |
+| SH rs2, offset(rs1)| 0100011 | 001    | M[rs1 + offset] = rs2[15:0]        |
+| SW rs2, offset(rs1)| 0100011 | 010    | M[rs1 + offset] = rs2              |
 
 ### 3. Control Transfer Instructions
 
 #### Unconditional Jumps
 
-| Instruction | Type | Operation |
-|-------------|------|-----------|
-| JAL rd, offset | J-Type | rd = PC + 4; PC = PC + sign_extend(offset) |
-| JALR rd, rs1, offset | I-Type | rd = PC + 4; PC = (rs1 + sign_extend(offset)) & ~1 |
+| Instruction         | Opcode  | Type   | Operation                           |
+|---------------------|---------|--------|-------------------------------------|
+| JAL rd, offset      | 1101111 | J-Type | rd = PC + 4; PC = PC + sign_extend(offset) |
+| JALR rd, rs1, offset| 1100111 | I-Type | rd = PC + 4; PC = (rs1 + sign_extend(offset)) & ~1 |
 
 #### Conditional Branches (B-Type)
 
-| Instruction | funct3 | Operation |
-|-------------|--------|-----------|
-| BEQ rs1, rs2, offset | 000 | if (rs1 == rs2) PC = PC + sign_extend(offset) |
-| BNE rs1, rs2, offset | 001 | if (rs1 != rs2) PC = PC + sign_extend(offset) |
-| BLT rs1, rs2, offset | 100 | if (rs1 < rs2) PC = PC + sign_extend(offset) (signed) |
-| BGE rs1, rs2, offset | 101 | if (rs1 >= rs2) PC = PC + sign_extend(offset) (signed) |
-| BLTU rs1, rs2, offset | 110 | if (rs1 < rs2) PC = PC + sign_extend(offset) (unsigned) |
-| BGEU rs1, rs2, offset | 111 | if (rs1 >= rs2) PC = PC + sign_extend(offset) (unsigned) |
+| Instruction          | Opcode  | funct3 | Operation                           |
+|----------------------|---------|--------|-------------------------------------|
+| BEQ rs1, rs2, offset | 1100011 | 000    | if (rs1 == rs2) PC = PC + sign_extend(offset) |
+| BNE rs1, rs2, offset | 1100011 | 001    | if (rs1 != rs2) PC = PC + sign_extend(offset) |
+| BLT rs1, rs2, offset | 1100011 | 100    | if (rs1 < rs2) PC = PC + sign_extend(offset) (signed) |
+| BGE rs1, rs2, offset | 1100011 | 101    | if (rs1 >= rs2) PC = PC + sign_extend(offset) (signed) |
+| BLTU rs1, rs2, offset| 1100011 | 110    | if (rs1 < rs2) PC = PC + sign_extend(offset) (unsigned) |
+| BGEU rs1, rs2, offset| 1100011 | 111    | if (rs1 >= rs2) PC = PC + sign_extend(offset) (unsigned) |
 
 ### 4. Upper Immediate Instructions (U-Type)
 
-| Instruction | Operation |
-|-------------|-----------|
-| LUI rd, imm | rd = sign_extend(imm << 12) |
-| AUIPC rd, imm | rd = PC + sign_extend(imm << 12) |
+| Instruction        | Opcode  | Operation                           |
+|--------------------|---------|-------------------------------------|
+| LUI rd, imm        | 0110111 | rd = sign_extend(imm << 12)         |
+| AUIPC rd, imm      | 0010111 | rd = PC + sign_extend(imm << 12)    |
 
 ### 5. System Instructions
 
-| Instruction | Opcode | funct3 | Operation |
-|-------------|--------|--------|-----------|
-| FENCE | 0001111 | 000 | Order memory accesses |
-| ECALL | 1110011 | 000 | Environment call |
-| EBREAK | 1110011 | 000 | Environment break |
+| Instruction        | Opcode  | funct3 | Operation                           |
+|--------------------|---------|--------|-------------------------------------|
+| FENCE              | 0001111 | 000    | Order memory accesses               |
+| ECALL              | 1110011 | 000    | Environment call                    |
+| EBREAK             | 1110011 | 000    | Environment break                   |
 
 ## Implementation Details
 
