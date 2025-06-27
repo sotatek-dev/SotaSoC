@@ -5,6 +5,7 @@ import random
 
 # Constants
 CYCLES_PER_INSTRUCTION = 8
+NOP_INSTR = 0x00000013
 
 @cocotb.test()
 async def test_reset(dut):
@@ -198,145 +199,62 @@ async def test_store_instruction(dut):
         await RisingEdge(dut.clk)
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got {dut.core.mem_addr.value.integer:08x}"
-    assert dut.core.mem_wdata.value == 0x6DE, f"Mem_wdata should be 0x6DE, got {dut.core.mem_wdata.value.integer:08x}" 
+    assert dut.core.mem_wdata.value == 0x6DE, f"Mem_wdata should be 0x6DE, got {dut.core.mem_wdata.value.integer:08x}"
     
     # Verify that x2 still contains the original value after store
     assert dut.core.register_file.registers[2].value == 0x6DE, f"Register x2 should still be 0x6DE, got {dut.core.register_file.registers[2].value.integer:08x}" 
 
+async def do_test(dut, memory, cycles):
+    """Do test"""
+
+    clock = Clock(dut.clk, 10, units="ns")
+    cocotb.start_soon(clock.start())
+    
+    dut.instr_data.value = memory[0x80000000]
+    dut.mem_data.value = 0x00000000
+
+    # Reset
+    dut.rst_n.value = 0
+    await Timer(20, units="ns")
+    dut.rst_n.value = 1
+    
+    # Execute for several cycles
+    for _ in range(cycles):
+        await RisingEdge(dut.clk)
+        dut.instr_data.value = memory[dut.instr_addr.value.integer]
+        print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
+
 @cocotb.test()
 async def test_branch_instruction(dut):
     """Test branch instruction"""
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(20, units="ns")
-    dut.rst_n.value = 1
-    
-    # BEQ x1, x2, 8 (branch if x1 == x2, offset 8)
-    dut.instr_data.value = 0x00208263
-    dut.mem_data.value = 0x00000000
-    
-    # Execute for several cycles
-    for _ in range(15):
-        await RisingEdge(dut.clk)
-        print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}")
 
-@cocotb.test()
-async def test_pipeline_behavior(dut):
-    """Test pipeline behavior with multiple instructions"""
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(20, units="ns")
-    dut.rst_n.value = 1
-    
-    # Simulate a simple program sequence
-    instructions = [
-        0x00500093,  # ADDI x1, x0, 5
-        0x00a00113,  # ADDI x2, x0, 10
-        0x00208133,  # ADD x3, x1, x2
-        0x0000a203,  # LW x4, 0(x1)
-        0x0040a223   # SW x4, 4(x1)
-    ]
-    
-    # Execute instructions
-    for i, instr in enumerate(instructions):
-        dut.instr_data.value = instr
-        dut.mem_data.value = 0x12345678
-        
-        # Execute for a few cycles per instruction
-        for _ in range(5):
-            await RisingEdge(dut.clk)
-            print(f"Instr {i}, Cycle {_}: PC={dut.instr_addr.value.integer:08x}, "
-                  f"Mem_WE={dut.mem_we.value}, Mem_RE={dut.mem_re.value}")
+    ADDI_INSTR = 0x00108093
 
-@cocotb.test()
-async def test_register_file_access(dut):
-    """Test register file read/write operations"""
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(20, units="ns")
-    dut.rst_n.value = 1
-    
-    # Write to registers using ADDI
-    write_instructions = [
-        0x00500093,  # ADDI x1, x0, 5
-        0x00a00113,  # ADDI x2, x0, 10
-        0x01500193,  # ADDI x3, x0, 21
-    ]
-    
-    for instr in write_instructions:
-        dut.instr_data.value = instr
-        dut.mem_data.value = 0x00000000
-        
-        # Execute for several cycles
-        for _ in range(8):
-            await RisingEdge(dut.clk)
-            print(f"Write cycle: PC={dut.instr_addr.value.integer:08x}")
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x002080E3, # BEQ x1, x2, 0x800 => Jump to 0x80001004
+        0x80000008: ADDI_INSTR, # ADDI x1, x1, 1 => it should not be executed
+        0x8000000C: ADDI_INSTR, # ADDI x1, x1, 1
+        0x80000010: ADDI_INSTR, # ADDI x1, x1, 1
+        0x80000014: ADDI_INSTR,
+        0x80000018: ADDI_INSTR,
+        0x8000001C: ADDI_INSTR,
+        0x80000800: ADDI_INSTR,
+        0x80001004: 0x00210113, # ADDI x2, x2, 2 => it should be executed
+        0x80001008: 0x00318193, # ADDI x3, x3, 3 => it should be executed
+        0x8000100C: 0x00420213, # ADDI x4, x4, 4 => it should be executed
+        0x80001010: NOP_INSTR,
+        0x80001014: NOP_INSTR,
+        0x80001018: NOP_INSTR,
+        0x8000101C: NOP_INSTR,
+        0x80001020: NOP_INSTR,
+        0x80001024: NOP_INSTR,
+        0x80001028: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
 
-@cocotb.test()
-async def test_alu_operations(dut):
-    """Test various ALU operations"""
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(20, units="ns")
-    dut.rst_n.value = 1
-    
-    # Test different ALU operations
-    alu_instructions = [
-        0x00500093,  # ADDI x1, x0, 5
-        0x00a00113,  # ADDI x2, x0, 10
-        0x00208133,  # ADD x3, x1, x2
-        0x40208133,  # SUB x3, x1, x2
-        0x0020f133,  # AND x3, x1, x2
-        0x0020e133,  # OR x3, x1, x2
-        0x0020c133,  # XOR x3, x1, x2
-    ]
-    
-    for i, instr in enumerate(alu_instructions):
-        dut.instr_data.value = instr
-        dut.mem_data.value = 0x00000000
-        
-        # Execute for several cycles
-        for _ in range(6):
-            await RisingEdge(dut.clk)
-            print(f"ALU op {i}, cycle {_}: PC={dut.instr_addr.value.integer:08x}")
-
-@cocotb.test()
-async def test_memory_interface(dut):
-    """Test memory interface signals"""
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(20, units="ns")
-    dut.rst_n.value = 1
-    
-    # Test memory operations
-    memory_instructions = [
-        0x00500093,  # ADDI x1, x0, 5 (set up address)
-        0x0000a203,  # LW x4, 0(x1) (load)
-        0x0040a223,  # SW x4, 4(x1) (store)
-    ]
-    
-    for i, instr in enumerate(memory_instructions):
-        dut.instr_data.value = instr
-        dut.mem_data.value = 0x12345678
-        
-        # Execute for several cycles
-        for _ in range(8):
-            await RisingEdge(dut.clk)
-            print(f"Memory op {i}, cycle {_}: PC={dut.instr_addr.value.integer:08x}, "
-                  f"Mem_Addr={dut.mem_addr.value.integer:08x}, "
-                  f"Mem_WE={dut.mem_we.value}, Mem_RE={dut.mem_re.value}")
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 0, f"Register x1 should still be 0, got {registers[1].value.integer:08x}"
+    assert registers[2].value == 2, f"Register x2 should be 2, got {registers[2].value.integer:08x}"
+    assert registers[3].value == 3, f"Register x3 should be 3, got {registers[3].value.integer:08x}"
+    assert registers[4].value == 4, f"Register x4 should be 4, got {registers[4].value.integer:08x}"

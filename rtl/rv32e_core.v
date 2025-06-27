@@ -37,6 +37,10 @@ module rv32e_core (
     reg [3:0] mem_wb_rd_addr;
     reg mem_wb_reg_we;
 
+    // Pipeline control signals
+    wire branch_taken;
+    reg flush_if_id;
+
     // Instruction fields
     wire [6:0] opcode;
     wire [2:0] funct3;
@@ -155,11 +159,17 @@ module rv32e_core (
                        (ex_mem_instr[6:0] == 7'b0110111) ? ex_mem_result :      // LUI: ALU result (immediate)
                        ex_mem_result;                                           // Others: ALU result
 
+    // Branch detection logic
+    assign branch_taken = (id_ex_instr[6:0] == 7'b1100011) ||     // B-Type (BEQ, BNE, BLT, BGE)
+                          (id_ex_instr[6:0] == 7'b1101111) ||     // JAL
+                          (id_ex_instr[6:0] == 7'b1100111);       // JALR
+
     // Pipeline stages
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset all pipeline registers
             pc <= 32'h80000000; // Start at typical RISC-V reset address
+            flush_if_id <= 1'b0;
             if_id_instr <= 32'h00000013; // NOP instruction
             if_id_pc <= 32'h80000000;
             id_ex_instr <= 32'h00000013;
@@ -217,6 +227,27 @@ module rv32e_core (
                 default: id_ex_imm <= 32'd0;
             endcase
 
+            // Pipeline: Flush with NOP if branch taken
+            flush_if_id <= !flush_if_id && branch_taken;
+            if (branch_taken == 1'b1 || flush_if_id == 1'b1) begin
+                $display("Time %0t: IF/ID - Flushing with NOP", $time);
+                if_id_instr <= 32'h00000013; // NOP instruction
+                if_id_pc <= 32'h00000000;    // Invalid PC
+
+                id_ex_instr <= 32'h00000013;
+                id_ex_pc <= 32'h00000000;
+                id_ex_rs1_data <= 32'd0;
+                id_ex_rs2_data <= 32'd0;
+                id_ex_rs1_addr <= 4'd0;
+                id_ex_rs2_addr <= 4'd0;
+                id_ex_rd_addr <= 4'd0;
+                id_ex_alu_op <= 4'd0;
+                id_ex_mem_we <= 1'b0;
+                id_ex_mem_re <= 1'b0;
+                id_ex_reg_we <= 1'b0;
+                id_ex_imm <= 32'd0;
+            end
+
             // Pipeline stage 3: Execute
             ex_mem_result <= alu_result;
             ex_mem_rs2_data <= id_ex_rs2_data;
@@ -242,32 +273,28 @@ module rv32e_core (
         // Handle branches and jumps
         if (id_ex_instr[6:0] == 7'b1100011) begin // Branch
             case (id_ex_alu_op)
-                4'b1000: pc_next = (alu_zero) ? id_ex_pc + id_ex_imm : pc + 4; // BEQ
-                4'b1001: pc_next = (!alu_zero) ? id_ex_pc + id_ex_imm : pc + 4; // BNE
-                4'b1100: pc_next = (alu_negative == 1'b0) ? id_ex_pc + id_ex_imm : pc + 4; // BLT
-                4'b1110: pc_next = (alu_negative == 1'b0 && !alu_zero) ? id_ex_pc + id_ex_imm : pc + 4; // BGT
+                4'b1000: pc_next = (alu_zero) ? ex_mem_pc + id_ex_imm * 2 : pc + 4; // BEQ
+                4'b1001: pc_next = (!alu_zero) ? ex_mem_pc + id_ex_imm * 2 : pc + 4; // BNE
+                4'b1100: pc_next = (alu_negative == 1'b0) ? ex_mem_pc + id_ex_imm * 2 : pc + 4; // BLT
+                4'b1110: pc_next = (alu_negative == 1'b0 && !alu_zero) ? ex_mem_pc + id_ex_imm * 2 : pc + 4; // BGT
                 default: pc_next = pc + 4;
             endcase
         end else if (id_ex_instr[6:0] == 7'b1101111) begin // JAL
-            pc_next = id_ex_pc + id_ex_imm;
+            pc_next = ex_mem_pc + id_ex_imm * 2;
         end else if (id_ex_instr[6:0] == 7'b1100111) begin // JALR
-            pc_next = id_ex_rs1_data + id_ex_imm;
+            pc_next = id_ex_rs1_data + id_ex_imm * 2;
         end
     end
 
     // Debug logging with $display statements
     always @(posedge clk) begin
         // Log instruction fetch
-        if (if_id_instr != 32'h00000013) begin
-            $display("Time %0t: IF - PC=0x%h, Instr=0x%h", $time, if_id_pc, if_id_instr);
-        end
+        $display("Time %0t: IF - PC=0x%h, Instr=0x%h, PC_next=0x%h", $time, if_id_pc, if_id_instr, pc_next);
         
         // Log instruction decode and register reads
-        if (id_ex_instr != 32'h00000013) begin
-            $display("Time %0t: ID - PC=0x%h, Instr=0x%h, rs1=x%d(0x%h), rs2=x%d(0x%h), rd=x%d", 
-                     $time, id_ex_pc, id_ex_instr, id_ex_rs1_addr, id_ex_rs1_data, 
-                     id_ex_rs2_addr, id_ex_rs2_data, id_ex_rd_addr);
-        end
+        $display("Time %0t: ID - PC=0x%h, Instr=0x%h, rs1=x%d(0x%h), rs2=x%d(0x%h), rd=x%d", 
+                    $time, id_ex_pc, id_ex_instr, id_ex_rs1_addr, id_ex_rs1_data, 
+                    id_ex_rs2_addr, id_ex_rs2_data, id_ex_rd_addr);
         
         // Log ALU operations
         if (id_ex_reg_we && id_ex_instr != 32'h00000013) begin
