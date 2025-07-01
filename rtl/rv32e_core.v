@@ -36,10 +36,17 @@ module rv32e_core (
     reg [31:0] mem_wb_result, mem_wb_pc;
     reg [3:0] mem_wb_rd_addr;
     reg mem_wb_reg_we;
+    reg [31:0] wb___result;
+    reg [3:0] wb___rd_addr;
+    reg wb___reg_we;
 
     // Pipeline control signals
     wire branch_taken;
     reg flush_if_id;
+
+    // Data forwarding signals
+    wire [31:0] id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded;
+    wire rs1_forward_ex, rs1_forward_mem, rs2_forward_ex, rs2_forward_mem, rs1_forward_wb, rs2_forward_wb;
 
     // Instruction fields
     wire [6:0] opcode;
@@ -48,6 +55,9 @@ module rv32e_core (
     wire [4:0] rd, rs1, rs2;
     wire [11:0] imm12;
     wire [31:0] imm_i, imm_s, imm_b, imm_u, imm_j;
+
+    // Use to check data hazard
+    wire [4:0] id_rs1, id_rs2;
 
     // Control signals
     wire [3:0] alu_op;
@@ -61,20 +71,20 @@ module rv32e_core (
     // ALU operand selection
     wire [31:0] alu_a, alu_b;
     
-    // ALU operand A selection
-    assign alu_a = (id_ex_instr[6:0] == 7'b0010111) ? id_ex_pc : id_ex_rs1_data; // AUIPC uses PC
+    // ALU operand A selection - use forwarded data
+    assign alu_a = (id_ex_instr[6:0] == 7'b0010111) ? id_ex_pc : id_ex_rs1_data_forwarded; // AUIPC uses PC
     
-    // ALU operand B selection
-    assign alu_b = (id_ex_instr[6:0] == 7'b0110011) ? id_ex_rs2_data :  // R-type: use rs2
-                   (id_ex_instr[6:0] == 7'b0010011) ? id_ex_imm :       // I-type (ALU): use immediate
-                   (id_ex_instr[6:0] == 7'b0000011) ? id_ex_imm :       // I-type (Load): use immediate for address
-                   (id_ex_instr[6:0] == 7'b0100011) ? id_ex_imm :       // S-type (Store): use immediate for address
-                   (id_ex_instr[6:0] == 7'b1100011) ? id_ex_rs2_data :  // B-type: use rs2 for comparison
-                   (id_ex_instr[6:0] == 7'b1101111) ? id_ex_imm :       // J-type (JAL): use immediate
-                   (id_ex_instr[6:0] == 7'b1100111) ? id_ex_imm :       // I-type (JALR): use immediate
-                   (id_ex_instr[6:0] == 7'b0110111) ? id_ex_imm :       // U-type (LUI): use immediate
-                   (id_ex_instr[6:0] == 7'b0010111) ? id_ex_imm :       // U-type (AUIPC): use immediate
-                   id_ex_rs2_data; // default
+    // ALU operand B selection - use forwarded data
+    assign alu_b = (id_ex_instr[6:0] == 7'b0110011) ? id_ex_rs2_data_forwarded :  // R-type: use rs2
+                   (id_ex_instr[6:0] == 7'b0010011) ? id_ex_imm :                 // I-type (ALU): use immediate
+                   (id_ex_instr[6:0] == 7'b0000011) ? id_ex_imm :                 // I-type (Load): use immediate for address
+                   (id_ex_instr[6:0] == 7'b0100011) ? id_ex_imm :                 // S-type (Store): use immediate for address
+                   (id_ex_instr[6:0] == 7'b1100011) ? id_ex_rs2_data_forwarded :  // B-type: use rs2 for comparison
+                   (id_ex_instr[6:0] == 7'b1101111) ? id_ex_imm :                 // J-type (JAL): use immediate
+                   (id_ex_instr[6:0] == 7'b1100111) ? id_ex_imm :                 // I-type (JALR): use immediate
+                   (id_ex_instr[6:0] == 7'b0110111) ? id_ex_imm :                 // U-type (LUI): use immediate
+                   (id_ex_instr[6:0] == 7'b0010111) ? id_ex_imm :                 // U-type (AUIPC): use immediate
+                   id_ex_rs2_data_forwarded; // default
 
     // Instruction decoding
     assign opcode = if_id_instr[6:0];
@@ -91,6 +101,9 @@ module rv32e_core (
     assign imm_b = {{20{if_id_instr[31]}}, if_id_instr[7], if_id_instr[30:25], if_id_instr[11:8], 1'b0};
     assign imm_u = {if_id_instr[31:12], 12'b0};
     assign imm_j = {{12{if_id_instr[31]}}, if_id_instr[19:12], if_id_instr[20], if_id_instr[30:21], 1'b0};
+
+    assign id_rs1 = id_ex_instr[19:15];
+    assign id_rs2 = id_ex_instr[24:20];
 
     // Instruction address
     assign instr_addr = pc;
@@ -163,6 +176,34 @@ module rv32e_core (
     assign branch_taken = (id_ex_instr[6:0] == 7'b1100011) ||     // B-Type (BEQ, BNE, BLT, BGE)
                           (id_ex_instr[6:0] == 7'b1101111) ||     // JAL
                           (id_ex_instr[6:0] == 7'b1100111);       // JALR
+
+    // Data forwarding logic
+    // Check if we need to forward from EX/MEM stage
+    assign rs1_forward_ex = (id_rs1[3:0] != 0) && (id_rs1[3:0] == ex_mem_rd_addr) && ex_mem_reg_we;
+    assign rs2_forward_ex = (id_rs2[3:0] != 0) && (id_rs2[3:0] == ex_mem_rd_addr) && ex_mem_reg_we;
+    
+    // Check if we need to forward from MEM/WB stage
+    assign rs1_forward_mem = (id_rs1[3:0] != 0) && (id_rs1[3:0] == mem_wb_rd_addr) && mem_wb_reg_we && 
+                             !rs1_forward_ex; // Only if not already forwarding from EX/MEM
+    assign rs2_forward_mem = (id_rs2[3:0] != 0) && (id_rs2[3:0] == mem_wb_rd_addr) && mem_wb_reg_we && 
+                             !rs2_forward_ex; // Only if not already forwarding from EX/MEM
+
+    // Check if we need to forward from WB stage
+    assign rs1_forward_wb = (id_rs1[3:0] != 0) && (id_rs1[3:0] == wb___rd_addr) && wb___reg_we && 
+                             !rs1_forward_ex && !rs1_forward_mem;
+    assign rs2_forward_wb = (id_rs2[3:0] != 0) && (id_rs2[3:0] == wb___rd_addr) && wb___reg_we && 
+                             !rs2_forward_ex && !rs2_forward_mem;
+
+    // Select forwarded data
+    assign id_ex_rs1_data_forwarded = rs1_forward_ex ? ex_mem_result :
+                                rs1_forward_mem ? mem_wb_result :
+                                rs1_forward_wb ? wb___result :
+                                id_ex_rs1_data;
+
+    assign id_ex_rs2_data_forwarded = rs2_forward_ex ? ex_mem_result :
+                                rs2_forward_mem ? mem_wb_result :
+                                rs2_forward_wb ? wb___result :
+                                id_ex_rs2_data;
 
     // Pipeline stages
     always @(posedge clk or negedge rst_n) begin
@@ -263,6 +304,11 @@ module rv32e_core (
             mem_wb_pc <= ex_mem_pc;
             mem_wb_rd_addr <= ex_mem_rd_addr;
             mem_wb_reg_we <= ex_mem_reg_we;
+
+            // Pipeline stage 5: Writeback
+            wb___result <= mem_wb_result;
+            wb___rd_addr <= mem_wb_rd_addr;
+            wb___reg_we <= mem_wb_reg_we;
         end
     end
 
@@ -296,10 +342,34 @@ module rv32e_core (
                     $time, id_ex_pc, id_ex_instr, id_ex_rs1_addr, id_ex_rs1_data, 
                     id_ex_rs2_addr, id_ex_rs2_data, id_ex_rd_addr);
         
+        // Log data forwarding
+        if (rs1_forward_ex || rs1_forward_mem || rs1_forward_wb) begin
+            $display("Time %0t: FORWARD - rs1 forwarding: rs1=x%d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
+                     $time, rs1[3:0], rs1_forward_ex, rs1_forward_mem, rs1_forward_wb, id_ex_rs1_data_forwarded);
+        end
+        if (rs2_forward_ex || rs2_forward_mem || rs2_forward_wb) begin
+            $display("Time %0t: FORWARD - rs2 forwarding: rs2=x%d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
+                     $time, rs2[3:0], rs2_forward_ex, rs2_forward_mem, rs2_forward_wb, id_ex_rs2_data_forwarded);
+        end
+        
+        // Log hazard detection
+        if ((id_rs1[3:0] != 0 && id_rs1[3:0] == ex_mem_rd_addr && ex_mem_reg_we) ||
+            (id_rs2[3:0] != 0 && id_rs2[3:0] == ex_mem_rd_addr && ex_mem_reg_we) ||
+            (id_rs1[3:0] != 0 && id_rs1[3:0] == mem_wb_rd_addr && mem_wb_reg_we) ||
+            (id_rs2[3:0] != 0 && id_rs2[3:0] == mem_wb_rd_addr && mem_wb_reg_we) ||
+            (id_rs1[3:0] != 0 && id_rs1[3:0] == wb___rd_addr && wb___reg_we) ||
+            (id_rs2[3:0] != 0 && id_rs2[3:0] == wb___rd_addr && wb___reg_we)) begin
+            $display("Time %0t: HAZARD - RAW hazard detected: rs1=x%d, rs2=x%d, ex_mem_rd=x%d, mem_wb_rd=x%d, wb___rd=x%d", 
+                     $time, id_rs1[3:0], id_rs2[3:0], ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr);
+        end
+        
         // Log ALU operations
         if (id_ex_reg_we && id_ex_instr != 32'h00000013) begin
             $display("Time %0t: EX - ALU: a=0x%h, b=0x%h, result=0x%h, rd=x%d", 
                      $time, alu_a, alu_b, alu_result, id_ex_rd_addr);
+        end
+        else begin
+            $display("Time %0t: EX - Non-ALU Operation", $time);
         end
         
         // Log memory operations
@@ -311,11 +381,17 @@ module rv32e_core (
             $display("Time %0t: MEM - Load: addr=0x%h, data=0x%h", 
                      $time, ex_mem_result, mem_data);
         end
+        if (!ex_mem_mem_we && !ex_mem_mem_re) begin
+            $display("Time %0t: MEM - Non-Memory Operation", $time);
+        end
         
         // Log register writes
         if (mem_wb_reg_we) begin
             $display("Time %0t: WB - Reg Write: x%d = 0x%h", 
                      $time, mem_wb_rd_addr, mem_wb_result);
+        end
+        else begin
+            $display("Time %0t: WB - Non-Reg Write", $time);
         end
         
         // Log branches and jumps
@@ -331,6 +407,8 @@ module rv32e_core (
                                   $time, id_ex_rs1_data, id_ex_rs2_data, alu_negative, alu_zero, (!alu_negative || alu_zero));
             endcase
         end
+
+        $display("--------------------------------");
     end
 
 endmodule

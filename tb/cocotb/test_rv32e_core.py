@@ -222,7 +222,7 @@ async def do_test(dut, memory, cycles):
     for _ in range(cycles):
         await RisingEdge(dut.clk)
         dut.instr_data.value = memory[dut.instr_addr.value.integer]
-        print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
+        # print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
 
 @cocotb.test()
 async def test_branch_instruction(dut):
@@ -258,3 +258,271 @@ async def test_branch_instruction(dut):
     assert registers[2].value == 2, f"Register x2 should be 2, got {registers[2].value.integer:08x}"
     assert registers[3].value == 3, f"Register x3 should be 3, got {registers[3].value.integer:08x}"
     assert registers[4].value == 4, f"Register x4 should be 4, got {registers[4].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs1_1(dut):
+    """Test hazard: forward from EX stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1
+        0x80000008: 0x00208093, # ADDI x1, x1, 2
+        0x8000000C: 0x00308093, # ADDI x1, x1, 3
+        0x80000010: 0x00408093, # ADDI x1, x1, 4
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 10, f"Register x1 should be 10, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs1_2(dut):
+    """Test hazard: forward from MEM stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: 0x00208093, # ADDI x1, x1, 2
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 3, f"Register x1 should be 3, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs1_3(dut):
+    """Test hazard: forward from WB stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: NOP_INSTR,
+        0x80000010: 0x00208093, # ADDI x1, x1, 2
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 3, f"Register x1 should be 3, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs1_4(dut):
+    """Test hazard: no hazard"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: 0x00208093, # ADDI x1, x1, 2
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 3, f"Register x1 should be 3, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs1_5(dut):
+    """Test hazard"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1
+        0x80000008: 0x00208093, # ADDI x1, x1, 2
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: 0x00308093, # ADDI x1, x1, 3
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 6, f"Register x1 should be 6, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs2_1(dut):
+    """Test hazard: forward from EX stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1 => x1 = 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: 0x001080B3, # ADD x1, x1, x1 => x1 = 2
+        0x8000001C: 0x001080B3, # ADD x1, x1, x1 => x1 = 4
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 4, f"Register x1 should be 4, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs2_2(dut):
+    """Test hazard: forward from MEM stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1 => x1 = 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: 0x001080B3, # ADD x1, x1, x1 => x1 = 2
+        0x8000001C: NOP_INSTR,
+        0x80000020: 0x001080B3, # ADD x1, x1, x1 => x1 = 4
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
+        0x8000003C: NOP_INSTR,
+        0x80000040: NOP_INSTR,
+        0x80000044: NOP_INSTR,
+        0x80000048: NOP_INSTR,
+        0x8000004C: NOP_INSTR,
+    }
+    await do_test(dut, memory, 20)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 4, f"Register x1 should be 4, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs2_3(dut):
+    """Test hazard: forward from WB stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1 => x1 = 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: 0x001080B3, # ADD x1, x1, x1 => x1 = 2
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: 0x001080B3, # ADD x1, x1, x1 => x1 = 4
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
+        0x8000003C: NOP_INSTR,
+        0x80000040: NOP_INSTR,
+        0x80000044: NOP_INSTR,
+        0x80000048: NOP_INSTR,
+        0x8000004C: NOP_INSTR,
+    }
+    await do_test(dut, memory, 20)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 4, f"Register x1 should be 4, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs2_4(dut):
+    """Test hazard: no hazard"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1 => x1 = 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: 0x001080B3, # ADD x1, x1, x1 => x1 = 2
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: 0x001080B3, # ADD x1, x1, x1 => x1 = 4
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
+        0x8000003C: NOP_INSTR,
+        0x80000040: NOP_INSTR,
+        0x80000044: NOP_INSTR,
+        0x80000048: NOP_INSTR,
+        0x8000004C: NOP_INSTR,
+    }
+    await do_test(dut, memory, 20)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 4, f"Register x1 should be 4, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_hazard_rs2_5(dut):
+    """Test hazard: forward from EX stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1 => x1 = 1
+        0x80000008: NOP_INSTR,
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: 0x00108133, # ADD x2, x1, x1 => x2 = 2
+        0x8000001C: 0x002080B3, # ADD x1, x1, x2 => x1 = 3
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 3, f"Register x1 should be 3, got {registers[1].value.integer:08x}"

@@ -3,3 +3,4 @@ sim_build*
 vcd
 .pytest_cache
 results.xml
+.DS_Store
