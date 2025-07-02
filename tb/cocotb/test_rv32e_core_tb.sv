@@ -26,14 +26,16 @@ module test_rv32e_core_tb;
         .mem_we(mem_we),
         .mem_re(mem_re)
     );
-    
-    // Monitor signals
-    // always @(posedge clk) begin
-    //     $display("Time %0t: TESTBENCH - PC=%h, Instr=%h, Mem_Addr=%h, Mem_Data=%h, Mem_Wdata=%h, Mem_WE=%b, Mem_RE=%b", 
-    //              $time, instr_addr, instr_data, mem_addr, mem_data, mem_wdata, mem_we, mem_re);
-    // end
 
-        // Waveform dump for cocotb
+    // Monitor signals
+    always @(posedge clk) begin
+        string instr_str;
+        instr_str = core.decode_instruction(instr_data);
+        $display("Time %0t: TESTBENCH - PC=%h, Instr=%h (%s), Mem_Addr=%h, Mem_Data=%h, Mem_Wdata=%h, Mem_WE=%b, Mem_RE=%b", 
+                 $time, instr_addr, instr_data, instr_str, mem_addr, mem_data, mem_wdata, mem_we, mem_re);
+    end
+
+    // Waveform dump for cocotb
     `ifdef COCOTB_SIM
     initial begin
         $dumpfile("vcd/test_rv32e_core_tb.vcd");

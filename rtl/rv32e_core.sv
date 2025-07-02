@@ -332,23 +332,161 @@ module rv32e_core (
         end
     end
 
+    // Function to decode instruction and return human-readable string
+    function automatic string decode_instruction(input [31:0] instr);
+        reg [6:0] opcode;
+        reg [2:0] funct3;
+        reg [6:0] funct7;
+        reg [4:0] rd, rs1, rs2;
+        reg [11:0] imm12;
+        reg [31:0] imm_i, imm_s, imm_b, imm_u, imm_j;
+        string result;
+        
+        // Extract instruction fields
+        opcode = instr[6:0];
+        rd = instr[11:7];
+        funct3 = instr[14:12];
+        rs1 = instr[19:15];
+        rs2 = instr[24:20];
+        funct7 = instr[31:25];
+        imm12 = instr[31:20];
+        
+        // Generate immediate values
+        imm_i = {{20{imm12[11]}}, imm12};
+        imm_s = {{20{instr[31]}}, instr[31:25], instr[11:7]};
+        imm_b = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
+        imm_u = {instr[31:12], 12'b0};
+        imm_j = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
+        
+        // Decode based on opcode
+        case (opcode)
+            7'b0110011: begin // R-type instructions
+                case ({funct7[5], funct3})
+                    4'b0000: result = $sformatf("ADD x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b1000: result = $sformatf("SUB x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b0001: result = $sformatf("SLL x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b0010: result = $sformatf("SLT x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b0011: result = $sformatf("SLTU x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b0100: result = $sformatf("XOR x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b0101: result = $sformatf("SRL x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b1101: result = $sformatf("SRA x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b0110: result = $sformatf("OR x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    4'b0111: result = $sformatf("AND x%0d, x%0d, x%0d", rd, rs1, rs2);
+                    default: result = $sformatf("UNKNOWN_R x%0d, x%0d, x%0d (funct3=%b, funct7=%b)", rd, rs1, rs2, funct3, funct7);
+                endcase
+            end
+            
+            7'b0010011: begin // I-type ALU instructions
+                case (funct3)
+                    3'b000: result = $sformatf("ADDI x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
+                    3'b001: result = $sformatf("SLLI x%0d, x%0d, 0x%0h", rd, rs1, imm_i[4:0]);
+                    3'b010: result = $sformatf("SLTI x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
+                    3'b011: result = $sformatf("SLTIU x%0d, x%0d, 0x%0h", rd, rs1, imm_i);
+                    3'b100: result = $sformatf("XORI x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
+                    3'b101: begin
+                        if (funct7[5]) 
+                            result = $sformatf("SRAI x%0d, x%0d, 0x%0h", rd, rs1, imm_i[4:0]);
+                        else 
+                            result = $sformatf("SRLI x%0d, x%0d, 0x%0h", rd, rs1, imm_i[4:0]);
+                    end
+                    3'b110: result = $sformatf("ORI x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
+                    3'b111: result = $sformatf("ANDI x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
+                    default: result = $sformatf("UNKNOWN_I_ALU x%0d, x%0d, 0x%0h (funct3=%b)", rd, rs1, $signed(imm_i), funct3);
+                endcase
+            end
+            
+            7'b0000011: begin // Load instructions
+                case (funct3)
+                    3'b000: result = $sformatf("LB x%0d, 0x%0h(x%0d)", rd, $signed(imm_i), rs1);
+                    3'b001: result = $sformatf("LH x%0d, 0x%0h(x%0d)", rd, $signed(imm_i), rs1);
+                    3'b010: result = $sformatf("LW x%0d, 0x%0h(x%0d)", rd, $signed(imm_i), rs1);
+                    3'b100: result = $sformatf("LBU x%0d, 0x%0h(x%0d)", rd, $signed(imm_i), rs1);
+                    3'b101: result = $sformatf("LHU x%0d, 0x%0h(x%0d)", rd, $signed(imm_i), rs1);
+                    default: result = $sformatf("UNKNOWN_LOAD x%0d, 0x%0h(x%0d) (funct3=%b)", rd, $signed(imm_i), rs1, funct3);
+                endcase
+            end
+            
+            7'b0100011: begin // Store instructions
+                case (funct3)
+                    3'b000: result = $sformatf("SB x%0d, 0x%0h(x%0d)", rs2, $signed(imm_s), rs1);
+                    3'b001: result = $sformatf("SH x%0d, 0x%0h(x%0d)", rs2, $signed(imm_s), rs1);
+                    3'b010: result = $sformatf("SW x%0d, 0x%0h(x%0d)", rs2, $signed(imm_s), rs1);
+                    default: result = $sformatf("UNKNOWN_STORE x%0d, 0x%0h(x%0d) (funct3=%b)", rs2, $signed(imm_s), rs1, funct3);
+                endcase
+            end
+            
+            7'b1100011: begin // Branch instructions
+                case (funct3)
+                    3'b000: result = $sformatf("BEQ x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
+                    3'b001: result = $sformatf("BNE x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
+                    3'b100: result = $sformatf("BLT x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
+                    3'b101: result = $sformatf("BGE x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
+                    3'b110: result = $sformatf("BLTU x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
+                    3'b111: result = $sformatf("BGEU x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
+                    default: result = $sformatf("UNKNOWN_BRANCH x%0d, x%0d, 0x%0h (funct3=%b)", rs1, rs2, $signed(imm_b), funct3);
+                endcase
+            end
+            
+            7'b1101111: begin // JAL
+                result = $sformatf("JAL x%0d, 0x%0h", rd, $signed(imm_j));
+            end
+            
+            7'b1100111: begin // JALR
+                result = $sformatf("JALR x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
+            end
+            
+            7'b0110111: begin // LUI
+                result = $sformatf("LUI x%0d, 0x%h", rd, imm_u);
+            end
+            
+            7'b0010111: begin // AUIPC
+                result = $sformatf("AUIPC x%0d, 0x%h", rd, imm_u);
+            end
+            
+            7'b1110011: begin // System instructions
+                case (funct3)
+                    3'b000: begin
+                        case (imm12)
+                            12'h000: result = "ECALL";
+                            12'h001: result = "EBREAK";
+                            default: result = $sformatf("UNKNOWN_SYSTEM (imm12=0x%h)", imm12);
+                        endcase
+                    end
+                    default: result = $sformatf("UNKNOWN_SYSTEM (funct3=%b)", funct3);
+                endcase
+            end
+            
+            7'b0001111: begin // FENCE
+                result = "FENCE";
+            end
+            
+            default: result = $sformatf("UNKNOWN_OPCODE 0x%h (opcode=%b)", instr, opcode);
+        endcase
+        
+        return result;
+    endfunction
+
     // Debug logging with $display statements
     always @(posedge clk) begin
+        string if_id_instr_str, id_ex_instr_str;
+        if_id_instr_str = decode_instruction(if_id_instr);
+        id_ex_instr_str = decode_instruction(id_ex_instr);
+
         // Log instruction fetch
-        $display("Time %0t: IF - PC=0x%h, Instr=0x%h, PC_next=0x%h", $time, if_id_pc, if_id_instr, pc_next);
+        $display("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, pc_next);
         
         // Log instruction decode and register reads
-        $display("Time %0t: ID - PC=0x%h, Instr=0x%h, rs1=x%d(0x%h), rs2=x%d(0x%h), rd=x%d", 
-                    $time, id_ex_pc, id_ex_instr, id_ex_rs1_addr, id_ex_rs1_data, 
+        $display("Time %0t: ID - PC=0x%h, Instr=0x%h (%s), rs1=x%0d(0x%h), rs2=x%0d(0x%h), rd=x%0d", 
+                    $time, id_ex_pc, id_ex_instr, id_ex_instr_str, id_ex_rs1_addr, id_ex_rs1_data, 
                     id_ex_rs2_addr, id_ex_rs2_data, id_ex_rd_addr);
-        
+
         // Log data forwarding
         if (rs1_forward_ex || rs1_forward_mem || rs1_forward_wb) begin
-            $display("Time %0t: FORWARD - rs1 forwarding: rs1=x%d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
+            $display("Time %0t: FORWARD - rs1 forwarding: rs1=x%0d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
                      $time, rs1[3:0], rs1_forward_ex, rs1_forward_mem, rs1_forward_wb, id_ex_rs1_data_forwarded);
         end
         if (rs2_forward_ex || rs2_forward_mem || rs2_forward_wb) begin
-            $display("Time %0t: FORWARD - rs2 forwarding: rs2=x%d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
+            $display("Time %0t: FORWARD - rs2 forwarding: rs2=x%0d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
                      $time, rs2[3:0], rs2_forward_ex, rs2_forward_mem, rs2_forward_wb, id_ex_rs2_data_forwarded);
         end
         
@@ -359,19 +497,14 @@ module rv32e_core (
             (id_rs2[3:0] != 0 && id_rs2[3:0] == mem_wb_rd_addr && mem_wb_reg_we) ||
             (id_rs1[3:0] != 0 && id_rs1[3:0] == wb___rd_addr && wb___reg_we) ||
             (id_rs2[3:0] != 0 && id_rs2[3:0] == wb___rd_addr && wb___reg_we)) begin
-            $display("Time %0t: HAZARD - RAW hazard detected: rs1=x%d, rs2=x%d, ex_mem_rd=x%d, mem_wb_rd=x%d, wb___rd=x%d", 
+            $display("Time %0t: HAZARD - RAW hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d, wb___rd=x%0d", 
                      $time, id_rs1[3:0], id_rs2[3:0], ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr);
         end
         
         // Log ALU operations
-        if (id_ex_reg_we && id_ex_instr != 32'h00000013) begin
-            $display("Time %0t: EX - ALU: a=0x%h, b=0x%h, result=0x%h, rd=x%d", 
-                     $time, alu_a, alu_b, alu_result, id_ex_rd_addr);
-        end
-        else begin
-            $display("Time %0t: EX - Non-ALU Operation", $time);
-        end
-        
+        $display("Time %0t: EX - ALU: a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
+                    $time, alu_a, alu_b, alu_result, id_ex_rd_addr);
+
         // Log memory operations
         if (ex_mem_mem_we) begin
             $display("Time %0t: MEM - Store: addr=0x%h, data=0x%h", 
