@@ -40,13 +40,17 @@ module rv32e_core (
     reg [3:0] wb___rd_addr;
     reg wb___reg_we;
 
-    // Pipeline control signals
+    // Branch hazard signals
+    wire branch_hazard;
     wire branch_taken;
     reg flush_if_id;
 
-    // Data forwarding signals
+    // Data hazard and forwarding signals
     wire [31:0] id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded;
     wire rs1_forward_ex, rs1_forward_mem, rs2_forward_ex, rs2_forward_mem, rs1_forward_wb, rs2_forward_wb;
+
+    // Load-use hazard signals
+    wire load_use_hazard;
 
     // Instruction fields
     wire [6:0] opcode;
@@ -172,15 +176,19 @@ module rv32e_core (
                        (ex_mem_instr[6:0] == 7'b0110111) ? ex_mem_result :      // LUI: ALU result (immediate)
                        ex_mem_result;                                           // Others: ALU result
 
-    // Branch detection logic
+    // Branch hazard detection
+    assign branch_hazard = branch_taken == 1'b1 || flush_if_id == 1'b1;
     assign branch_taken = (id_ex_instr[6:0] == 7'b1100011) ||     // B-Type (BEQ, BNE, BLT, BGE)
                           (id_ex_instr[6:0] == 7'b1101111) ||     // JAL
                           (id_ex_instr[6:0] == 7'b1100111);       // JALR
 
-    // Data forwarding logic
+    // Data hazard detection and forwarding logic
     // Check if we need to forward from EX/MEM stage
-    assign rs1_forward_ex = (id_rs1[3:0] != 0) && (id_rs1[3:0] == ex_mem_rd_addr) && ex_mem_reg_we;
-    assign rs2_forward_ex = (id_rs2[3:0] != 0) && (id_rs2[3:0] == ex_mem_rd_addr) && ex_mem_reg_we;
+    // Don't forward from EX stage if there's a load-use hazard (load data not available yet)
+    assign rs1_forward_ex = (id_rs1[3:0] != 0) && (id_rs1[3:0] == ex_mem_rd_addr) && ex_mem_reg_we && 
+                            !(ex_mem_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
+    assign rs2_forward_ex = (id_rs2[3:0] != 0) && (id_rs2[3:0] == ex_mem_rd_addr) && ex_mem_reg_we && 
+                            !(ex_mem_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
     
     // Check if we need to forward from MEM/WB stage
     assign rs1_forward_mem = (id_rs1[3:0] != 0) && (id_rs1[3:0] == mem_wb_rd_addr) && mem_wb_reg_we && 
@@ -204,6 +212,13 @@ module rv32e_core (
                                 rs2_forward_mem ? mem_wb_result :
                                 rs2_forward_wb ? wb___result :
                                 id_ex_rs2_data;
+
+    // Load-use hazard detection
+    // Detect when current instruction in ID/EX is a load and next instruction in IF/ID uses the loaded register
+    assign load_use_hazard = (id_ex_instr[6:0] == 7'b0000011) && // Current instruction is a load
+                             (id_ex_rd_addr != 0) &&              // Load writes to a register
+                             ((rs1[3:0] == id_ex_rd_addr) || // Next instruction uses rs1
+                              (rs2[3:0] == id_ex_rd_addr));  // Next instruction uses rs2
 
     // Pipeline stages
     always @(posedge clk or negedge rst_n) begin
@@ -240,10 +255,23 @@ module rv32e_core (
             
             $display("=== RV32E Core Reset ===");
         end else begin
+
+            // Hazard handling logic:
+            // * Branch hazard
+            //     + Insert NOP to both IF/ID and ID/EX stages
+            // * Data hazard
+            //     + Forwarding from EX/MEM MEM/WB, and WB/_ stages
+            // * Load-use hazard
+            //     + Keep the same instruction in IF/ID stage, don't increment PC
+            //     + Insert NOP to ID/EX stage
+
             // Pipeline stage 1: Instruction Fetch
-            pc <= pc_next;
-            if_id_instr <= instr_data;
-            if_id_pc <= pc;
+            // If load_use_hazard is detected, keep the same instruction in IF/ID stage, don't increment PC
+            if (!load_use_hazard) begin
+                pc <= pc_next;
+                if_id_instr <= instr_data;
+                if_id_pc <= pc;
+            end
 
             // Pipeline stage 2: Instruction Decode
             id_ex_instr <= if_id_instr;
@@ -270,11 +298,15 @@ module rv32e_core (
 
             // Pipeline: Flush with NOP if branch taken
             flush_if_id <= !flush_if_id && branch_taken;
-            if (branch_taken == 1'b1 || flush_if_id == 1'b1) begin
+            // If branch_hazard is detected, flush IF/ID stage with NOP
+            if (branch_hazard) begin
                 $display("Time %0t: IF/ID - Flushing with NOP", $time);
                 if_id_instr <= 32'h00000013; // NOP instruction
                 if_id_pc <= 32'h00000000;    // Invalid PC
-
+                
+            end
+            // If load_use_hazard or branch_hazard is detected, flush ID/EX stage with NOP
+            if (branch_hazard == 1'b1 || load_use_hazard == 1'b1) begin
                 id_ex_instr <= 32'h00000013;
                 id_ex_pc <= 32'h00000000;
                 id_ex_rs1_data <= 32'd0;
@@ -490,17 +522,23 @@ module rv32e_core (
                      $time, rs2[3:0], rs2_forward_ex, rs2_forward_mem, rs2_forward_wb, id_ex_rs2_data_forwarded);
         end
         
-        // Log hazard detection
+        // Log data hazard detection
         if ((id_rs1[3:0] != 0 && id_rs1[3:0] == ex_mem_rd_addr && ex_mem_reg_we) ||
             (id_rs2[3:0] != 0 && id_rs2[3:0] == ex_mem_rd_addr && ex_mem_reg_we) ||
             (id_rs1[3:0] != 0 && id_rs1[3:0] == mem_wb_rd_addr && mem_wb_reg_we) ||
             (id_rs2[3:0] != 0 && id_rs2[3:0] == mem_wb_rd_addr && mem_wb_reg_we) ||
             (id_rs1[3:0] != 0 && id_rs1[3:0] == wb___rd_addr && wb___reg_we) ||
             (id_rs2[3:0] != 0 && id_rs2[3:0] == wb___rd_addr && wb___reg_we)) begin
-            $display("Time %0t: HAZARD - RAW hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d, wb___rd=x%0d", 
+            $display("Time %0t: HAZARD - Data hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d, wb___rd=x%0d", 
                      $time, id_rs1[3:0], id_rs2[3:0], ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr);
         end
-        
+
+        // Log load-use hazard detection
+        if (load_use_hazard) begin
+            $display("Time %0t: HAZARD - Load-use hazard detected: load_rd=x%0d, next_rs1=x%0d, next_rs2=x%0d", 
+                     $time, id_ex_rd_addr, rs1[3:0], rs2[3:0]);
+        end
+
         // Log ALU operations
         $display("Time %0t: EX - ALU: a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
                     $time, alu_a, alu_b, alu_result, id_ex_rd_addr);
