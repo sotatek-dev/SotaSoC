@@ -12,19 +12,19 @@ module rv32e_alu (
 
     // ALU operation codes
     localparam ADD  = 4'b0000;  // Addition
-    localparam SUB  = 4'b0001;  // Subtraction
-    localparam AND  = 4'b0010;  // Bitwise AND
-    localparam OR   = 4'b0011;  // Bitwise OR
+    localparam SLL  = 4'b0001;  // Subtraction
+    localparam SLT  = 4'b0010;  // Bitwise AND
+    localparam SLTU = 4'b0011;  // Bitwise OR
     localparam XOR  = 4'b0100;  // Bitwise XOR
-    localparam SLL  = 4'b0101;  // Logical left shift
-    localparam SRL  = 4'b0110;  // Logical right shift
-    localparam SRA  = 4'b0111;  // Arithmetic right shift
-    localparam SLT  = 4'b1000;  // Set if less than (signed)
-    localparam SLTU = 4'b1001;  // Set if less than (unsigned)
+    localparam SRL  = 4'b0101;  // Logical left shift
+    localparam OR   = 4'b0110;  // Logical right shift
+    localparam AND  = 4'b0111;  // Arithmetic right shift
+    localparam SUB  = 4'b1000;  // Set if less than (signed)
+    localparam SGEU = 4'b1001;  // Set if less than (unsigned)
     localparam SEQ  = 4'b1010;  // Set if equal
     localparam SNE  = 4'b1011;  // Set if not equal
     localparam SGE  = 4'b1100;  // Set if greater than or equal (signed)
-    localparam SGEU = 4'b1101;  // Set if greater than or equal (unsigned)
+    localparam SRA  = 4'b1101;  // Set if greater than or equal (unsigned)
     localparam SGT  = 4'b1110;  // Set if greater than (signed)
     localparam SGTU = 4'b1111;  // Set if greater than (unsigned)
 

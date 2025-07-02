@@ -137,8 +137,9 @@ module rv32e_core (
     );
 
     // Control unit
-    assign alu_op = (opcode == 7'b0110011) ? {funct7[5], funct3} :     // R-type
-                    (opcode == 7'b0010011) ? {1'b0, funct3} :           // I-type (ALU)
+    assign alu_i_type_bit = (funct3 == 3'b101) ? funct7[5] : 1'b0;
+    assign alu_op = (opcode == 7'b0110011) ? {funct7[5], funct3} :      // R-type
+                    (opcode == 7'b0010011) ? {alu_i_type_bit, funct3} : // I-type (ALU)
                     (opcode == 7'b0000011) ? 4'b0000 :                  // I-type (Load) - ADD for address
                     (opcode == 7'b0100011) ? 4'b0000 :                  // S-type (Store) - ADD for address
                     (opcode == 7'b1100011) ? {1'b1, funct3} :           // B-type (Branch) - Comparison operations
@@ -540,8 +541,8 @@ module rv32e_core (
         end
 
         // Log ALU operations
-        $display("Time %0t: EX - ALU: a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
-                    $time, alu_a, alu_b, alu_result, id_ex_rd_addr);
+        $display("Time %0t: EX - ALU: op=0x%h, a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
+                    $time, alu_op, alu_a, alu_b, alu_result, id_ex_rd_addr);
 
         // Log memory operations
         if (ex_mem_mem_we) begin
