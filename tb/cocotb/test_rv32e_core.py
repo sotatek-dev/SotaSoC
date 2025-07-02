@@ -685,3 +685,128 @@ async def test_branch_instruction(dut):
     assert registers[2].value == 2, f"Register x2 should be 2, got {registers[2].value.integer:08x}"
     assert registers[3].value == 3, f"Register x3 should be 3, got {registers[3].value.integer:08x}"
     assert registers[4].value == 4, f"Register x4 should be 4, got {registers[4].value.integer:08x}"
+
+@cocotb.test()
+async def test_lw(dut):
+    """Test LW"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
+        0x80000008: 0x0200a183, # LW x3, 0x20(x1)
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14, 0xABCD)
+
+    registers = dut.core.register_file.registers
+    assert registers[3].value == 0xABCD, f"Register x2 should be 0xABCD, got {registers[2].value.integer:08x}"
+
+@cocotb.test()
+async def test_lb(dut):
+    """Test LB (Load Byte with sign extension)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
+        0x80000008: 0x02008083, # LB x1, 0x20(x1)
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+    }
+    await do_test(dut, memory, 10, 0x80)  # Load 0x80 (negative when sign extended)
+
+    registers = dut.core.register_file.registers
+    # 0x80 sign extended should become 0xFFFFFF80
+    assert registers[1].value == 0xFFFFFF80, f"Register x1 should be 0xFFFFFF80, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_lh(dut):
+    """Test LH (Load Halfword with sign extension)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
+        0x80000008: 0x02009083, # LH x1, 0x20(x1)
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14, 0x8000)  # Load 0x8000 (negative when sign extended)
+
+    registers = dut.core.register_file.registers
+    # 0x8000 sign extended should become 0xFFFF8000
+    assert registers[1].value == 0xFFFF8000, f"Register x1 should be 0xFFFF8000, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_lbu(dut):
+    """Test LBU (Load Byte Unsigned - zero extension)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
+        0x80000008: 0x0200c083, # LBU x1, 0x20(x1)
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14, 0x80)  # Load 0x80 (should remain 0x80 with zero extension)
+
+    registers = dut.core.register_file.registers
+    # 0x80 zero extended should remain 0x80
+    assert registers[1].value == 0x80, f"Register x1 should be 0x80, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_lhu(dut):
+    """Test LHU (Load Halfword Unsigned - zero extension)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 768
+        0x80000008: 0x0200d083, # LHU x1, 0x20(x1)
+        0x8000000C: NOP_INSTR,
+        0x80000010: NOP_INSTR,
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14, 0x8000)  # Load 0x8000 (should remain 0x8000 with zero extension)
+
+    registers = dut.core.register_file.registers
+    # 0x8000 zero extended should remain 0x8000
+    assert registers[1].value == 0x8000, f"Register x1 should be 0x8000, got {registers[1].value.integer:08x}"

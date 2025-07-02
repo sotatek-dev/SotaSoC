@@ -170,8 +170,15 @@ module rv32e_core (
 
     // Writeback result selection
     wire [31:0] wb_result;
+    wire [31:0] mem_value;
     
-    assign wb_result = (ex_mem_instr[6:0] == 7'b0000011) ? mem_data :           // Load: use memory data
+    assign mem_value = (ex_mem_instr[14:12] == 3'b000) ? {{24{mem_data[7]}}, mem_data[7:0]} :   // LB
+                       (ex_mem_instr[14:12] == 3'b001) ? {{16{mem_data[15]}}, mem_data[15:0]} : // LH
+                       (ex_mem_instr[14:12] == 3'b010) ? mem_data :                             // LW
+                       (ex_mem_instr[14:12] == 3'b100) ? {{24'b0}, mem_data[7:0]} :             // LBU
+                       (ex_mem_instr[14:12] == 3'b101) ? {{16'b0}, mem_data[15:0]} :            // LHU
+                       0;
+    assign wb_result = (ex_mem_instr[6:0] == 7'b0000011) ? mem_value :          // Load: use memory data
                        (ex_mem_instr[6:0] == 7'b1101111) ? ex_mem_pc + 4 :      // JAL: return address
                        (ex_mem_instr[6:0] == 7'b1100111) ? ex_mem_pc + 4 :      // JALR: return address
                        (ex_mem_instr[6:0] == 7'b0110111) ? ex_mem_result :      // LUI: ALU result (immediate)
@@ -550,8 +557,8 @@ module rv32e_core (
                      $time, ex_mem_result, ex_mem_rs2_data);
         end
         if (ex_mem_mem_re) begin
-            $display("Time %0t: MEM - Load: addr=0x%h, data=0x%h", 
-                     $time, ex_mem_result, mem_data);
+            $display("Time %0t: MEM - Load: addr=0x%h, mem_data=0x%h, wb_result=0x%h", 
+                     $time, ex_mem_result, mem_data, wb_result);
         end
         if (!ex_mem_mem_we && !ex_mem_mem_re) begin
             $display("Time %0t: MEM - Non-Memory Operation", $time);
