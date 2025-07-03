@@ -137,6 +137,7 @@ module rv32e_core (
     );
 
     // Control unit
+    wire alu_i_type_bit;
     assign alu_i_type_bit = (funct3 == 3'b101) ? funct7[5] : 1'b0;
     assign alu_op = (opcode == 7'b0110011) ? {funct7[5], funct3} :      // R-type
                     (opcode == 7'b0010011) ? {alu_i_type_bit, funct3} : // I-type (ALU)
