@@ -41,7 +41,7 @@ async def test_reset(dut):
     
     # Check that PC starts at reset address
     await RisingEdge(dut.clk)
-    assert dut.instr_addr.value == 0x80000000, f"PC should be 0x80000000, got {dut.instr_addr.value.integer:08x}"
+    assert dut.instr_addr.value == 0x80000000, f"PC should be 0x80000000, got 0x{dut.instr_addr.value.integer:08x}"
 
 @cocotb.test()
 async def test_nop_instruction(dut):
@@ -63,7 +63,7 @@ async def test_nop_instruction(dut):
         await RisingEdge(dut.clk)
         # PC should increment by 4 each cycle
         expected_pc = 0x80000000 + (_ * 4)
-        assert dut.instr_addr.value == expected_pc, f"PC should be {expected_pc:08x}, got {dut.instr_addr.value.integer:08x}"
+        assert dut.instr_addr.value == expected_pc, f"PC should be 0x{expected_pc:08x}, got 0x{dut.instr_addr.value.integer:08x}"
 
 @cocotb.test()
 async def test_addi_instruction(dut):
@@ -85,7 +85,7 @@ async def test_addi_instruction(dut):
     for _ in range(CYCLES_PER_INSTRUCTION):
         await RisingEdge(dut.clk)
 
-    assert dut.core.register_file.registers[1].value == 5, f"Register x1 should be 5, got {dut.core.register_file.registers[1].value.integer:08x}"
+    assert dut.core.register_file.registers[1].value == 5, f"Register x1 should be 5, got 0x{dut.core.register_file.registers[1].value.integer:08x}"
     # print("All register values:")
     # for i in range(16):  # RV32E has 16 registers (x0-x15)
     #     reg_value = dut.core.register_file.registers[i].value.integer
@@ -128,11 +128,11 @@ async def test_add_instruction(dut):
         await RisingEdge(dut.clk)
 
     # Validate that x3 contains the correct result (5 + 10 = 15)
-    assert dut.core.register_file.registers[3].value == 15, f"Register x3 should be 15, got {dut.core.register_file.registers[3].value.integer:08x}"
+    assert dut.core.register_file.registers[3].value == 15, f"Register x3 should be 15, got 0x{dut.core.register_file.registers[3].value.integer:08x}"
     
     # Also verify x1 and x2 still have their original values
-    assert dut.core.register_file.registers[1].value == 5, f"Register x1 should be 5, got {dut.core.register_file.registers[1].value.integer:08x}"
-    assert dut.core.register_file.registers[2].value == 10, f"Register x2 should be 10, got {dut.core.register_file.registers[2].value.integer:08x}"
+    assert dut.core.register_file.registers[1].value == 5, f"Register x1 should be 5, got 0x{dut.core.register_file.registers[1].value.integer:08x}"
+    assert dut.core.register_file.registers[2].value == 10, f"Register x2 should be 10, got 0x{dut.core.register_file.registers[2].value.integer:08x}"
 
 
 
@@ -157,7 +157,7 @@ async def test_load_instruction(dut):
         await RisingEdge(dut.clk)
     
     # Verify x1 contains the base address
-    assert dut.core.register_file.registers[1].value == 0x300, f"Register x1 should be 0x300, got {dut.core.register_file.registers[1].value.integer:08x}"
+    assert dut.core.register_file.registers[1].value == 0x300, f"Register x1 should be 0x300, got 0x{dut.core.register_file.registers[1].value.integer:08x}"
     
 
     # Load a value from memory using LW
@@ -170,10 +170,10 @@ async def test_load_instruction(dut):
         await RisingEdge(dut.clk)
         print(f"Load cycle {_}: PC={dut.instr_addr.value.integer:08x}, Mem_RE={dut.mem_re.value}, Mem_Addr={dut.mem_addr.value.integer:08x}")
     
-    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got {dut.core.mem_addr.value.integer:08x}"
+    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
 
     # Validate that x3 contains the loaded data
-    assert dut.core.register_file.registers[3].value == 0xABCD, f"Register x3 should be 0xABCD, got {dut.core.register_file.registers[3].value.integer:08x}"
+    assert dut.core.register_file.registers[3].value == 0xABCD, f"Register x3 should be 0xABCD, got 0x{dut.core.register_file.registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_store_instruction(dut):
@@ -196,7 +196,7 @@ async def test_store_instruction(dut):
         await RisingEdge(dut.clk)
     
     # Verify x1 contains the base address
-    assert dut.core.register_file.registers[1].value == 0x300, f"Register x1 should be 0x300, got {dut.core.register_file.registers[1].value.integer:08x}"
+    assert dut.core.register_file.registers[1].value == 0x300, f"Register x1 should be 0x300, got 0x{dut.core.register_file.registers[1].value.integer:08x}"
     
     # Load a value into x2 to store
     # ADDI x2, x0, 0x6DE (addi x2, x0, 0x6DE)
@@ -208,7 +208,7 @@ async def test_store_instruction(dut):
         await RisingEdge(dut.clk)
     
     # Verify x2 contains the value to store
-    assert dut.core.register_file.registers[2].value == 0x6DE, f"Register x2 should be 0x6DE, got {dut.core.register_file.registers[2].value.integer:08x}"
+    assert dut.core.register_file.registers[2].value == 0x6DE, f"Register x2 should be 0x6DE, got 0x{dut.core.register_file.registers[2].value.integer:08x}"
     
     # Store the value to memory using SW
     # SW x2, 0(x1) (store word from x2 to address x1 + 0)
@@ -219,11 +219,11 @@ async def test_store_instruction(dut):
     for _ in range(CYCLES_PER_INSTRUCTION):
         await RisingEdge(dut.clk)
 
-    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got {dut.core.mem_addr.value.integer:08x}"
-    assert dut.core.mem_wdata.value == 0x6DE, f"Mem_wdata should be 0x6DE, got {dut.core.mem_wdata.value.integer:08x}"
+    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
+    assert dut.core.mem_wdata.value == 0x6DE, f"Mem_wdata should be 0x6DE, got 0x{dut.core.mem_wdata.value.integer:08x}"
     
     # Verify that x2 still contains the original value after store
-    assert dut.core.register_file.registers[2].value == 0x6DE, f"Register x2 should still be 0x6DE, got {dut.core.register_file.registers[2].value.integer:08x}" 
+    assert dut.core.register_file.registers[2].value == 0x6DE, f"Register x2 should still be 0x6DE, got 0x{dut.core.register_file.registers[2].value.integer:08x}" 
 
 
 @cocotb.test()
@@ -245,7 +245,7 @@ async def test_add(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 3, f"Register x3 should be 3, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 3, f"Register x3 should be 3, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_sub(dut):
@@ -266,7 +266,7 @@ async def test_sub(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 3, f"Register x3 should be 3, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 3, f"Register x3 should be 3, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_sll(dut):
@@ -287,7 +287,7 @@ async def test_sll(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 4, f"Register x3 should be 4, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 4, f"Register x3 should be 4, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_slt(dut):
@@ -308,7 +308,7 @@ async def test_slt(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 1, f"Register x3 should be 1, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 1, f"Register x3 should be 1, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_sltu(dut):
@@ -329,7 +329,7 @@ async def test_sltu(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 1, f"Register x3 should be 1, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 1, f"Register x3 should be 1, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_xor(dut):
@@ -350,7 +350,7 @@ async def test_xor(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 0xFF, f"Register x3 should be 0xFF, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 0xFF, f"Register x3 should be 0xFF, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_srl(dut):
@@ -371,7 +371,7 @@ async def test_srl(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 2, f"Register x3 should be 2, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 2, f"Register x3 should be 2, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_sra(dut):
@@ -393,7 +393,7 @@ async def test_sra(dut):
 
     registers = dut.core.register_file.registers
     expected = 0xFFFFFFFF  # -1 >> 2 = 0xFFFFFFFF
-    assert registers[3].value == expected, f"Register x3 should be {expected:08x}, got {registers[3].value.integer:08x}"
+    assert registers[3].value == expected, f"Register x3 should be 0x{expected:08x}, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_or(dut):
@@ -414,7 +414,7 @@ async def test_or(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 0x0F, f"Register x3 should be 0x0F, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 0x0F, f"Register x3 should be 0x0F, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_and(dut):
@@ -435,7 +435,7 @@ async def test_and(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 0x00, f"Register x3 should be 0x00, got {registers[3].value.integer:08x}"
+    assert registers[3].value == 0x00, f"Register x3 should be 0x00, got 0x{registers[3].value.integer:08x}"
 
 @cocotb.test()
 async def test_addi(dut):
@@ -456,7 +456,7 @@ async def test_addi(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[1].value == 1, f"Register x1 should be 1, got {registers[1].value.integer:08x}"
+    assert registers[1].value == 1, f"Register x1 should be 1, got 0x{registers[1].value.integer:08x}"
 
 @cocotb.test()
 async def test_slti(dut):
@@ -477,10 +477,10 @@ async def test_slti(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[2].value == 1, f"Register x2 should be 1, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 1, f"Register x3 should be 1, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 0, f"Register x4 should be 0, got {registers[4].value.integer:08x}"
-    assert registers[5].value == 0, f"Register x5 should be 0, got {registers[5].value.integer:08x}"
+    assert registers[2].value == 1, f"Register x2 should be 1, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 1, f"Register x3 should be 1, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 0, f"Register x4 should be 0, got 0x{registers[4].value.integer:08x}"
+    assert registers[5].value == 0, f"Register x5 should be 0, got 0x{registers[5].value.integer:08x}"
 
 @cocotb.test()
 async def test_sltiu(dut):
@@ -501,10 +501,10 @@ async def test_sltiu(dut):
     await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
-    assert registers[2].value == 1, f"Register x2 should be 1, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 1, f"Register x3 should be 1, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 0, f"Register x4 should be 0, got {registers[4].value.integer:08x}"
-    assert registers[5].value == 0, f"Register x5 should be 0, got {registers[5].value.integer:08x}"
+    assert registers[2].value == 1, f"Register x2 should be 1, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 1, f"Register x3 should be 1, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 0, f"Register x4 should be 0, got 0x{registers[4].value.integer:08x}"
+    assert registers[5].value == 0, f"Register x5 should be 0, got 0x{registers[5].value.integer:08x}"
 
 @cocotb.test()
 async def test_xori(dut):
@@ -526,9 +526,9 @@ async def test_xori(dut):
     await do_test(dut, memory, 11)
 
     registers = dut.core.register_file.registers
-    assert registers[2].value == 0xFF, f"Register x2 should be 0xFF, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 0x00, f"Register x3 should be 0x00, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 0x0F, f"Register x4 should be 0x0F, got {registers[4].value.integer:08x}"
+    assert registers[2].value == 0xFF, f"Register x2 should be 0xFF, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 0x00, f"Register x3 should be 0x00, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 0x0F, f"Register x4 should be 0x0F, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
 async def test_ori(dut):
@@ -550,9 +550,9 @@ async def test_ori(dut):
     await do_test(dut, memory, 11)
 
     registers = dut.core.register_file.registers
-    assert registers[2].value == 0x0F, f"Register x2 should be 0x0F, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 0xFA, f"Register x3 should be 0xFA, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 0x0A, f"Register x4 should be 0x0A, got {registers[4].value.integer:08x}"
+    assert registers[2].value == 0x0F, f"Register x2 should be 0x0F, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 0xFA, f"Register x3 should be 0xFA, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 0x0A, f"Register x4 should be 0x0A, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
 async def test_andi(dut):
@@ -574,9 +574,9 @@ async def test_andi(dut):
     await do_test(dut, memory, 11)
 
     registers = dut.core.register_file.registers
-    assert registers[2].value == 0x00, f"Register x2 should be 0x00, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 0x0F, f"Register x3 should be 0x0F, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 0x03, f"Register x4 should be 0x03, got {registers[4].value.integer:08x}"
+    assert registers[2].value == 0x00, f"Register x2 should be 0x00, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 0x0F, f"Register x3 should be 0x0F, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 0x03, f"Register x4 should be 0x03, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
 async def test_slli(dut):
@@ -598,9 +598,9 @@ async def test_slli(dut):
     await do_test(dut, memory, 11)
 
     registers = dut.core.register_file.registers
-    assert registers[2].value == 4, f"Register x2 should be 4, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 8, f"Register x3 should be 8, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 16, f"Register x4 should be 16, got {registers[4].value.integer:08x}"
+    assert registers[2].value == 4, f"Register x2 should be 4, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 8, f"Register x3 should be 8, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 16, f"Register x4 should be 16, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
 async def test_srli(dut):
@@ -622,9 +622,9 @@ async def test_srli(dut):
     await do_test(dut, memory, 11)
 
     registers = dut.core.register_file.registers
-    assert registers[2].value == 2, f"Register x2 should be 2, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 1, f"Register x3 should be 1, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 4, f"Register x4 should be 4, got {registers[4].value.integer:08x}"
+    assert registers[2].value == 2, f"Register x2 should be 2, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 1, f"Register x3 should be 1, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 4, f"Register x4 should be 4, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
 async def test_srai(dut):
@@ -647,9 +647,9 @@ async def test_srai(dut):
 
     registers = dut.core.register_file.registers
     expected = 0xFFFFFFFF  # -1 >> n = 0xFFFFFFFF for any n
-    assert registers[2].value == expected, f"Register x2 should be {expected:08x}, got {registers[2].value.integer:08x}"
-    assert registers[3].value == expected, f"Register x3 should be {expected:08x}, got {registers[3].value.integer:08x}"
-    assert registers[4].value == expected, f"Register x4 should be {expected:08x}, got {registers[4].value.integer:08x}"
+    assert registers[2].value == expected, f"Register x2 should be 0x{expected:08x}, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == expected, f"Register x3 should be 0x{expected:08x}, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == expected, f"Register x4 should be 0x{expected:08x}, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
 async def test_branch_instruction(dut):
@@ -681,10 +681,10 @@ async def test_branch_instruction(dut):
     await do_test(dut, memory, 14)
 
     registers = dut.core.register_file.registers
-    assert registers[1].value == 0, f"Register x1 should still be 0, got {registers[1].value.integer:08x}"
-    assert registers[2].value == 2, f"Register x2 should be 2, got {registers[2].value.integer:08x}"
-    assert registers[3].value == 3, f"Register x3 should be 3, got {registers[3].value.integer:08x}"
-    assert registers[4].value == 4, f"Register x4 should be 4, got {registers[4].value.integer:08x}"
+    assert registers[1].value == 0, f"Register x1 should still be 0, got 0x{registers[1].value.integer:08x}"
+    assert registers[2].value == 2, f"Register x2 should be 2, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 3, f"Register x3 should be 3, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 4, f"Register x4 should be 4, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
 async def test_lw(dut):
@@ -709,7 +709,7 @@ async def test_lw(dut):
     await do_test(dut, memory, 14, 0xABCD)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 0xABCD, f"Register x2 should be 0xABCD, got {registers[2].value.integer:08x}"
+    assert registers[3].value == 0xABCD, f"Register x2 should be 0xABCD, got 0x{registers[2].value.integer:08x}"
 
 @cocotb.test()
 async def test_lb(dut):
@@ -731,7 +731,7 @@ async def test_lb(dut):
 
     registers = dut.core.register_file.registers
     # 0x80 sign extended should become 0xFFFFFF80
-    assert registers[1].value == 0xFFFFFF80, f"Register x1 should be 0xFFFFFF80, got {registers[1].value.integer:08x}"
+    assert registers[1].value == 0xFFFFFF80, f"Register x1 should be 0xFFFFFF80, got 0x{registers[1].value.integer:08x}"
 
 @cocotb.test()
 async def test_lh(dut):
@@ -757,7 +757,7 @@ async def test_lh(dut):
 
     registers = dut.core.register_file.registers
     # 0x8000 sign extended should become 0xFFFF8000
-    assert registers[1].value == 0xFFFF8000, f"Register x1 should be 0xFFFF8000, got {registers[1].value.integer:08x}"
+    assert registers[1].value == 0xFFFF8000, f"Register x1 should be 0xFFFF8000, got 0x{registers[1].value.integer:08x}"
 
 @cocotb.test()
 async def test_lbu(dut):
@@ -783,7 +783,7 @@ async def test_lbu(dut):
 
     registers = dut.core.register_file.registers
     # 0x80 zero extended should remain 0x80
-    assert registers[1].value == 0x80, f"Register x1 should be 0x80, got {registers[1].value.integer:08x}"
+    assert registers[1].value == 0x80, f"Register x1 should be 0x80, got 0x{registers[1].value.integer:08x}"
 
 @cocotb.test()
 async def test_lhu(dut):
@@ -809,7 +809,7 @@ async def test_lhu(dut):
 
     registers = dut.core.register_file.registers
     # 0x8000 zero extended should remain 0x8000
-    assert registers[1].value == 0x8000, f"Register x1 should be 0x8000, got {registers[1].value.integer:08x}"
+    assert registers[1].value == 0x8000, f"Register x1 should be 0x8000, got 0x{registers[1].value.integer:08x}"
 
 @cocotb.test()
 async def test_sw(dut):
