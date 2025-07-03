@@ -1,7 +1,7 @@
 /* RV32E ALU - Comprehensive implementation */
 
 module rv32e_alu (
-    input [3:0] op,
+    input [4:0] op,
     input [31:0] a,
     input [31:0] b,
     output reg [31:0] result,
@@ -11,22 +11,22 @@ module rv32e_alu (
 );
 
     // ALU operation codes
-    localparam ADD  = 4'b0000;  // Addition
-    localparam SLL  = 4'b0001;  // Subtraction
-    localparam SLT  = 4'b0010;  // Bitwise AND
-    localparam SLTU = 4'b0011;  // Bitwise OR
-    localparam XOR  = 4'b0100;  // Bitwise XOR
-    localparam SRL  = 4'b0101;  // Logical left shift
-    localparam OR   = 4'b0110;  // Logical right shift
-    localparam AND  = 4'b0111;  // Arithmetic right shift
-    localparam SUB  = 4'b1000;  // Set if less than (signed)
-    localparam SGEU = 4'b1001;  // Set if less than (unsigned)
-    localparam SEQ  = 4'b1010;  // Set if equal
-    localparam SNE  = 4'b1011;  // Set if not equal
-    localparam SGE  = 4'b1100;  // Set if greater than or equal (signed)
-    localparam SRA  = 4'b1101;  // Set if greater than or equal (unsigned)
-    localparam SGT  = 4'b1110;  // Set if greater than (signed)
-    localparam SGTU = 4'b1111;  // Set if greater than (unsigned)
+    localparam ADD  = 5'b00000;  // Addition
+    localparam SLL  = 5'b00001;  // Logical left shift
+    localparam SLT  = 5'b00010;  // Set if less than (signed)
+    localparam SLTU = 5'b00011;  // Set if less than (unsigned)
+    localparam XOR  = 5'b00100;  // Bitwise XOR
+    localparam SRL  = 5'b00101;  // Logical right shift
+    localparam OR   = 5'b00110;  // Bitwise OR
+    localparam AND  = 5'b00111;  // Bitwise AND
+    localparam SUB  = 5'b01000;  // Subtraction
+    localparam SRA  = 5'b01101;  // Arithmetic right shift
+    localparam BEQ  = 5'b10000;  // Set if equal
+    localparam BNE  = 5'b10001;  // Set if not equal
+    localparam BLT  = 5'b10100;  // Set if less than (signed)
+    localparam BGE  = 5'b10101;  // Set if greater than or equal (signed)
+    localparam BLTU = 5'b10110;  // Set if less than (unsigned)
+    localparam BGEU = 5'b10111;  // Set if greater than or equal (unsigned)
 
     // Internal signals
     wire [31:0] add_result, sub_result;
@@ -64,12 +64,12 @@ module rv32e_alu (
             SRA:  result = sra_result;
             SLT:  result = ($signed(a) < $signed(b)) ? 32'd1 : 32'd0;
             SLTU: result = (a < b) ? 32'd1 : 32'd0;
-            SEQ:  result = (a == b) ? 32'd1 : 32'd0;
-            SNE:  result = (a != b) ? 32'd1 : 32'd0;
-            SGE:  result = ($signed(a) >= $signed(b)) ? 32'd1 : 32'd0;
-            SGEU: result = (a >= b) ? 32'd1 : 32'd0;
-            SGT:  result = ($signed(a) > $signed(b)) ? 32'd1 : 32'd0;
-            SGTU: result = (a > b) ? 32'd1 : 32'd0;
+            BEQ:  result = (a == b) ? 32'd1 : 32'd0;
+            BNE:  result = (a != b) ? 32'd1 : 32'd0;
+            BLT:  result = ($signed(a) < $signed(b)) ? 32'd1 : 32'd0;
+            BGE:  result = ($signed(a) >= $signed(b)) ? 32'd1 : 32'd0;
+            BLTU: result = (a < b) ? 32'd1 : 32'd0;
+            BGEU: result = (a >= b) ? 32'd1 : 32'd0;
             default: result = 32'd0;
         endcase
         
@@ -99,21 +99,21 @@ module rv32e_alu (
                           $time, a, shift_amount, result, zero_flag, negative_flag);
             SRA:  $display("Time %0t: ALU - SRA: 0x%h >>> %d = 0x%h, zero=%b, neg=%b", 
                           $time, a, shift_amount, result, zero_flag, negative_flag);
-            SLT:  $display("Time %0t: ALU - SLT: 0x%h < 0x%h = %d, zero=%b, neg=%b", 
+            SLT:  $display("Time %0t: ALU - SLT: 0x%h < 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
-            SLTU: $display("Time %0t: ALU - SLTU: 0x%h < 0x%h = %d, zero=%b, neg=%b", 
+            SLTU: $display("Time %0t: ALU - SLTU: 0x%h < 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
-            SEQ:  $display("Time %0t: ALU - SEQ: 0x%h == 0x%h = %d, zero=%b, neg=%b", 
+            BEQ:  $display("Time %0t: ALU - BEQ: 0x%h == 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
-            SNE:  $display("Time %0t: ALU - SNE: 0x%h != 0x%h = %d, zero=%b, neg=%b", 
+            BNE:  $display("Time %0t: ALU - BNE: 0x%h != 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
-            SGE:  $display("Time %0t: ALU - SGE: 0x%h >= 0x%h = %d, zero=%b, neg=%b", 
+            BLT:  $display("Time %0t: ALU - BLT: 0x%h < 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
-            SGEU: $display("Time %0t: ALU - SGEU: 0x%h >= 0x%h = %d, zero=%b, neg=%b", 
+            BGE: $display("Time %0t: ALU - BGE: 0x%h >= 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
-            SGT:  $display("Time %0t: ALU - SGT: 0x%h > 0x%h = %d, zero=%b, neg=%b", 
+            BLTU:  $display("Time %0t: ALU - SGT: 0x%h < 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
-            SGTU: $display("Time %0t: ALU - SGTU: 0x%h > 0x%h = %d, zero=%b, neg=%b", 
+            BGEU: $display("Time %0t: ALU - BGEU: 0x%h >= 0x%h = %0d, zero=%b, neg=%b", 
                           $time, a, b, result, zero_flag, negative_flag);
             default: $display("Time %0t: ALU - UNKNOWN OP: %b, a=0x%h, b=0x%h, result=0x%h", 
                              $time, op, a, b, result);

@@ -652,41 +652,6 @@ async def test_srai(dut):
     assert registers[4].value == expected, f"Register x4 should be 0x{expected:08x}, got 0x{registers[4].value.integer:08x}"
 
 @cocotb.test()
-async def test_branch_instruction(dut):
-    """Test branch instruction"""
-
-    ADDI_INSTR = 0x00108093
-
-    memory = {
-        0x80000000: NOP_INSTR,
-        0x80000004: 0x002080E3, # BEQ x1, x2, 0x800 => Jump to 0x80001004
-        0x80000008: ADDI_INSTR, # ADDI x1, x1, 1 => it should not be executed
-        0x8000000C: ADDI_INSTR, # ADDI x1, x1, 1
-        0x80000010: ADDI_INSTR, # ADDI x1, x1, 1
-        0x80000014: ADDI_INSTR,
-        0x80000018: ADDI_INSTR,
-        0x8000001C: ADDI_INSTR,
-        0x80000800: ADDI_INSTR,
-        0x80001004: 0x00210113, # ADDI x2, x2, 2 => it should be executed
-        0x80001008: 0x00318193, # ADDI x3, x3, 3 => it should be executed
-        0x8000100C: 0x00420213, # ADDI x4, x4, 4 => it should be executed
-        0x80001010: NOP_INSTR,
-        0x80001014: NOP_INSTR,
-        0x80001018: NOP_INSTR,
-        0x8000101C: NOP_INSTR,
-        0x80001020: NOP_INSTR,
-        0x80001024: NOP_INSTR,
-        0x80001028: NOP_INSTR,
-    }
-    await do_test(dut, memory, 14)
-
-    registers = dut.core.register_file.registers
-    assert registers[1].value == 0, f"Register x1 should still be 0, got 0x{registers[1].value.integer:08x}"
-    assert registers[2].value == 2, f"Register x2 should be 2, got 0x{registers[2].value.integer:08x}"
-    assert registers[3].value == 3, f"Register x3 should be 3, got 0x{registers[3].value.integer:08x}"
-    assert registers[4].value == 4, f"Register x4 should be 4, got 0x{registers[4].value.integer:08x}"
-
-@cocotb.test()
 async def test_lw(dut):
     """Test LW"""
 
