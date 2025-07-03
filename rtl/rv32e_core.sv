@@ -164,7 +164,9 @@ module rv32e_core (
 
     // Memory interface
     assign mem_addr = ex_mem_result;
-    assign mem_wdata = ex_mem_rs2_data;
+    assign mem_wdata = (ex_mem_instr[14:12] == 3'b000) ? {{24'b0}, ex_mem_rs2_data[7:0]} :
+                       (ex_mem_instr[14:12] == 3'b001) ? {{24'b0}, ex_mem_rs2_data[15:0]} :
+                       ex_mem_rs2_data;
     assign mem_we = ex_mem_mem_we;
     assign mem_re = ex_mem_mem_re;
 
@@ -331,7 +333,7 @@ module rv32e_core (
 
             // Pipeline stage 3: Execute
             ex_mem_result <= alu_result;
-            ex_mem_rs2_data <= id_ex_rs2_data;
+            ex_mem_rs2_data <= id_ex_rs2_data_forwarded;
             ex_mem_pc <= id_ex_pc;
             ex_mem_instr <= id_ex_instr;
             ex_mem_rd_addr <= id_ex_rd_addr;

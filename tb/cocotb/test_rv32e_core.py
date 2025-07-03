@@ -791,7 +791,7 @@ async def test_lhu(dut):
 
     memory = {
         0x80000000: NOP_INSTR,
-        0x80000004: 0x30000093, # ADDI x1, x0, 768
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
         0x80000008: 0x0200d083, # LHU x1, 0x20(x1)
         0x8000000C: NOP_INSTR,
         0x80000010: NOP_INSTR,
@@ -810,3 +810,69 @@ async def test_lhu(dut):
     registers = dut.core.register_file.registers
     # 0x8000 zero extended should remain 0x8000
     assert registers[1].value == 0x8000, f"Register x1 should be 0x8000, got {registers[1].value.integer:08x}"
+
+@cocotb.test()
+async def test_sw(dut):
+    """Test SW"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
+        0x80000008: 0x12300113, # ADDI x2, x0, 0x123
+        0x8000000C: 0x00C11113, # SLLI x2, x2, 12
+        0x80000010: 0x45610113, # ADDI x2, x2 0x456
+        0x80000014: 0x0220A023, # SW x2, 0x20(x1)
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+    }
+    await do_test(dut, memory, 10, 0)
+
+    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
+    assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
+
+@cocotb.test()
+async def test_sb(dut):
+    """Test SB (Store Byte)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
+        0x80000008: 0x12300113, # ADDI x2, x0, 0x123
+        0x8000000C: 0x00C11113, # SLLI x2, x2, 12
+        0x80000010: 0x45610113, # ADDI x2, x2 0x456
+        0x80000014: 0x02208023, # SB x2, 0x20(x1)
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+    }
+    await do_test(dut, memory, 10, 0)
+
+    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
+    assert dut.core.mem_wdata.value == 0x56, f"Mem_wdata should be 0x56, got 0x{dut.core.mem_wdata.value.integer:08x}"
+
+@cocotb.test()
+async def test_sh(dut):
+    """Test SH (Store Halfword)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x30000093, # ADDI x1, x0, 0x300
+        0x80000008: 0x12300113, # ADDI x2, x0, 0x123
+        0x8000000C: 0x00C11113, # SLLI x2, x2, 12
+        0x80000010: 0x45610113, # ADDI x2, x2 0x456
+        0x80000014: 0x02209023, # SH x2, 0x20(x1)
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+    }
+    await do_test(dut, memory, 10, 0)
+
+    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
+    assert dut.core.mem_wdata.value == 0x3456, f"Mem_wdata should be 0x3456, got 0x{dut.core.mem_wdata.value.integer:08x}"
