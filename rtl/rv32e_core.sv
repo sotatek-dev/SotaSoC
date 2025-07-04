@@ -45,8 +45,6 @@ module rv32e_core (
 
     // Branch hazard signals
     wire branch_hazard;
-    wire branch_taken;
-    reg flush_if_id;
 
     // Data hazard and forwarding signals
     wire [31:0] id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded;
@@ -202,8 +200,7 @@ module rv32e_core (
                        ex_mem_result;                                           // Others: ALU result
 
     // Branch hazard detection
-    assign branch_hazard = branch_taken == 1'b1 || flush_if_id == 1'b1;
-    assign branch_taken = (id_ex_instr[6:0] == 7'b1100011) ||     // B-Type (BEQ, BNE, BLT, BGE)
+    assign branch_hazard = (id_ex_instr[6:0] == 7'b1100011) ||     // B-Type (BEQ, BNE, BLT, BGE)
                           (id_ex_instr[6:0] == 7'b1101111) ||     // JAL
                           (id_ex_instr[6:0] == 7'b1100111);       // JALR
 
@@ -250,7 +247,6 @@ module rv32e_core (
         if (!rst_n) begin
             // Reset all pipeline registers
             pc <= 32'h80000000; // Start at typical RISC-V reset address
-            flush_if_id <= 1'b0;
             if_id_instr <= 32'h00000013; // NOP instruction
             if_id_pc <= 32'h80000000;
             id_ex_instr <= 32'h00000013;
@@ -321,8 +317,6 @@ module rv32e_core (
                 default: id_ex_imm <= 32'd0;
             endcase
 
-            // Pipeline: Flush with NOP if branch taken
-            flush_if_id <= !flush_if_id && branch_taken;
             // If branch_hazard is detected, flush IF/ID stage with NOP
             if (branch_hazard) begin
                 $display("Time %0t: IF/ID - Flushing with NOP", $time);
@@ -376,18 +370,18 @@ module rv32e_core (
         // Handle branches and jumps
         if (id_ex_instr[6:0] == 7'b1100011) begin // Branch
             case (id_ex_alu_op)
-                5'b10000: pc_next = (alu_result == 1'b1) ? ex_mem_pc + id_ex_imm * 2 : ex_mem_pc + 4; // BEQ
-                5'b10001: pc_next = (alu_result == 1'b1) ? ex_mem_pc + id_ex_imm * 2 : ex_mem_pc + 4; // BNE
-                5'b10100: pc_next = (alu_result == 1'b1) ? ex_mem_pc + id_ex_imm * 2 : ex_mem_pc + 4; // BLT
-                5'b10101: pc_next = (alu_result == 1'b1) ? ex_mem_pc + id_ex_imm * 2 : ex_mem_pc + 4; // BGE
-                5'b10110: pc_next = (alu_result == 1'b1) ? ex_mem_pc + id_ex_imm * 2 : ex_mem_pc + 4; // BLTU
-                5'b10111: pc_next = (alu_result == 1'b1) ? ex_mem_pc + id_ex_imm * 2 : ex_mem_pc + 4; // BGTU
-                default: pc_next = pc + 4;
+                5'b10000: pc_next = (alu_result == 1'b1) ? id_ex_pc + id_ex_imm : id_ex_pc + 4; // BEQ
+                5'b10001: pc_next = (alu_result == 1'b1) ? id_ex_pc + id_ex_imm : id_ex_pc + 4; // BNE
+                5'b10100: pc_next = (alu_result == 1'b1) ? id_ex_pc + id_ex_imm : id_ex_pc + 4; // BLT
+                5'b10101: pc_next = (alu_result == 1'b1) ? id_ex_pc + id_ex_imm : id_ex_pc + 4; // BGE
+                5'b10110: pc_next = (alu_result == 1'b1) ? id_ex_pc + id_ex_imm : id_ex_pc + 4; // BLTU
+                5'b10111: pc_next = (alu_result == 1'b1) ? id_ex_pc + id_ex_imm : id_ex_pc + 4; // BGTU
+                default: pc_next = id_ex_pc + 4;
             endcase
         end else if (id_ex_instr[6:0] == 7'b1101111) begin // JAL
-            pc_next = ex_mem_pc + id_ex_imm * 2;
+            pc_next = id_ex_pc + id_ex_imm;
         end else if (id_ex_instr[6:0] == 7'b1100111) begin // JALR
-            pc_next = id_ex_rs1_data + id_ex_imm * 2;
+            pc_next = (id_ex_rs1_data_forwarded + id_ex_imm) & ~1;
         end
     end
 

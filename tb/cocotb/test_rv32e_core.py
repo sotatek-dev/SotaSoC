@@ -23,7 +23,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
     
     # Execute for several cycles
     for _ in range(cycles):
-        await RisingEdge(dut.clk)
+        await FallingEdge(dut.clk)
         dut.instr_data.value = memory[dut.instr_addr.value.integer]
         # print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
 
@@ -241,6 +241,7 @@ async def test_add(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -262,6 +263,7 @@ async def test_sub(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -283,6 +285,8 @@ async def test_sll(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -304,6 +308,7 @@ async def test_slt(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -325,6 +330,7 @@ async def test_sltu(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -346,6 +352,7 @@ async def test_xor(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -367,6 +374,7 @@ async def test_srl(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -388,6 +396,7 @@ async def test_sra(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -410,6 +419,7 @@ async def test_or(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -431,6 +441,7 @@ async def test_and(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -452,6 +463,7 @@ async def test_addi(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -473,6 +485,7 @@ async def test_slti(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -497,6 +510,7 @@ async def test_sltiu(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10)
 
@@ -522,6 +536,7 @@ async def test_xori(dut):
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
     }
     await do_test(dut, memory, 11)
 
@@ -546,6 +561,7 @@ async def test_ori(dut):
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
     }
     await do_test(dut, memory, 11)
 
@@ -570,6 +586,7 @@ async def test_andi(dut):
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
     }
     await do_test(dut, memory, 11)
 
@@ -594,6 +611,7 @@ async def test_slli(dut):
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
     }
     await do_test(dut, memory, 11)
 
@@ -618,6 +636,7 @@ async def test_srli(dut):
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
     }
     await do_test(dut, memory, 11)
 
@@ -642,6 +661,7 @@ async def test_srai(dut):
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
     }
     await do_test(dut, memory, 11)
 
@@ -670,6 +690,7 @@ async def test_lw(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14, 0xABCD)
 
@@ -691,6 +712,7 @@ async def test_lb(dut):
         0x8000001C: NOP_INSTR,
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
     }
     await do_test(dut, memory, 10, 0x80)  # Load 0x80 (negative when sign extended)
 
@@ -717,6 +739,7 @@ async def test_lh(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14, 0x8000)  # Load 0x8000 (negative when sign extended)
 
@@ -743,6 +766,7 @@ async def test_lbu(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14, 0x80)  # Load 0x80 (should remain 0x80 with zero extension)
 
@@ -769,6 +793,7 @@ async def test_lhu(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14, 0x8000)  # Load 0x8000 (should remain 0x8000 with zero extension)
 
@@ -793,7 +818,7 @@ async def test_sw(dut):
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
     }
-    await do_test(dut, memory, 10, 0)
+    await do_test(dut, memory, 8, 0)
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
     assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
@@ -815,7 +840,7 @@ async def test_sb(dut):
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
     }
-    await do_test(dut, memory, 10, 0)
+    await do_test(dut, memory, 8, 0)
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
     assert dut.core.mem_wdata.value == 0x56, f"Mem_wdata should be 0x56, got 0x{dut.core.mem_wdata.value.integer:08x}"
@@ -837,7 +862,7 @@ async def test_sh(dut):
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
     }
-    await do_test(dut, memory, 10, 0)
+    await do_test(dut, memory, 8, 0)
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
     assert dut.core.mem_wdata.value == 0x3456, f"Mem_wdata should be 0x3456, got 0x{dut.core.mem_wdata.value.integer:08x}"

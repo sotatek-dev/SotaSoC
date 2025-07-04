@@ -23,7 +23,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
     
     # Execute for several cycles
     for _ in range(cycles):
-        await RisingEdge(dut.clk)
+        await FallingEdge(dut.clk)
         dut.instr_data.value = memory[dut.instr_addr.value.integer]
         # print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
 
@@ -47,6 +47,7 @@ async def test_load_use_hazard_0(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14, 0xABCD)
 
@@ -78,6 +79,7 @@ async def test_load_use_hazard_1(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20, 0xABCD)
 
@@ -109,6 +111,7 @@ async def test_load_use_hazard_2(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20, 0xABCD)
 
@@ -140,6 +143,7 @@ async def test_load_use_hazard_3(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20, 0xABCD)
 
@@ -171,6 +175,7 @@ async def test_load_use_hazard_4(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20, 0xABCD)
 
@@ -202,6 +207,7 @@ async def test_load_use_hazard_5(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20, 0xABCD)
 
@@ -228,6 +234,7 @@ async def test_data_hazard_rs1_1(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14)
 
@@ -253,6 +260,7 @@ async def test_data_hazard_rs1_2(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14)
 
@@ -278,6 +286,7 @@ async def test_data_hazard_rs1_3(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14)
 
@@ -303,6 +312,7 @@ async def test_data_hazard_rs1_4(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14)
 
@@ -328,6 +338,7 @@ async def test_data_hazard_rs1_5(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14)
 
@@ -353,6 +364,7 @@ async def test_data_hazard_rs2_1(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14)
 
@@ -384,6 +396,7 @@ async def test_data_hazard_rs2_2(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20)
 
@@ -415,6 +428,7 @@ async def test_data_hazard_rs2_3(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20)
 
@@ -446,6 +460,7 @@ async def test_data_hazard_rs2_4(dut):
         0x80000044: NOP_INSTR,
         0x80000048: NOP_INSTR,
         0x8000004C: NOP_INSTR,
+        0x80000050: NOP_INSTR,
     }
     await do_test(dut, memory, 20)
 
@@ -471,6 +486,7 @@ async def test_hazard_rs2_5(dut):
         0x8000002C: NOP_INSTR,
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
     }
     await do_test(dut, memory, 14)
 

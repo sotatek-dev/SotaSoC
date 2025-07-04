@@ -6,8 +6,8 @@ module test_rv32e_core_tb;
     reg rst_n;
     
     // Memory interface
-    reg [31:0] instr_data;
-    reg [31:0] mem_data;
+    wire [31:0] instr_data;
+    wire [31:0] mem_data;
     wire [31:0] instr_addr;
     wire [31:0] mem_addr;
     wire [31:0] mem_wdata;
