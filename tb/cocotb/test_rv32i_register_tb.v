@@ -4,11 +4,11 @@ module test_rv32i_register_tb;
     // Test signals
     reg clk;
     reg rst_n;
-    reg [3:0] rs1_addr;
-    reg [3:0] rs2_addr;
+    reg [4:0] rs1_addr;
+    reg [4:0] rs2_addr;
     wire [31:0] rs1_data;
     wire [31:0] rs2_data;
-    reg [3:0] rd_addr;
+    reg [4:0] rd_addr;
     reg [31:0] rd_data;
     reg rd_we;
 

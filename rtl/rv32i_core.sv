@@ -27,17 +27,17 @@ module rv32i_core (
     reg [31:0] pc, pc_next;
     reg [31:0] if_id_instr, if_id_pc;
     reg [31:0] id_ex_instr, id_ex_pc, id_ex_rs1_data, id_ex_rs2_data, id_ex_imm;
-    reg [3:0] id_ex_rs1_addr, id_ex_rs2_addr, id_ex_rd_addr;
+    reg [4:0] id_ex_rs1_addr, id_ex_rs2_addr, id_ex_rd_addr;
     reg [4:0] id_ex_alu_op;
     reg id_ex_mem_we, id_ex_mem_re, id_ex_reg_we;
     reg [31:0] ex_mem_result, ex_mem_rs2_data, ex_mem_pc, ex_mem_instr;
-    reg [3:0] ex_mem_rd_addr;
+    reg [4:0] ex_mem_rd_addr;
     reg ex_mem_mem_we, ex_mem_mem_re, ex_mem_reg_we;
     reg [31:0] mem_wb_result, mem_wb_pc;
-    reg [3:0] mem_wb_rd_addr;
+    reg [4:0] mem_wb_rd_addr;
     reg mem_wb_reg_we;
     reg [31:0] wb___result;
-    reg [3:0] wb___rd_addr;
+    reg [4:0] wb___rd_addr;
     reg wb___reg_we;
 
     // Instruction type signals
@@ -104,8 +104,8 @@ module rv32i_core (
     rv32i_register register_file (
         .clk(clk),
         .rst_n(rst_n),
-        .rs1_addr(rs1[3:0]),      // RV32I uses only 4 bits for register addresses
-        .rs2_addr(rs2[3:0]),
+        .rs1_addr(rs1),
+        .rs2_addr(rs2),
         .rs1_data(rs1_data),
         .rs2_data(rs2_data),
         .rd_addr(mem_wb_rd_addr),
@@ -207,21 +207,21 @@ module rv32i_core (
     // Data hazard detection and forwarding logic
     // Check if we need to forward from EX/MEM stage
     // Don't forward from EX stage if there's a load-use hazard (load data not available yet)
-    assign rs1_forward_ex = is_risb_type && (id_rs1[3:0] != 0) && (id_rs1[3:0] == ex_mem_rd_addr) && ex_mem_reg_we && 
+    assign rs1_forward_ex = is_risb_type && (id_rs1 != 0) && (id_rs1 == ex_mem_rd_addr) && ex_mem_reg_we && 
                             !(ex_mem_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
-    assign rs2_forward_ex = is_rsb_type && (id_rs2[3:0] != 0) && (id_rs2[3:0] == ex_mem_rd_addr) && ex_mem_reg_we && 
+    assign rs2_forward_ex = is_rsb_type && (id_rs2 != 0) && (id_rs2 == ex_mem_rd_addr) && ex_mem_reg_we && 
                             !(ex_mem_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
     
     // Check if we need to forward from MEM/WB stage
-    assign rs1_forward_mem = is_risb_type && (id_rs1[3:0] != 0) && (id_rs1[3:0] == mem_wb_rd_addr) && mem_wb_reg_we && 
+    assign rs1_forward_mem = is_risb_type && (id_rs1 != 0) && (id_rs1 == mem_wb_rd_addr) && mem_wb_reg_we && 
                              !rs1_forward_ex; // Only if not already forwarding from EX/MEM
-    assign rs2_forward_mem = is_rsb_type && (id_rs2[3:0] != 0) && (id_rs2[3:0] == mem_wb_rd_addr) && mem_wb_reg_we && 
+    assign rs2_forward_mem = is_rsb_type && (id_rs2 != 0) && (id_rs2 == mem_wb_rd_addr) && mem_wb_reg_we && 
                              !rs2_forward_ex; // Only if not already forwarding from EX/MEM
 
     // Check if we need to forward from WB stage
-    assign rs1_forward_wb = is_risb_type && (id_rs1[3:0] != 0) && (id_rs1[3:0] == wb___rd_addr) && wb___reg_we && 
+    assign rs1_forward_wb = is_risb_type && (id_rs1 != 0) && (id_rs1 == wb___rd_addr) && wb___reg_we && 
                              !rs1_forward_ex && !rs1_forward_mem;
-    assign rs2_forward_wb = is_rsb_type && (id_rs2[3:0] != 0) && (id_rs2[3:0] == wb___rd_addr) && wb___reg_we && 
+    assign rs2_forward_wb = is_rsb_type && (id_rs2 != 0) && (id_rs2 == wb___rd_addr) && wb___reg_we && 
                              !rs2_forward_ex && !rs2_forward_mem;
 
     // Select forwarded data
@@ -239,8 +239,8 @@ module rv32i_core (
     // Detect when current instruction in ID/EX is a load and next instruction in IF/ID uses the loaded register
     assign load_use_hazard = (id_ex_instr[6:0] == 7'b0000011) && // Current instruction is a load
                              (id_ex_rd_addr != 0) &&              // Load writes to a register
-                             ((rs1[3:0] == id_ex_rd_addr) || // Next instruction uses rs1
-                              (rs2[3:0] == id_ex_rd_addr));  // Next instruction uses rs2
+                             ((rs1 == id_ex_rd_addr) || // Next instruction uses rs1
+                              (rs2 == id_ex_rd_addr));  // Next instruction uses rs2
 
     // Pipeline stages
     always @(posedge clk or negedge rst_n) begin
@@ -254,9 +254,9 @@ module rv32i_core (
             id_ex_rs1_data <= 32'd0;
             id_ex_rs2_data <= 32'd0;
             id_ex_imm <= 32'd0;
-            id_ex_rs1_addr <= 4'd0;
-            id_ex_rs2_addr <= 4'd0;
-            id_ex_rd_addr <= 4'd0;
+            id_ex_rs1_addr <= 5'd0;
+            id_ex_rs2_addr <= 5'd0;
+            id_ex_rd_addr <= 5'd0;
             id_ex_alu_op <= 5'd0;
             id_ex_mem_we <= 1'b0;
             id_ex_mem_re <= 1'b0;
@@ -265,14 +265,17 @@ module rv32i_core (
             ex_mem_rs2_data <= 32'd0;
             ex_mem_pc <= 32'd0;
             ex_mem_instr <= 32'h00000013;
-            ex_mem_rd_addr <= 4'd0;
+            ex_mem_rd_addr <= 5'd0;
             ex_mem_mem_we <= 1'b0;
             ex_mem_mem_re <= 1'b0;
             ex_mem_reg_we <= 1'b0;
             mem_wb_result <= 32'd0;
             mem_wb_pc <= 32'd0;
-            mem_wb_rd_addr <= 4'd0;
+            mem_wb_rd_addr <= 5'd0;
             mem_wb_reg_we <= 1'b0;
+            wb___result <= 32'd0;
+            wb___rd_addr <= 5'd0;
+            wb___reg_we <= 1'b0;
             
             $display("=== RV32I Core Reset ===");
         end else begin
@@ -299,9 +302,9 @@ module rv32i_core (
             id_ex_pc <= if_id_pc;
             id_ex_rs1_data <= rs1_data;
             id_ex_rs2_data <= rs2_data;
-            id_ex_rs1_addr <= rs1[3:0];
-            id_ex_rs2_addr <= rs2[3:0];
-            id_ex_rd_addr <= rd[3:0];
+            id_ex_rs1_addr <= rs1;
+            id_ex_rs2_addr <= rs2;
+            id_ex_rd_addr <= rd;
             id_ex_alu_op <= alu_op;
             id_ex_mem_we <= mem_we_ctrl;
             id_ex_mem_re <= mem_re_ctrl;
@@ -330,9 +333,9 @@ module rv32i_core (
                 id_ex_pc <= 32'h00000000;
                 id_ex_rs1_data <= 32'd0;
                 id_ex_rs2_data <= 32'd0;
-                id_ex_rs1_addr <= 4'd0;
-                id_ex_rs2_addr <= 4'd0;
-                id_ex_rd_addr <= 4'd0;
+                id_ex_rs1_addr <= 5'd0;
+                id_ex_rs2_addr <= 5'd0;
+                id_ex_rd_addr <= 5'd0;
                 id_ex_alu_op <= 5'd0;
                 id_ex_mem_we <= 1'b0;
                 id_ex_mem_re <= 1'b0;
@@ -536,28 +539,28 @@ module rv32i_core (
         // Log data forwarding
         if (rs1_forward_ex || rs1_forward_mem || rs1_forward_wb) begin
             $display("Time %0t: FORWARD - rs1 forwarding: rs1=x%0d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
-                     $time, rs1[3:0], rs1_forward_ex, rs1_forward_mem, rs1_forward_wb, id_ex_rs1_data_forwarded);
+                     $time, rs1, rs1_forward_ex, rs1_forward_mem, rs1_forward_wb, id_ex_rs1_data_forwarded);
         end
         if (rs2_forward_ex || rs2_forward_mem || rs2_forward_wb) begin
             $display("Time %0t: FORWARD - rs2 forwarding: rs2=x%0d, forward_ex=%b, forward_mem=%b, forward_wb=%b, data=0x%h", 
-                     $time, rs2[3:0], rs2_forward_ex, rs2_forward_mem, rs2_forward_wb, id_ex_rs2_data_forwarded);
+                     $time, rs2, rs2_forward_ex, rs2_forward_mem, rs2_forward_wb, id_ex_rs2_data_forwarded);
         end
         
         // Log data hazard detection
-        if ((id_rs1[3:0] != 0 && id_rs1[3:0] == ex_mem_rd_addr && ex_mem_reg_we) ||
-            (id_rs2[3:0] != 0 && id_rs2[3:0] == ex_mem_rd_addr && ex_mem_reg_we) ||
-            (id_rs1[3:0] != 0 && id_rs1[3:0] == mem_wb_rd_addr && mem_wb_reg_we) ||
-            (id_rs2[3:0] != 0 && id_rs2[3:0] == mem_wb_rd_addr && mem_wb_reg_we) ||
-            (id_rs1[3:0] != 0 && id_rs1[3:0] == wb___rd_addr && wb___reg_we) ||
-            (id_rs2[3:0] != 0 && id_rs2[3:0] == wb___rd_addr && wb___reg_we)) begin
+        if ((id_rs1 != 0 && id_rs1 == ex_mem_rd_addr && ex_mem_reg_we) ||
+            (id_rs2 != 0 && id_rs2 == ex_mem_rd_addr && ex_mem_reg_we) ||
+            (id_rs1 != 0 && id_rs1 == mem_wb_rd_addr && mem_wb_reg_we) ||
+            (id_rs2 != 0 && id_rs2 == mem_wb_rd_addr && mem_wb_reg_we) ||
+            (id_rs1 != 0 && id_rs1 == wb___rd_addr && wb___reg_we) ||
+            (id_rs2 != 0 && id_rs2 == wb___rd_addr && wb___reg_we)) begin
             $display("Time %0t: HAZARD - Data hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d, wb___rd=x%0d", 
-                     $time, id_rs1[3:0], id_rs2[3:0], ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr);
+                     $time, id_rs1, id_rs2, ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr);
         end
 
         // Log load-use hazard detection
         if (load_use_hazard) begin
             $display("Time %0t: HAZARD - Load-use hazard detected: load_rd=x%0d, next_rs1=x%0d, next_rs2=x%0d", 
-                     $time, id_ex_rd_addr, rs1[3:0], rs2[3:0]);
+                     $time, id_ex_rd_addr, rs1, rs2);
         end
 
         // Log ALU operations

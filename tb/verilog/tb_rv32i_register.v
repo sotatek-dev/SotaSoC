@@ -7,7 +7,7 @@ module tb_rv32i_register;
     // Testbench signals
     reg clk;
     reg rst_n;
-    reg [3:0] rs1_addr, rs2_addr, rd_addr;
+    reg [4:0] rs1_addr, rs2_addr, rd_addr;
     reg [31:0] rd_data;
     reg rd_we;
     wire [31:0] rs1_data, rs2_data;

@@ -5,23 +5,23 @@ module rv32i_register (
     input wire rst_n,
     
     // Read ports
-    input wire [3:0] rs1_addr,    // Source register 1 address
-    input wire [3:0] rs2_addr,    // Source register 2 address
+    input wire [4:0] rs1_addr,    // Source register 1 address
+    input wire [4:0] rs2_addr,    // Source register 2 address
     output wire [31:0] rs1_data,  // Source register 1 data
     output wire [31:0] rs2_data,  // Source register 2 data
     
     // Write port
-    input wire [3:0] rd_addr,     // Destination register address
+    input wire [4:0] rd_addr,     // Destination register address
     input wire [31:0] rd_data,    // Data to write
     input wire rd_we              // Write enable
 );
 
-    // Register file storage - 16 registers of 32 bits each
-    reg [31:0] registers [0:15];
+    // Register file storage - 32 registers of 32 bits each
+    reg [31:0] registers [0:31];
     
     // Read operations (asynchronous)
-    assign rs1_data = (rs1_addr == 4'd0) ? 32'd0 : registers[rs1_addr];
-    assign rs2_data = (rs2_addr == 4'd0) ? 32'd0 : registers[rs2_addr];
+    assign rs1_data = (rs1_addr == 5'd0) ? 32'd0 : registers[rs1_addr];
+    assign rs2_data = (rs2_addr == 5'd0) ? 32'd0 : registers[rs2_addr];
     
     // Write operation (synchronous)
     always @(posedge clk or negedge rst_n) begin
@@ -43,9 +43,24 @@ module rv32i_register (
             registers[13] <= 32'd0;
             registers[14] <= 32'd0;
             registers[15] <= 32'd0;
-            
+            registers[16] <= 32'd0;
+            registers[17] <= 32'd0;
+            registers[18] <= 32'd0;
+            registers[19] <= 32'd0;
+            registers[20] <= 32'd0;
+            registers[21] <= 32'd0;
+            registers[22] <= 32'd0;
+            registers[23] <= 32'd0;
+            registers[24] <= 32'd0;
+            registers[25] <= 32'd0;
+            registers[26] <= 32'd0;
+            registers[27] <= 32'd0;
+            registers[28] <= 32'd0;
+            registers[29] <= 32'd0;
+            registers[30] <= 32'd0;
+            registers[31] <= 32'd0;
             $display("Time %0t: REG - Register file reset", $time);
-        end else if (rd_we && rd_addr != 4'd0) begin
+        end else if (rd_we && rd_addr != 5'd0) begin
             // Write to register (x0 is always zero, so don't write to it)
             registers[rd_addr] <= rd_data;
             $display("Time %0t: REG - Write: x%d = 0x%h (was 0x%h)", 
