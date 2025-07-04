@@ -866,3 +866,54 @@ async def test_sh(dut):
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
     assert dut.core.mem_wdata.value == 0x3456, f"Mem_wdata should be 0x3456, got 0x{dut.core.mem_wdata.value.integer:08x}"
+
+@cocotb.test()
+async def test_lui(dut):
+    """Test LUI (Load Upper Immediate)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x123450B7, # LUI x1, 0x12345 => x1 = 0x12345000
+        0x80000008: 0xABCDE137, # LUI x2, 0xABCDE => x2 = 0xABCDE000
+        0x8000000C: 0x000011B7, # LUI x3, 0x00001 => x3 = 0x00001000
+        0x80000010: 0x80000237, # LUI x4, 0x80000 => x4 = 0x80000000 (negative)
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+    }
+    await do_test(dut, memory, 10)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 0x12345000, f"Register x1 should be 0x12345000, got 0x{registers[1].value.integer:08x}"
+    assert registers[2].value == 0xABCDE000, f"Register x2 should be 0xABCDE000, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 0x00001000, f"Register x3 should be 0x00001000, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 0x80000000, f"Register x4 should be 0x80000000, got 0x{registers[4].value.integer:08x}"
+
+@cocotb.test()
+async def test_auipc(dut):
+    """Test AUIPC (Add Upper Immediate to PC)"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x12345097, # AUIPC x1, 0x12345 => x1 = PC + 0x12345000 = 0x80000004 + 0x12345000 = 0x92345004
+        0x80000008: 0x00001117, # AUIPC x2, 0x00001 => x2 = PC + 0x00001000 = 0x80000008 + 0x00001000 = 0x80001008
+        0x8000000C: 0xFFFFF197, # AUIPC x3, 0xFFFFF => x3 = PC + 0xFFFFF000 = 0x8000000C + 0xFFFFF000 = 0x7FFFF00C
+        0x80000010: 0x00000217, # AUIPC x4, 0x00000 => x4 = PC + 0x00000000 = 0x80000010 + 0x00000000 = 0x80000010
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+    }
+    await do_test(dut, memory, 10)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 0x92345004, f"Register x1 should be 0x92345004, got 0x{registers[1].value.integer:08x}"
+    assert registers[2].value == 0x80001008, f"Register x2 should be 0x80001008, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value == 0x7FFFF00C, f"Register x3 should be 0x7FFFF00C, got 0x{registers[3].value.integer:08x}"
+    assert registers[4].value == 0x80000010, f"Register x4 should be 0x80000010, got 0x{registers[4].value.integer:08x}"
+
