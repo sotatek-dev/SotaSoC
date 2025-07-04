@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Python test for RV32E ALU using cocotb
+Python test for RV32I ALU using cocotb
 """
 
 import cocotb

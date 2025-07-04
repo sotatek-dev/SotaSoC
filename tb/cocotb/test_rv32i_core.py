@@ -87,7 +87,7 @@ async def test_addi_instruction(dut):
 
     assert dut.core.register_file.registers[1].value == 5, f"Register x1 should be 5, got 0x{dut.core.register_file.registers[1].value.integer:08x}"
     # print("All register values:")
-    # for i in range(16):  # RV32E has 16 registers (x0-x15)
+    # for i in range(16):  # RV32I has 16 registers (x0-x15)
     #     reg_value = dut.core.register_file.registers[i].value.integer
     #     print(f"  x{i}: 0x{reg_value:08x} ({reg_value})")
 

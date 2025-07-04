@@ -1,6 +1,6 @@
-/* Testbench wrapper for RV32E Register File with cocotb */
+/* Testbench wrapper for RV32I Register File with cocotb */
 
-module test_rv32e_register_tb;
+module test_rv32i_register_tb;
     // Test signals
     reg clk;
     reg rst_n;
@@ -13,7 +13,7 @@ module test_rv32e_register_tb;
     reg rd_we;
 
     // Instantiate the register file
-    rv32e_register dut (
+    rv32i_register dut (
         .clk(clk),
         .rst_n(rst_n),
         .rs1_addr(rs1_addr),
@@ -28,8 +28,8 @@ module test_rv32e_register_tb;
     // Waveform dump for cocotb
     `ifdef COCOTB_SIM
     initial begin
-        $dumpfile("vcd/test_rv32e_register_tb.vcd");
-        $dumpvars(0, test_rv32e_register_tb);
+        $dumpfile("vcd/test_rv32i_register_tb.vcd");
+        $dumpvars(0, test_rv32i_register_tb);
     end
     `endif
 

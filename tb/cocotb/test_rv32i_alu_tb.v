@@ -1,6 +1,6 @@
-/* Testbench wrapper for RV32E ALU with cocotb */
+/* Testbench wrapper for RV32I ALU with cocotb */
 
-module test_rv32e_alu_tb;
+module test_rv32i_alu_tb;
     // Test signals
     reg [3:0] op;
     reg [31:0] a;
@@ -11,7 +11,7 @@ module test_rv32e_alu_tb;
     wire overflow_flag;
 
     // Instantiate the ALU
-    rv32e_alu dut (
+    rv32i_alu dut (
         .op(op),
         .a(a),
         .b(b),
@@ -24,8 +24,8 @@ module test_rv32e_alu_tb;
     // Waveform dump for cocotb
     `ifdef COCOTB_SIM
     initial begin
-        $dumpfile("vcd/test_rv32e_alu_tb.vcd");
-        $dumpvars(0, test_rv32e_alu_tb);
+        $dumpfile("vcd/test_rv32i_alu_tb.vcd");
+        $dumpvars(0, test_rv32i_alu_tb);
     end
     `endif
 

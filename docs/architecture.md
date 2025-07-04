@@ -1,12 +1,12 @@
-# RV32E Processor Architecture
+# RV32I Processor Architecture
 
 ## Overview
 
-This document describes the architecture and implementation of the RV32E processor, a RISC-V embedded processor that implements the RV32E base integer instruction set.
+This document describes the architecture and implementation of the RV32I processor, a RISC-V embedded processor that implements the RV32I base integer instruction set.
 
-## RV32E ISA Features
+## RV32I ISA Features
 
-The RV32E (Embedded) base integer instruction set is a reduced version of RV32I designed for embedded applications:
+The RV32I (Embedded) base integer instruction set is a reduced version of RV32I designed for embedded applications:
 
 - **32-bit address space**: Full 32-bit addressing capability
 - **16 general-purpose registers**: x0-x15 (instead of 32 registers in RV32I)
@@ -18,7 +18,7 @@ The RV32E (Embedded) base integer instruction set is a reduced version of RV32I 
 
 ### Pipeline Stages
 
-The RV32E processor implements a 4-stage pipeline:
+The RV32I processor implements a 4-stage pipeline:
 
 1. **Fetch Stage**
    - Instruction memory access
@@ -44,7 +44,7 @@ The RV32E processor implements a 4-stage pipeline:
 ### Key Components
 
 #### Register File
-- **16 registers**: x0-x15 as per RV32E specification
+- **16 registers**: x0-x15 as per RV32I specification
 - **Dual read ports**: For rs1 and rs2 operands
 - **Single write port**: For rd destination
 - **x0 hardwired to zero**: Always reads as 0, writes ignored

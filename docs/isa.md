@@ -1,16 +1,16 @@
-# RV32E Instruction Set Architecture (ISA)
+# RV32I Instruction Set Architecture (ISA)
 
 ## Overview
 
-RV32E is a reduced version of the RISC-V RV32I instruction set architecture designed for embedded systems. The "E" stands for "Embedded" and it uses only 16 registers instead of the full 32 registers found in RV32I.
+RV32I is a reduced version of the RISC-V RV32I instruction set architecture designed for embedded systems. The "E" stands for "Embedded" and it uses only 16 registers instead of the full 32 registers found in RV32I.
 
 ## Key Characteristics
 
 - **Architecture**: 32-bit RISC-V embedded variant
-- **Registers**: 16 general-purpose registers (x0-x15)
+- **Registers**: 32 general-purpose registers (x0-x31)
 - **Address Space**: 32-bit address space
 - **Endianness**: Little-endian
-- **Base ISA**: RV32E (Embedded)
+- **Base ISA**: RV32I (Embedded)
 - **Extensions**: None (base integer instructions only)
 
 ## Register Set
@@ -43,7 +43,7 @@ RV32E is a reduced version of the RISC-V RV32I instruction set architecture desi
 
 ## Instruction Formats
 
-RV32E uses the same instruction formats as RV32I:
+RV32I uses the same instruction formats as RV32I:
 
 ### R-Type (Register-Register)
 ```
@@ -173,7 +173,7 @@ RV32E uses the same instruction formats as RV32I:
 
 ### ALU Operations (Implementation-Specific)
 
-The RV32E implementation includes a comprehensive ALU supporting all arithmetic and logical operations. **Note: The following ALU operation codes are microarchitectural details specific to this implementation and are NOT part of the RV32E ISA specification.**
+The RV32I implementation includes a comprehensive ALU supporting all arithmetic and logical operations. **Note: The following ALU operation codes are microarchitectural details specific to this implementation and are NOT part of the RV32I ISA specification.**
 
 ```verilog
 // ALU operation codes (implementation-specific)
@@ -202,7 +202,7 @@ The ALU generates three status flags as part of this specific implementation:
 - **Negative Flag**: Set when result is negative (MSB = 1)
 - **Overflow Flag**: Set on arithmetic overflow
 
-**Note**: These flags are implementation details and may not be present in all RV32E implementations.
+**Note**: These flags are implementation details and may not be present in all RV32I implementations.
 
 ## Memory Model
 
@@ -238,7 +238,7 @@ The ALU generates three status flags as part of this specific implementation:
 
 ## Use Cases
 
-RV32E is ideal for:
+RV32I is ideal for:
 - **Embedded systems** with limited resources
 - **IoT devices** requiring low power consumption
 - **Microcontrollers** with constrained memory
@@ -247,4 +247,4 @@ RV32E is ideal for:
 
 ## Compliance
 
-This implementation follows the RISC-V RV32E specification as defined in the RISC-V Instruction Set Manual, Volume I: Unprivileged ISA.
+This implementation follows the RISC-V RV32I specification as defined in the RISC-V Instruction Set Manual, Volume I: Unprivileged ISA.

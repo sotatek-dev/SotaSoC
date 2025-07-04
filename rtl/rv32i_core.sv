@@ -1,4 +1,4 @@
-/* RV32E Core - Main processor module */
+/* RV32I Core - Main processor module */
 
 /*
     5-Stage Pipeline
@@ -9,7 +9,7 @@
     WB (Writeback): Writes results back to registers
 */
 
-module rv32e_core (
+module rv32i_core (
     input wire clk,
     input wire rst_n,
     
@@ -101,10 +101,10 @@ module rv32e_core (
     assign instr_addr = pc;
 
     // Register file instantiation
-    rv32e_register register_file (
+    rv32i_register register_file (
         .clk(clk),
         .rst_n(rst_n),
-        .rs1_addr(rs1[3:0]),      // RV32E uses only 4 bits for register addresses
+        .rs1_addr(rs1[3:0]),      // RV32I uses only 4 bits for register addresses
         .rs2_addr(rs2[3:0]),
         .rs1_data(rs1_data),
         .rs2_data(rs2_data),
@@ -114,7 +114,7 @@ module rv32e_core (
     );
 
     // ALU instantiation
-    rv32e_alu alu (
+    rv32i_alu alu (
         .op(id_ex_alu_op),
         .a(alu_a),
         .b(alu_b),
@@ -274,7 +274,7 @@ module rv32e_core (
             mem_wb_rd_addr <= 4'd0;
             mem_wb_reg_we <= 1'b0;
             
-            $display("=== RV32E Core Reset ===");
+            $display("=== RV32I Core Reset ===");
         end else begin
 
             // Hazard handling logic:

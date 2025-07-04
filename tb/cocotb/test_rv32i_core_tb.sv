@@ -1,6 +1,6 @@
-/* RV32E Core Testbench - cocotb wrapper */
+/* RV32I Core Testbench - cocotb wrapper */
 
-module test_rv32e_core_tb;
+module test_rv32i_core_tb;
     // Clock and reset
     reg clk;
     reg rst_n;
@@ -15,7 +15,7 @@ module test_rv32e_core_tb;
     wire mem_re;
     
     // Instantiate the core
-    rv32e_core core (
+    rv32i_core core (
         .clk(clk),
         .rst_n(rst_n),
         .instr_data(instr_data),
@@ -38,8 +38,8 @@ module test_rv32e_core_tb;
     // Waveform dump for cocotb
     `ifdef COCOTB_SIM
     initial begin
-        $dumpfile("vcd/test_rv32e_core_tb.vcd");
-        $dumpvars(0, test_rv32e_core_tb);
+        $dumpfile("vcd/test_rv32i_core_tb.vcd");
+        $dumpvars(0, test_rv32i_core_tb);
     end
     `endif
 

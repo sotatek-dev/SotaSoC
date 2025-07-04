@@ -1,6 +1,6 @@
-/* RV32E Register File - 16 registers (x0-x15) */
+/* RV32I Register File - 16 registers (x0-x15) */
 
-module rv32e_register (
+module rv32i_register (
     input wire clk,
     input wire rst_n,
     

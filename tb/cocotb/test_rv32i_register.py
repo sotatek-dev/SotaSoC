@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Python test for RV32E Register File using cocotb
+Python test for RV32I Register File using cocotb
 """
 
 import cocotb
@@ -9,7 +9,7 @@ from cocotb.clock import Clock
 from cocotb.binary import BinaryValue
 import random
 
-# Register addresses for RV32E (16 registers: x0-x15)
+# Register addresses for RV32I (16 registers: x0-x15)
 REG_X0 = 0x0
 REG_X1 = 0x1
 REG_X2 = 0x2

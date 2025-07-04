@@ -1,18 +1,18 @@
-# RV32E Simple ALU Test
+# RV32I Simple ALU Test
 
 This is a minimal setup to test a simple ALU module using Icarus Verilog and Python tests with cocotb.
 
 ## Project Structure
 
 ```
-RV32E/
+RV32I/
 ├── rtl/
-│   └── rv32e_alu.v          # Simple ALU module
+│   └── rv32i_alu.v          # Simple ALU module
 ├── tb/
-│   ├── tb_rv32e_alu.v       # Verilog testbench
+│   ├── tb_rv32i_alu.v       # Verilog testbench
 │   ├── cocotb_tb.v           # cocotb testbench wrapper
 │   └── cocotb/
-│       ├── test_rv32e_alu.py # Python tests
+│       ├── test_rv32i_alu.py # Python tests
 │       └── test_basic.py      # Basic cocotb test
 ├── build/                    # Build artifacts
 ├── Makefile                  # cocotb build and test automation
@@ -106,6 +106,6 @@ The Python tests using cocotb provide:
 This simple setup provides a foundation for:
 1. Adding more complex ALU operations
 2. Implementing more sophisticated test scenarios
-3. Building the full RV32E processor
+3. Building the full RV32I processor
 4. Adding performance and timing tests
 5. Creating instruction-level tests 

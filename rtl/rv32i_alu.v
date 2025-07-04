@@ -1,6 +1,6 @@
-/* RV32E ALU - Comprehensive implementation */
+/* RV32I ALU - Comprehensive implementation */
 
-module rv32e_alu (
+module rv32i_alu (
     input [4:0] op,
     input [31:0] a,
     input [31:0] b,

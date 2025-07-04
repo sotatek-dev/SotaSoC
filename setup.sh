@@ -1,10 +1,10 @@
 #!/bin/bash
-# RV32E Processor Setup Script
+# RV32I Processor Setup Script
 # This script sets up the complete development environment
 
 set -e  # Exit on any error
 
-echo "=== RV32E Processor Setup ==="
+echo "=== RV32I Processor Setup ==="
 echo ""
 
 # Detect operating system

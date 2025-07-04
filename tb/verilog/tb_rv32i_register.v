@@ -1,8 +1,8 @@
-/* Testbench for RV32E Register File */
+/* Testbench for RV32I Register File */
 
 `timescale 1ns/1ps
 
-module tb_rv32e_register;
+module tb_rv32i_register;
     
     // Testbench signals
     reg clk;
@@ -13,7 +13,7 @@ module tb_rv32e_register;
     wire [31:0] rs1_data, rs2_data;
     
     // Instantiate the register file
-    rv32e_register reg_file (
+    rv32i_register reg_file (
         .clk(clk),
         .rst_n(rst_n),
         .rs1_addr(rs1_addr),
@@ -160,8 +160,8 @@ module tb_rv32e_register;
     
     // Optional: Generate VCD file for waveform viewing
     initial begin
-        $dumpfile("tb_rv32e_register.vcd");
-        $dumpvars(0, tb_rv32e_register);
+        $dumpfile("tb_rv32i_register.vcd");
+        $dumpvars(0, tb_rv32i_register);
     end
 
 endmodule 

@@ -1,6 +1,6 @@
 /* Simple ALU testbench */
 
-module tb_rv32e_alu;
+module tb_rv32i_alu;
 
     // Clock and reset
     reg clk;
@@ -13,7 +13,7 @@ module tb_rv32e_alu;
     wire [31:0] result;
 
     // Instantiate the ALU
-    rv32e_alu alu_inst (
+    rv32i_alu alu_inst (
         .op(op),
         .a(a),
         .b(b),
@@ -36,8 +36,8 @@ module tb_rv32e_alu;
     // Waveform dump for cocotb
     `ifdef COCOTB_SIM
     initial begin
-        $dumpfile("rv32e_alu.vcd");
-        $dumpvars(0, tb_rv32e_alu);
+        $dumpfile("rv32i_alu.vcd");
+        $dumpvars(0, tb_rv32i_alu);
     end
     `endif
 
