@@ -9,8 +9,8 @@
  * - SPI signals are present but unused (kept for compatibility)
  * 
  * Memory Map:
- * 0x00000000 - 0x0FFFFFFF: Program Memory (loaded from file)
- * 0x00002000 - 0x00011FFF: Data RAM (64KB)
+ * 0x00000000 - 0x00001FFF: Program Memory (loaded from file) - 8KB
+ * 0x00002000 - 0x00003FFF: Data RAM (8KB)
  */
 
 module mem_ctl (
@@ -37,20 +37,22 @@ module mem_ctl (
     input wire spi_miso
 );
 
-    // Memory arrays
-    parameter PROG_MEM_SIZE = 16384;  // 64KB program memory (16K x 32-bit words)
-    parameter DATA_MEM_SIZE = 16384;  // 64KB data memory (16K x 32-bit words)
+    // Memory arrays - 0x2000 = 8192 bytes = 2048 words (32-bit each)
+    parameter PROG_MEM_SIZE = 2048;  // 8KB program memory (2K x 32-bit words)
+    parameter DATA_MEM_SIZE = 8192;  // 8KB data memory (8K bytes)
+    parameter TOTAL_MEM_SIZE = PROG_MEM_SIZE + (DATA_MEM_SIZE/4);  // Total memory size in words
     
     reg [31:0] prog_mem [0:PROG_MEM_SIZE-1];
-    reg [31:0] data_mem [0:DATA_MEM_SIZE-1];
+    reg [7:0] data_mem [0:DATA_MEM_SIZE-1];  // Byte-addressed data memory
+    reg [31:0] combined_mem [0:TOTAL_MEM_SIZE-1];  // Temporary array for loading
     
     // Address mapping
-    wire is_prog_addr = (instr_addr[31:28] == 4'h0);  // 0x0xxxxxxx
-    wire is_data_addr = (mem_addr >= 32'h00002000) && (mem_addr < 32'h00012000);  // 0x00002000-0x00011FFF
+    wire is_prog_addr = (instr_addr < 32'h00002000);  // 0x00000000-0x00001FFF
+    wire is_data_addr = (mem_addr >= 32'h00002000) && (mem_addr < 32'h00004000);  // 0x00002000-0x00003FFF
     
-    // Convert to word addresses
-    wire [15:0] prog_word_addr = instr_addr[17:2];  // Word address for program memory
-    wire [15:0] data_word_addr = (mem_addr - 32'h00002000) >> 2;  // Word address for data memory (offset by 0x2000)
+    // Convert to addresses
+    wire [10:0] prog_word_addr = instr_addr[12:2];  // Word address for program memory (11 bits for 2048 words)
+    wire [12:0] data_byte_addr = mem_addr - 32'h00002000;  // Byte address for data memory (offset by 0x2000)
     
     // Memory initialization - load program from file
     initial begin
@@ -63,13 +65,30 @@ module mem_ctl (
         end
         
         for (i = 0; i < DATA_MEM_SIZE; i = i + 1) begin
-            data_mem[i] = 32'h00000000;
+            data_mem[i] = 8'h00;
         end
         
         // Load program binary if file exists
         if ($value$plusargs("HEX_FILE=%s", hex_file)) begin
-            $readmemh(hex_file, prog_mem);
-            $display("Test Memory Controller: Loaded program from %s", hex_file);
+            // Load entire hex file into temporary combined memory
+            $readmemh(hex_file, combined_mem);
+            
+            // Copy first part to program memory
+            for (i = 0; i < PROG_MEM_SIZE; i = i + 1) begin
+                prog_mem[i] = combined_mem[i];
+            end
+            
+            // Copy second part to data memory (convert from 32-bit words to bytes)
+            for (i = 0; i < DATA_MEM_SIZE/4; i = i + 1) begin
+                data_mem[i*4 + 0] = combined_mem[PROG_MEM_SIZE + i][7:0];
+                data_mem[i*4 + 1] = combined_mem[PROG_MEM_SIZE + i][15:8];
+                data_mem[i*4 + 2] = combined_mem[PROG_MEM_SIZE + i][23:16];
+                data_mem[i*4 + 3] = combined_mem[PROG_MEM_SIZE + i][31:24];
+            end
+            
+            $display("Test Memory Controller: Loaded combined hex file %s", hex_file);
+            $display("  - Program memory: %0d words (0x00000000-0x%08h)", PROG_MEM_SIZE, (PROG_MEM_SIZE * 4) - 1);
+            $display("  - Data memory: %0d bytes (0x00002000-0x%08h)", DATA_MEM_SIZE, 32'h00002000 + DATA_MEM_SIZE - 1);
         end else begin
             // Load default test program
             $display("Test Memory Controller: Loading default test program");
@@ -119,17 +138,20 @@ module mem_ctl (
     end
     
     // Data memory handling
-    always @(posedge clk or negedge rst_n) begin
+    always @(negedge clk or negedge rst_n) begin
         if (!rst_n) begin
             mem_rdata <= 32'h00000000;
             mem_ready <= 1'b0;
         end else begin
             mem_ready <= 1'b0;
             
-            if (is_data_addr && data_word_addr < DATA_MEM_SIZE) begin
+            if (is_data_addr && data_byte_addr < DATA_MEM_SIZE) begin
                 if (mem_we) begin
-                    // Write operation
-                    data_mem[data_word_addr] <= mem_wdata;
+                    // Write operation - 32-bit word write to byte memory
+                    data_mem[data_byte_addr + 0] <= mem_wdata[7:0];
+                    data_mem[data_byte_addr + 1] <= mem_wdata[15:8];
+                    data_mem[data_byte_addr + 2] <= mem_wdata[23:16];
+                    data_mem[data_byte_addr + 3] <= mem_wdata[31:24];
                     mem_ready <= 1'b1;
                     
                     `ifdef SIM_DEBUG
@@ -137,14 +159,16 @@ module mem_ctl (
                              $time, mem_addr, mem_wdata);
                     `endif
                 end else if (mem_re) begin
-                    // Read operation
-                    mem_rdata <= data_mem[data_word_addr];
+                    // Read operation - 32-bit word read from byte memory
+                    mem_rdata <= {data_mem[data_byte_addr + 3], data_mem[data_byte_addr + 2], 
+                                  data_mem[data_byte_addr + 1], data_mem[data_byte_addr + 0]};
                     mem_ready <= 1'b1;
                     
-                    `ifdef SIM_DEBUG
+                    // `ifdef SIM_DEBUG
                     $display("Time %0t: TEST_MEM - Data read: addr=0x%h, data=0x%h", 
-                             $time, mem_addr, data_mem[data_word_addr]);
-                    `endif
+                             $time, mem_addr, {data_mem[data_byte_addr + 3], data_mem[data_byte_addr + 2], 
+                                               data_mem[data_byte_addr + 1], data_mem[data_byte_addr + 0]});
+                    // `endif
                 end
             end else if (mem_we || mem_re) begin
                 // Invalid data address
@@ -163,9 +187,9 @@ module mem_ctl (
     initial begin
         $display("Test Memory Controller Debug Info:");
         $display("Program Memory Size: %0d words (%0d bytes)", PROG_MEM_SIZE, PROG_MEM_SIZE * 4);
-        $display("Data Memory Size: %0d words (%0d bytes)", DATA_MEM_SIZE, DATA_MEM_SIZE * 4);
-        $display("Program Address Range: 0x00000000 - 0x0%07h", (PROG_MEM_SIZE * 4) - 1);
-        $display("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + (DATA_MEM_SIZE * 4) - 1);
+        $display("Data Memory Size: %0d bytes", DATA_MEM_SIZE);
+        $display("Program Address Range: 0x00000000 - 0x%08h", (PROG_MEM_SIZE * 4) - 1);
+        $display("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + DATA_MEM_SIZE - 1);
     end
     `endif
 
