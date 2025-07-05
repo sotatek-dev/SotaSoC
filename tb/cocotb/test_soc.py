@@ -8,17 +8,30 @@ import random
 async def test_soc(dut):
     """Test the SoC"""
 
-    cycles = 100
-
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units="ns")
+    await Timer(15, units="ns")
     dut.rst_n.value = 1
+
+    max_cycles = 10000;
+    cycles = 0;
     
     # Execute for several cycles
-    for i in range(cycles):
-        await FallingEdge(dut.clk)
-        # print(f"Cycle {i}")
+    for _ in range(max_cycles):
+        await RisingEdge(dut.clk)
+        if dut.soc_inst.cpu_core.instr_data == 0x00000073:
+            cycles = 5;
+            print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
+            print("Found ECALL instruction")
+        if cycles > 0:
+            cycles -= 1;
+            if cycles == 0:
+                print("Test finished, checking results")
+                registers = dut.soc_inst.cpu_core.register_file.registers
+                assert registers[10].value == 0, f"Register x10 should be 0, got 0x{registers[10].value.integer:08x}"
+                return;
+
+    assert False, "Didn't find ECALL instruction"

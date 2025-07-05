@@ -20,7 +20,9 @@ module test_soc_tb;
     wire debug_reg_we;
     
     // Instantiate the SoC
-    soc soc_inst (
+    soc#(
+        .RESET_ADDR(32'h00000000)
+    ) soc_inst (
         .clk(clk),
         .rst_n(rst_n),
         .flash_cs_n(flash_cs_n),
@@ -43,7 +45,7 @@ module test_soc_tb;
     //         
     //         if (debug_reg_we) begin
     //             $display("Time %0t: SOC_TB - Register Write: x%0d = 0x%h", 
-    //                      $time, debug_reg_addr[3:0], debug_reg_data);
+    //                      $time, debug_reg_addr[4:0], debug_reg_data);
     //         end
     //     end
     // end

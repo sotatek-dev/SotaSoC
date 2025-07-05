@@ -13,6 +13,11 @@ VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 
 
+# Pass HEX_FILE parameter to simulation if provided
+ifdef HEX_FILE
+    PLUSARGS += +HEX_FILE=$(HEX_FILE)
+endif
+
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 TOPLEVEL = test_soc_tb
 

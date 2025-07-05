@@ -2,5 +2,9 @@ build
 sim_build*
 vcd
 .pytest_cache
+.vscode
 results.xml
+test_logs
 .DS_Store
+deploy.sh
+download.sh

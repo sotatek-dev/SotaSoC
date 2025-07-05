@@ -9,7 +9,9 @@
     WB (Writeback): Writes results back to registers
 */
 
-module rv32i_core (
+module rv32i_core #(
+    parameter RESET_ADDR = 32'h80000000  // Configurable reset address
+) (
     input wire clk,
     input wire rst_n,
     
@@ -246,11 +248,11 @@ module rv32i_core (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset all pipeline registers
-            pc <= 32'h80000000; // Start at typical RISC-V reset address
+            pc <= RESET_ADDR;
             if_id_instr <= 32'h00000013; // NOP instruction
-            if_id_pc <= 32'h80000000;
+            if_id_pc <= RESET_ADDR;
             id_ex_instr <= 32'h00000013;
-            id_ex_pc <= 32'h80000000;
+            id_ex_pc <= RESET_ADDR;
             id_ex_rs1_data <= 32'd0;
             id_ex_rs2_data <= 32'd0;
             id_ex_imm <= 32'd0;
