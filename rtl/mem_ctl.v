@@ -21,6 +21,7 @@ module mem_ctl (
     
     input wire [31:0] mem_addr,
     input wire [31:0] mem_wdata,
+    input wire [2:0] mem_wflag,    // funct3 from store instruction: 000=SB, 001=SH, 010=SW
     input wire mem_we,
     input wire mem_re,
     output reg [31:0] mem_rdata,

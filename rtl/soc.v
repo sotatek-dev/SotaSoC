@@ -37,6 +37,7 @@ module soc #(
     wire [31:0] core_mem_addr;
     wire [31:0] core_mem_wdata;
     wire [31:0] core_mem_rdata;
+    wire [2:0] core_mem_wflag;
     wire core_mem_we;
     wire core_mem_re;
     
@@ -66,6 +67,7 @@ module soc #(
         // Data memory interface  
         .mem_addr(core_mem_addr),
         .mem_wdata(core_mem_wdata),
+        .mem_wflag(core_mem_wflag),
         .mem_we(core_mem_we),
         .mem_re(core_mem_re),
         .mem_data(core_mem_rdata)
@@ -84,6 +86,7 @@ module soc #(
         // Core data interface
         .mem_addr(core_mem_addr),
         .mem_wdata(core_mem_wdata),
+        .mem_wflag(core_mem_wflag),
         .mem_we(core_mem_we),
         .mem_re(core_mem_re),
         .mem_rdata(core_mem_rdata),

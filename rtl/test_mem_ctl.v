@@ -7,6 +7,7 @@
  * - Provides immediate responses (no SPI delays)
  * - Maintains same interface as mem_ctl.v for drop-in replacement
  * - SPI signals are present but unused (kept for compatibility)
+ * - Supports byte, halfword, and word writes (SB, SH, SW) via write_flag
  * 
  * Memory Map:
  * 0x00000000 - 0x00001FFF: Program Memory (loaded from file) - 8KB
@@ -24,6 +25,7 @@ module mem_ctl (
     
     input wire [31:0] mem_addr,
     input wire [31:0] mem_wdata,
+    input wire [2:0] mem_wflag,    // funct3 from store instruction: 000=SB, 001=SH, 010=SW
     input wire mem_we,
     input wire mem_re,
     output reg [31:0] mem_rdata,
@@ -53,7 +55,7 @@ module mem_ctl (
     // Convert to addresses
     wire [10:0] prog_word_addr = instr_addr[12:2];  // Word address for program memory (11 bits for 2048 words)
     wire [12:0] data_byte_addr = mem_addr - 32'h00002000;  // Byte address for data memory (offset by 0x2000)
-    
+
     // Memory initialization - load program from file
     initial begin
         integer i;
@@ -147,16 +149,30 @@ module mem_ctl (
             
             if (is_data_addr && data_byte_addr < DATA_MEM_SIZE) begin
                 if (mem_we) begin
-                    // Write operation - 32-bit word write to byte memory
+                    // Write operation using byte enable signals based on write_flag
+                    // write_flag corresponds to funct3 field:
+                    // 3'b000 → SB (Store Byte)
+                    // 3'b001 → SH (Store Halfword)
+                    // 3'b010 → SW (Store Word)
+
                     data_mem[data_byte_addr + 0] <= mem_wdata[7:0];
-                    data_mem[data_byte_addr + 1] <= mem_wdata[15:8];
-                    data_mem[data_byte_addr + 2] <= mem_wdata[23:16];
-                    data_mem[data_byte_addr + 3] <= mem_wdata[31:24];
+                    if (mem_wflag == 3'b001 || mem_wflag == 3'b010) data_mem[data_byte_addr + 1] <= mem_wdata[15:8];
+                    if (mem_wflag == 3'b010) data_mem[data_byte_addr + 2] <= mem_wdata[23:16];
+                    if (mem_wflag == 3'b010) data_mem[data_byte_addr + 3] <= mem_wdata[31:24];
+                    
                     mem_ready <= 1'b1;
                     
                     `ifdef SIM_DEBUG
-                    $display("Time %0t: TEST_MEM - Data write: addr=0x%h, data=0x%h", 
-                             $time, mem_addr, mem_wdata);
+                    case (write_flag)
+                        3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, byte_enable=0x%h", 
+                                        $time, mem_addr, mem_wdata[7:0], byte_enable);
+                        3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword): addr=0x%h, data=0x%04h, byte_enable=0x%h", 
+                                        $time, mem_addr, mem_wdata[15:0], byte_enable);
+                        3'b010: $display("Time %0t: TEST_MEM - SW (Store Word): addr=0x%h, data=0x%08h, byte_enable=0x%h", 
+                                        $time, mem_addr, mem_wdata, byte_enable);
+                        default: $display("Time %0t: TEST_MEM - Unknown store type: write_flag=0x%h, addr=0x%h, data=0x%08h", 
+                                         $time, write_flag, mem_addr, mem_wdata);
+                    endcase
                     `endif
                 end else if (mem_re) begin
                     // Read operation - 32-bit word read from byte memory
@@ -164,11 +180,11 @@ module mem_ctl (
                                   data_mem[data_byte_addr + 1], data_mem[data_byte_addr + 0]};
                     mem_ready <= 1'b1;
                     
-                    // `ifdef SIM_DEBUG
+                    `ifdef SIM_DEBUG
                     $display("Time %0t: TEST_MEM - Data read: addr=0x%h, data=0x%h", 
                              $time, mem_addr, {data_mem[data_byte_addr + 3], data_mem[data_byte_addr + 2], 
                                                data_mem[data_byte_addr + 1], data_mem[data_byte_addr + 0]});
-                    // `endif
+                    `endif
                 end
             end else if (mem_we || mem_re) begin
                 // Invalid data address
@@ -190,6 +206,10 @@ module mem_ctl (
         $display("Data Memory Size: %0d bytes", DATA_MEM_SIZE);
         $display("Program Address Range: 0x00000000 - 0x%08h", (PROG_MEM_SIZE * 4) - 1);
         $display("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + DATA_MEM_SIZE - 1);
+        $display("Store operations supported via write_flag (funct3):");
+        $display("  - write_flag=3'b000 → SB (Store Byte): Writes 1 byte");
+        $display("  - write_flag=3'b001 → SH (Store Halfword): Writes 2 bytes");
+        $display("  - write_flag=3'b010 → SW (Store Word): Writes 4 bytes");
     end
     `endif
 
