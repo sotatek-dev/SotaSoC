@@ -150,7 +150,9 @@ module rv32i_core #(
                     5'b00000; // default (NOP)
 
     // ALU operand A selection - use forwarded data
-    assign alu_a = (id_ex_instr[6:0] == 7'b0010111) ? id_ex_pc : id_ex_rs1_data_forwarded; // AUIPC uses PC
+    assign alu_a = (id_ex_instr[6:0] == 7'b0010111) ? id_ex_pc : // AUIPC uses PC
+                   (id_ex_instr[6:0] == 7'b0110111) ? 0 :        // LUI uses 0
+                   id_ex_rs1_data_forwarded;
     
     // ALU operand B selection - use forwarded data
     assign alu_b = (id_ex_instr[6:0] == 7'b0110011) ? id_ex_rs2_data_forwarded :  // R-type: use rs2
