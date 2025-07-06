@@ -822,6 +822,7 @@ async def test_sw(dut):
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
     assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
+    assert dut.core.mem_wflag.value == 0b010, f"Mem_wflag should be 0b000, got 0x{dut.core.mem_wflag.value.integer:08x}"
 
 @cocotb.test()
 async def test_sb(dut):
@@ -843,7 +844,8 @@ async def test_sb(dut):
     await do_test(dut, memory, 8, 0)
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
-    assert dut.core.mem_wdata.value == 0x56, f"Mem_wdata should be 0x56, got 0x{dut.core.mem_wdata.value.integer:08x}"
+    assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
+    assert dut.core.mem_wflag.value == 0b000, f"Mem_wflag should be 0b000, got 0x{dut.core.mem_wflag.value.integer:08x}"
 
 @cocotb.test()
 async def test_sh(dut):
@@ -865,7 +867,8 @@ async def test_sh(dut):
     await do_test(dut, memory, 8, 0)
 
     assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
-    assert dut.core.mem_wdata.value == 0x3456, f"Mem_wdata should be 0x3456, got 0x{dut.core.mem_wdata.value.integer:08x}"
+    assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
+    assert dut.core.mem_wflag.value == 0b001, f"Mem_wflag should be 0b001, got 0x{dut.core.mem_wflag.value.integer:08x}"
 
 @cocotb.test()
 async def test_lui(dut):
