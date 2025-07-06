@@ -18,6 +18,8 @@ module rv32i_core #(
     // Memory interface
     input wire [31:0] instr_data,    // Instruction from memory
     input wire [31:0] mem_data,      // Data from memory
+    input wire instr_ready,          // Instruction memory ready signal
+    input wire mem_ready,            // Data memory ready signal
     output wire [31:0] instr_addr,   // Instruction address
     output wire [31:0] mem_addr,     // Memory address
     output wire [31:0] mem_wdata,    // Data to write to memory
@@ -55,6 +57,9 @@ module rv32i_core #(
 
     // Load-use hazard signals
     wire load_use_hazard;
+
+    // Memory stall signals
+    wire mem_stall;
 
     // Instruction fields
     wire [6:0] opcode;
@@ -246,6 +251,9 @@ module rv32i_core #(
                              ((rs1 == id_ex_rd_addr) || // Next instruction uses rs1
                               (rs2 == id_ex_rd_addr));  // Next instruction uses rs2
 
+    // Memory stall detection
+    assign mem_stall = (ex_mem_mem_we || ex_mem_mem_re) && !mem_ready;  // Data memory not ready - stall pipeline
+
     // Pipeline stages
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -292,83 +300,91 @@ module rv32i_core #(
             // * Load-use hazard
             //     + Keep the same instruction in IF/ID stage, don't increment PC
             //     + Insert NOP to ID/EX stage
+            // * Instruction memory not ready
+            //     + Stall pipeline at instruction fetch stage when instruction memory is not ready
+            // * Data memory stall
+            //     + Stall pipeline at memory stage when data memory is not ready
 
-            // Pipeline stage 1: Instruction Fetch
-            // If load_use_hazard is detected, keep the same instruction in IF/ID stage, don't increment PC
-            if (!load_use_hazard) begin
-                pc <= pc_next;
-                if_id_instr <= instr_data;
-                if_id_pc <= pc;
-            end
+            if (mem_stall || !instr_ready) begin
+                // Stall pipeline
+            end else begin
+                // Pipeline stage 1: Instruction Fetch
+                // If load_use_hazard is detected, keep the same instruction in IF/ID stage, don't increment PC
+                if (!load_use_hazard) begin
+                    pc <= pc_next;
+                    if_id_instr <= instr_data;
+                    if_id_pc <= pc;
+                end
 
-            // Pipeline stage 2: Instruction Decode
-            id_ex_instr <= if_id_instr;
-            id_ex_pc <= if_id_pc;
-            id_ex_rs1_data <= rs1_data;
-            id_ex_rs2_data <= rs2_data;
-            id_ex_rs1_addr <= rs1;
-            id_ex_rs2_addr <= rs2;
-            id_ex_rd_addr <= rd;
-            id_ex_alu_op <= alu_op;
-            id_ex_mem_we <= mem_we_ctrl;
-            id_ex_mem_re <= mem_re_ctrl;
-            id_ex_reg_we <= reg_we_ctrl;
+                // Pipeline stage 2: Instruction Decode
+                id_ex_instr <= if_id_instr;
+                id_ex_pc <= if_id_pc;
+                id_ex_rs1_data <= rs1_data;
+                id_ex_rs2_data <= rs2_data;
+                id_ex_rs1_addr <= rs1;
+                id_ex_rs2_addr <= rs2;
+                id_ex_rd_addr <= rd;
+                id_ex_alu_op <= alu_op;
+                id_ex_mem_we <= mem_we_ctrl;
+                id_ex_mem_re <= mem_re_ctrl;
+                id_ex_reg_we <= reg_we_ctrl;
 
-            // Select immediate value based on instruction type
-            case (opcode)
-                7'b0010011, 7'b0000011, 7'b1100111: id_ex_imm <= imm_i; // I-type
-                7'b0100011: id_ex_imm <= imm_s; // S-type
-                7'b1100011: id_ex_imm <= imm_b; // B-type
-                7'b1101111: id_ex_imm <= imm_j; // J-type
-                7'b0110111, 7'b0010111: id_ex_imm <= imm_u; // U-type
-                default: id_ex_imm <= 32'd0;
-            endcase
+                // Select immediate value based on instruction type
+                case (opcode)
+                    7'b0010011, 7'b0000011, 7'b1100111: id_ex_imm <= imm_i; // I-type
+                    7'b0100011: id_ex_imm <= imm_s; // S-type
+                    7'b1100011: id_ex_imm <= imm_b; // B-type
+                    7'b1101111: id_ex_imm <= imm_j; // J-type
+                    7'b0110111, 7'b0010111: id_ex_imm <= imm_u; // U-type
+                    default: id_ex_imm <= 32'd0;
+                endcase
 
-            // If branch_hazard is detected, flush IF/ID stage with NOP
-            if (branch_hazard) begin
-                $display("Time %0t: IF/ID - Flushing with NOP", $time);
-                if_id_instr <= 32'h00000013; // NOP instruction
-                if_id_pc <= 32'h00000000;    // Invalid PC
-                
-            end
-            // If load_use_hazard or branch_hazard is detected, flush ID/EX stage with NOP
-            if (branch_hazard == 1'b1 || load_use_hazard == 1'b1) begin
-                id_ex_instr <= 32'h00000013;
-                id_ex_pc <= 32'h00000000;
-                id_ex_rs1_data <= 32'd0;
-                id_ex_rs2_data <= 32'd0;
-                id_ex_rs1_addr <= 5'd0;
-                id_ex_rs2_addr <= 5'd0;
-                id_ex_rd_addr <= 5'd0;
-                id_ex_alu_op <= 5'd0;
-                id_ex_mem_we <= 1'b0;
-                id_ex_mem_re <= 1'b0;
-                id_ex_reg_we <= 1'b0;
-                id_ex_imm <= 32'd0;
-            end
+                // If branch_hazard is detected, flush IF/ID stage with NOP
+                if (branch_hazard) begin
+                    $display("Time %0t: IF/ID - Flushing with NOP", $time);
+                    if_id_instr <= 32'h00000013; // NOP instruction
+                    if_id_pc <= 32'h00000000;    // Invalid PC
+                    
+                end
+                // If load_use_hazard or branch_hazard is detected, flush ID/EX stage with NOP
+                if (branch_hazard == 1'b1 || load_use_hazard == 1'b1) begin
+                    id_ex_instr <= 32'h00000013;
+                    id_ex_pc <= 32'h00000000;
+                    id_ex_rs1_data <= 32'd0;
+                    id_ex_rs2_data <= 32'd0;
+                    id_ex_rs1_addr <= 5'd0;
+                    id_ex_rs2_addr <= 5'd0;
+                    id_ex_rd_addr <= 5'd0;
+                    id_ex_alu_op <= 5'd0;
+                    id_ex_mem_we <= 1'b0;
+                    id_ex_mem_re <= 1'b0;
+                    id_ex_reg_we <= 1'b0;
+                    id_ex_imm <= 32'd0;
+                end
 
-            // Pipeline stage 3: Execute
-            ex_mem_result <= alu_result;
-            ex_mem_rs2_data <= id_ex_rs2_data_forwarded;
-            ex_mem_pc <= id_ex_pc;
-            ex_mem_instr <= id_ex_instr;
-            ex_mem_rd_addr <= id_ex_rd_addr;
-            ex_mem_mem_we <= id_ex_mem_we;
-            ex_mem_mem_re <= id_ex_mem_re;
-            ex_mem_reg_we <= id_ex_reg_we;
+                // Pipeline stage 3: Execute
+                ex_mem_result <= alu_result;
+                ex_mem_rs2_data <= id_ex_rs2_data_forwarded;
+                ex_mem_pc <= id_ex_pc;
+                ex_mem_instr <= id_ex_instr;
+                ex_mem_rd_addr <= id_ex_rd_addr;
+                ex_mem_mem_we <= id_ex_mem_we;
+                ex_mem_mem_re <= id_ex_mem_re;
+                ex_mem_reg_we <= id_ex_reg_we;
 
-            // Pipeline stage 4: Memory
-            mem_wb_result <= wb_result;
-            mem_wb_pc <= ex_mem_pc;
-            mem_wb_rd_addr <= ex_mem_rd_addr;
-            mem_wb_reg_we <= ex_mem_reg_we;
+                // Pipeline stage 4: Memory
+                mem_wb_result <= wb_result;
+                mem_wb_pc <= ex_mem_pc;
+                mem_wb_rd_addr <= ex_mem_rd_addr;
+                mem_wb_reg_we <= ex_mem_reg_we;
 
-            // Pipeline stage 5: Writeback
-            wb___result <= mem_wb_result;
-            wb___rd_addr <= mem_wb_rd_addr;
-            wb___reg_we <= mem_wb_reg_we;
-        end
-    end
+                // Pipeline stage 5: Writeback
+                wb___result <= mem_wb_result;
+                wb___rd_addr <= mem_wb_rd_addr;
+                wb___reg_we <= mem_wb_reg_we;
+            end // !mem_stall
+        end // rst_n
+    end // always block
 
     // PC update logic
     always @(*) begin
@@ -533,7 +549,7 @@ module rv32i_core #(
         id_ex_instr_str = decode_instruction(id_ex_instr);
 
         // Log instruction fetch
-        $display("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, pc_next);
+        $display("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), instr_ready=%b, PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, instr_ready, pc_next);
         
         // Log instruction decode and register reads
         $display("Time %0t: ID - PC=0x%h, Instr=0x%h (%s), rs1=x%0d(0x%h), rs2=x%0d(0x%h), rd=x%0d", 
@@ -565,6 +581,14 @@ module rv32i_core #(
         if (load_use_hazard) begin
             $display("Time %0t: HAZARD - Load-use hazard detected: load_rd=x%0d, next_rs1=x%0d, next_rs2=x%0d", 
                      $time, id_ex_rd_addr, rs1, rs2);
+        end
+
+        // Log memory issues
+        if (!instr_ready) begin
+            $display("Time %0t: NOP_INSERT - Instruction memory not ready, inserting NOP", $time);
+        end
+        if (mem_stall) begin
+            $display("Time %0t: STALL - Data memory not ready, stalling pipeline", $time);
         end
 
         // Log ALU operations

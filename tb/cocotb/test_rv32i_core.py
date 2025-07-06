@@ -1,32 +1,8 @@
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
+from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
-import random
-
-# Constants
-CYCLES_PER_INSTRUCTION = 8
-NOP_INSTR = 0x00000013
-
-async def do_test(dut, memory, cycles, mem_data=0x00000000):
-    """Do test"""
-
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    
-    dut.instr_data.value = memory[0x80000000]
-    dut.mem_data.value = mem_data
-
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(20, units="ns")
-    dut.rst_n.value = 1
-    
-    # Execute for several cycles
-    for _ in range(cycles):
-        await FallingEdge(dut.clk)
-        dut.instr_data.value = memory[dut.instr_addr.value.integer]
-        # print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
-
+import test_utils
+from test_utils import do_test, CYCLES_PER_INSTRUCTION, NOP_INSTR
 
 @cocotb.test()
 async def test_reset(dut):
@@ -57,6 +33,7 @@ async def test_nop_instruction(dut):
     # Provide NOP instruction
     dut.instr_data.value = 0x00000013  # NOP: addi x0, x0, 0
     dut.mem_data.value = 0x00000000
+    dut.instr_ready.value = 1
     
     # Let it execute for a few cycles
     for _ in range(10):
@@ -77,6 +54,7 @@ async def test_addi_instruction(dut):
     # ADDI x1, x0, 5 (addi x1, x0, 5)
     dut.instr_data.value = 0x00500093
     dut.mem_data.value = 0x00000000
+    dut.instr_ready.value = 1
     
     await Timer(20, units="ns")
     dut.rst_n.value = 1
@@ -106,6 +84,7 @@ async def test_add_instruction(dut):
     # ADDI x1, x0, 5 (addi x1, x0, 5)
     dut.instr_data.value = 0x00500093
     dut.mem_data.value = 0x00000000
+    dut.instr_ready.value = 1
     
     # Execute for several cycles to complete the ADDI
     for _ in range(CYCLES_PER_INSTRUCTION):
@@ -134,8 +113,6 @@ async def test_add_instruction(dut):
     assert dut.core.register_file.registers[1].value == 5, f"Register x1 should be 5, got 0x{dut.core.register_file.registers[1].value.integer:08x}"
     assert dut.core.register_file.registers[2].value == 10, f"Register x2 should be 10, got 0x{dut.core.register_file.registers[2].value.integer:08x}"
 
-
-
 @cocotb.test()
 async def test_load_instruction(dut):
     """Test load instruction"""
@@ -151,6 +128,7 @@ async def test_load_instruction(dut):
     # ADDI x1, x0, 0x300 (ADDI x1, x0, 768)
     dut.instr_data.value = 0x30000093
     dut.mem_data.value = 0x00000000
+    dut.instr_ready.value = 1
     
     # Execute ADDI
     for _ in range(CYCLES_PER_INSTRUCTION):
@@ -190,6 +168,8 @@ async def test_store_instruction(dut):
     # ADDI x1, x0, 0x300 (addi x1, x0, 768)
     dut.instr_data.value = 0x30000093
     dut.mem_data.value = 0x00000000
+    dut.instr_ready.value = 1
+    dut.mem_ready.value = 1
     
     # Execute ADDI
     for _ in range(CYCLES_PER_INSTRUCTION):
@@ -818,11 +798,11 @@ async def test_sw(dut):
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
     }
-    await do_test(dut, memory, 8, 0)
+    await do_test(dut, memory, 9, 0)
 
-    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
-    assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
-    assert dut.core.mem_wflag.value == 0b010, f"Mem_wflag should be 0b000, got 0x{dut.core.mem_wflag.value.integer:08x}"
+    assert test_utils.mem_addr == 0x320, f"Mem_Addr should be 0x320, got 0x{test_utils.mem_addr:08x}"
+    assert test_utils.mem_wdata == 0x123456, f"Mem_wdata should be 0x123456, got 0x{test_utils.mem_wdata:08x}"
+    assert test_utils.mem_wflag == 0b010, f"Mem_wflag should be 0b000, got 0x{test_utils.mem_wflag:08x}"
 
 @cocotb.test()
 async def test_sb(dut):
@@ -841,11 +821,11 @@ async def test_sb(dut):
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
     }
-    await do_test(dut, memory, 8, 0)
+    await do_test(dut, memory, 9, 0)
 
-    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
-    assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
-    assert dut.core.mem_wflag.value == 0b000, f"Mem_wflag should be 0b000, got 0x{dut.core.mem_wflag.value.integer:08x}"
+    assert test_utils.mem_addr == 0x320, f"Mem_Addr should be 0x320, got 0x{test_utils.mem_addr:08x}"
+    assert test_utils.mem_wdata == 0x123456, f"Mem_wdata should be 0x123456, got 0x{test_utils.mem_wdata:08x}"
+    assert test_utils.mem_wflag == 0b000, f"Mem_wflag should be 0b000, got 0x{test_utils.mem_wflag:08x}"
 
 @cocotb.test()
 async def test_sh(dut):
@@ -864,11 +844,11 @@ async def test_sh(dut):
         0x80000024: NOP_INSTR,
         0x80000028: NOP_INSTR,
     }
-    await do_test(dut, memory, 8, 0)
+    await do_test(dut, memory, 9, 0)
 
-    assert dut.core.mem_addr.value == 0x320, f"Mem_Addr should be 0x320, got 0x{dut.core.mem_addr.value.integer:08x}"
-    assert dut.core.mem_wdata.value == 0x123456, f"Mem_wdata should be 0x123456, got 0x{dut.core.mem_wdata.value.integer:08x}"
-    assert dut.core.mem_wflag.value == 0b001, f"Mem_wflag should be 0b001, got 0x{dut.core.mem_wflag.value.integer:08x}"
+    assert test_utils.mem_addr == 0x320, f"Mem_Addr should be 0x320, got 0x{test_utils.mem_addr:08x}"
+    assert test_utils.mem_wdata == 0x123456, f"Mem_wdata should be 0x123456, got 0x{test_utils.mem_wdata:08x}"
+    assert test_utils.mem_wflag == 0b001, f"Mem_wflag should be 0b001, got 0x{test_utils.mem_wflag:08x}"
 
 @cocotb.test()
 async def test_lui(dut):

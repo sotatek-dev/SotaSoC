@@ -63,6 +63,7 @@ module soc #(
         // Instruction memory interface
         .instr_addr(core_instr_addr),
         .instr_data(core_instr_data),
+        .instr_ready(mem_instr_ready),
         
         // Data memory interface  
         .mem_addr(core_mem_addr),
@@ -70,7 +71,8 @@ module soc #(
         .mem_wflag(core_mem_wflag),
         .mem_we(core_mem_we),
         .mem_re(core_mem_re),
-        .mem_data(core_mem_rdata)
+        .mem_data(core_mem_rdata),
+        .mem_ready(mem_data_ready)
     );
     
     // Memory Controller instantiation

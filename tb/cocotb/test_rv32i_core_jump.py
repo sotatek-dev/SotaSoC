@@ -1,31 +1,5 @@
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from cocotb.clock import Clock
-import random
-
-# Constants
-CYCLES_PER_INSTRUCTION = 8
-NOP_INSTR = 0x00000013
-
-async def do_test(dut, memory, cycles, mem_data=0x00000000):
-    """Do test"""
-
-    clock = Clock(dut.clk, 10, units="ns")
-    cocotb.start_soon(clock.start())
-    
-    dut.instr_data.value = memory[0x80000000]
-    dut.mem_data.value = mem_data
-
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(20, units="ns")
-    dut.rst_n.value = 1
-    
-    # Execute for several cycles
-    for _ in range(cycles):
-        await FallingEdge(dut.clk)
-        dut.instr_data.value = memory[dut.instr_addr.value.integer]
-        # print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
+from test_utils import do_test, NOP_INSTR
 
 @cocotb.test()
 async def test_beq_1(dut):

@@ -8,9 +8,12 @@ module test_rv32i_core_tb;
     // Memory interface
     wire [31:0] instr_data;
     wire [31:0] mem_data;
+    wire instr_ready;
+    wire mem_ready;
     wire [31:0] instr_addr;
     wire [31:0] mem_addr;
     wire [31:0] mem_wdata;
+    wire [2:0] mem_wflag;
     wire mem_we;
     wire mem_re;
     
@@ -20,9 +23,12 @@ module test_rv32i_core_tb;
         .rst_n(rst_n),
         .instr_data(instr_data),
         .mem_data(mem_data),
+        .instr_ready(instr_ready),
+        .mem_ready(mem_ready),
         .instr_addr(instr_addr),
         .mem_addr(mem_addr),
         .mem_wdata(mem_wdata),
+        .mem_wflag(mem_wflag),
         .mem_we(mem_we),
         .mem_re(mem_re)
     );
