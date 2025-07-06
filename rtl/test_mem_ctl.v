@@ -39,35 +39,30 @@ module mem_ctl (
     input wire spi_miso
 );
 
-    // Memory arrays - 0x2000 = 8192 bytes = 2048 words (32-bit each)
-    parameter PROG_MEM_SIZE = 2048;  // 8KB program memory (2K x 32-bit words)
+    // Unified memory - byte-addressed for entire address space
+    parameter PROG_MEM_SIZE = 8192;  // 8KB program memory (8K bytes)
     parameter DATA_MEM_SIZE = 8192;  // 8KB data memory (8K bytes)
-    parameter TOTAL_MEM_SIZE = PROG_MEM_SIZE + (DATA_MEM_SIZE/4);  // Total memory size in words
+    parameter TOTAL_MEM_SIZE = PROG_MEM_SIZE + DATA_MEM_SIZE;  // Total memory size in bytes
     
-    reg [31:0] prog_mem [0:PROG_MEM_SIZE-1];
-    reg [7:0] data_mem [0:DATA_MEM_SIZE-1];  // Byte-addressed data memory
-    reg [31:0] combined_mem [0:TOTAL_MEM_SIZE-1];  // Temporary array for loading
+    reg [7:0] unified_mem [0:TOTAL_MEM_SIZE-1];  // Single byte-addressed memory array
+    reg [31:0] combined_mem [0:(TOTAL_MEM_SIZE/4)-1];  // Temporary array for loading
     
     // Address mapping
     wire is_prog_addr = (instr_addr < 32'h00002000);  // 0x00000000-0x00001FFF
     wire is_data_addr = (mem_addr >= 32'h00002000) && (mem_addr < 32'h00004000);  // 0x00002000-0x00003FFF
     
-    // Convert to addresses
-    wire [10:0] prog_word_addr = instr_addr[12:2];  // Word address for program memory (11 bits for 2048 words)
-    wire [12:0] data_byte_addr = mem_addr - 32'h00002000;  // Byte address for data memory (offset by 0x2000)
+    // Convert to byte addresses
+    wire [15:0] prog_byte_addr = instr_addr[15:0];  // Byte address for program memory
+    wire [15:0] data_byte_addr = mem_addr - 32'h00002000;  // Byte address for data memory (offset by 0x2000)
 
     // Memory initialization - load program from file
     initial begin
         integer i;
         reg [8*256:1] hex_file;  // String to hold filename
         
-        // Initialize memories to zero
-        for (i = 0; i < PROG_MEM_SIZE; i = i + 1) begin
-            prog_mem[i] = 32'h00000000;
-        end
-        
-        for (i = 0; i < DATA_MEM_SIZE; i = i + 1) begin
-            data_mem[i] = 8'h00;
+        // Initialize memory to zero
+        for (i = 0; i < TOTAL_MEM_SIZE; i = i + 1) begin
+            unified_mem[i] = 8'h00;
         end
         
         // Load program binary if file exists
@@ -75,34 +70,30 @@ module mem_ctl (
             // Load entire hex file into temporary combined memory
             $readmemh(hex_file, combined_mem);
             
-            // Copy first part to program memory
-            for (i = 0; i < PROG_MEM_SIZE; i = i + 1) begin
-                prog_mem[i] = combined_mem[i];
-            end
-            
-            // Copy second part to data memory (convert from 32-bit words to bytes)
-            for (i = 0; i < DATA_MEM_SIZE/4; i = i + 1) begin
-                data_mem[i*4 + 0] = combined_mem[PROG_MEM_SIZE + i][7:0];
-                data_mem[i*4 + 1] = combined_mem[PROG_MEM_SIZE + i][15:8];
-                data_mem[i*4 + 2] = combined_mem[PROG_MEM_SIZE + i][23:16];
-                data_mem[i*4 + 3] = combined_mem[PROG_MEM_SIZE + i][31:24];
+            // Copy to unified memory (convert from 32-bit words to bytes)
+            for (i = 0; i < TOTAL_MEM_SIZE/4; i = i + 1) begin
+                unified_mem[i*4 + 0] = combined_mem[i][7:0];
+                unified_mem[i*4 + 1] = combined_mem[i][15:8];
+                unified_mem[i*4 + 2] = combined_mem[i][23:16];
+                unified_mem[i*4 + 3] = combined_mem[i][31:24];
             end
             
             $display("Test Memory Controller: Loaded combined hex file %s", hex_file);
-            $display("  - Program memory: %0d words (0x00000000-0x%08h)", PROG_MEM_SIZE, (PROG_MEM_SIZE * 4) - 1);
+            $display("  - Program memory: %0d bytes (0x00000000-0x%08h)", PROG_MEM_SIZE, PROG_MEM_SIZE - 1);
             $display("  - Data memory: %0d bytes (0x00002000-0x%08h)", DATA_MEM_SIZE, 32'h00002000 + DATA_MEM_SIZE - 1);
         end else begin
             // Load default test program
             $display("Test Memory Controller: Loading default test program");
             
             // Simple test program - just some NOPs and basic instructions
-            prog_mem[0] = 32'h00000013;  // nop (addi x0, x0, 0)
-            prog_mem[1] = 32'h00100093;  // addi x1, x0, 1
-            prog_mem[2] = 32'h00200113;  // addi x2, x0, 2
-            prog_mem[3] = 32'h002081b3;  // add x3, x1, x2
-            prog_mem[4] = 32'h00000013;  // nop
-            prog_mem[5] = 32'h00000013;  // nop
-            prog_mem[6] = 32'hffdff06f;  // jal x0, -4 (infinite loop)
+            // Store as bytes in little-endian format
+            {unified_mem[3], unified_mem[2], unified_mem[1], unified_mem[0]} = 32'h00000013;  // nop (addi x0, x0, 0)
+            {unified_mem[7], unified_mem[6], unified_mem[5], unified_mem[4]} = 32'h00100093;  // addi x1, x0, 1
+            {unified_mem[11], unified_mem[10], unified_mem[9], unified_mem[8]} = 32'h00200113;  // addi x2, x0, 2
+            {unified_mem[15], unified_mem[14], unified_mem[13], unified_mem[12]} = 32'h002081b3;  // add x3, x1, x2
+            {unified_mem[19], unified_mem[18], unified_mem[17], unified_mem[16]} = 32'h00000013;  // nop
+            {unified_mem[23], unified_mem[22], unified_mem[21], unified_mem[20]} = 32'h00000013;  // nop
+            {unified_mem[27], unified_mem[26], unified_mem[25], unified_mem[24]} = 32'hffdff06f;  // jal x0, -4 (infinite loop)
         end
         
         $display("Test Memory Controller: Memory initialization complete");
@@ -119,23 +110,26 @@ module mem_ctl (
             spi_sclk <= 1'b0;
             spi_mosi <= 1'b0;
         end else begin
-            if (is_prog_addr && prog_word_addr < PROG_MEM_SIZE) begin
-                instr_data <= prog_mem[prog_word_addr];
+            // if (is_prog_addr && prog_byte_addr < PROG_MEM_SIZE) begin
+                // Read 32-bit word from byte memory (little-endian)
+                instr_data <= {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
+                              unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]};
                 instr_ready <= 1'b1;
                 
-                `ifdef SIM_DEBUG
+                // `ifdef SIM_DEBUG
                 $display("Time %0t: TEST_MEM - Instruction fetch: addr=0x%h, data=0x%h", 
-                         $time, instr_addr, prog_mem[prog_word_addr]);
-                `endif
-            end else begin
-                instr_data <= 32'h00000000;  // Return NOP for invalid addresses
-                instr_ready <= 1'b1;
+                         $time, instr_addr, {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
+                                            unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]});
+                // `endif
+            // end else begin
+            //     instr_data <= 32'h00000000;  // Return NOP for invalid addresses
+            //     instr_ready <= 1'b1;
                 
-                `ifdef SIM_DEBUG
-                if (is_prog_addr)
-                    $display("Time %0t: TEST_MEM - Invalid instruction address: 0x%h", $time, instr_addr);
-                `endif
-            end
+            //     `ifdef SIM_DEBUG
+            //     if (is_prog_addr)
+            //         $display("Time %0t: TEST_MEM - Invalid instruction address: 0x%h", $time, instr_addr);
+            //     `endif
+            // end
         end
     end
     
@@ -147,7 +141,7 @@ module mem_ctl (
         end else begin
             mem_ready <= 1'b0;
             
-            if (is_data_addr && data_byte_addr < DATA_MEM_SIZE) begin
+            // if (is_data_addr && data_byte_addr < DATA_MEM_SIZE) begin
                 if (mem_we) begin
                     // Write operation using byte enable signals based on write_flag
                     // write_flag corresponds to funct3 field:
@@ -155,46 +149,46 @@ module mem_ctl (
                     // 3'b001 → SH (Store Halfword)
                     // 3'b010 → SW (Store Word)
 
-                    data_mem[data_byte_addr + 0] <= mem_wdata[7:0];
-                    if (mem_wflag == 3'b001 || mem_wflag == 3'b010) data_mem[data_byte_addr + 1] <= mem_wdata[15:8];
-                    if (mem_wflag == 3'b010) data_mem[data_byte_addr + 2] <= mem_wdata[23:16];
-                    if (mem_wflag == 3'b010) data_mem[data_byte_addr + 3] <= mem_wdata[31:24];
+                    unified_mem[PROG_MEM_SIZE + data_byte_addr + 0] <= mem_wdata[7:0];
+                    if (mem_wflag == 3'b001 || mem_wflag == 3'b010) unified_mem[PROG_MEM_SIZE + data_byte_addr + 1] <= mem_wdata[15:8];
+                    if (mem_wflag == 3'b010) unified_mem[PROG_MEM_SIZE + data_byte_addr + 2] <= mem_wdata[23:16];
+                    if (mem_wflag == 3'b010) unified_mem[PROG_MEM_SIZE + data_byte_addr + 3] <= mem_wdata[31:24];
                     
                     mem_ready <= 1'b1;
                     
-                    `ifdef SIM_DEBUG
-                    case (write_flag)
-                        3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, byte_enable=0x%h", 
-                                        $time, mem_addr, mem_wdata[7:0], byte_enable);
-                        3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword): addr=0x%h, data=0x%04h, byte_enable=0x%h", 
-                                        $time, mem_addr, mem_wdata[15:0], byte_enable);
-                        3'b010: $display("Time %0t: TEST_MEM - SW (Store Word): addr=0x%h, data=0x%08h, byte_enable=0x%h", 
-                                        $time, mem_addr, mem_wdata, byte_enable);
-                        default: $display("Time %0t: TEST_MEM - Unknown store type: write_flag=0x%h, addr=0x%h, data=0x%08h", 
-                                         $time, write_flag, mem_addr, mem_wdata);
+                    // `ifdef SIM_DEBUG
+                    case (mem_wflag)
+                        3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, mem_wflag=0x%h", 
+                                        $time, mem_addr, mem_wdata[7:0], mem_wflag);
+                        3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword): addr=0x%h, data=0x%04h, mem_wflag=0x%h", 
+                                        $time, mem_addr, mem_wdata[15:0], mem_wflag);
+                        3'b010: $display("Time %0t: TEST_MEM - SW (Store Word): addr=0x%h, data=0x%08h, mem_wflag=0x%h", 
+                                        $time, mem_addr, mem_wdata, mem_wflag);
+                        default: $display("Time %0t: TEST_MEM - Unknown store type: mem_wflag=0x%h, addr=0x%h, data=0x%08h", 
+                                         $time, mem_wflag, mem_addr, mem_wdata);
                     endcase
-                    `endif
+                    // `endif
                 end else if (mem_re) begin
                     // Read operation - 32-bit word read from byte memory
-                    mem_rdata <= {data_mem[data_byte_addr + 3], data_mem[data_byte_addr + 2], 
-                                  data_mem[data_byte_addr + 1], data_mem[data_byte_addr + 0]};
+                    mem_rdata <= {unified_mem[PROG_MEM_SIZE + data_byte_addr + 3], unified_mem[PROG_MEM_SIZE + data_byte_addr + 2], 
+                                  unified_mem[PROG_MEM_SIZE + data_byte_addr + 1], unified_mem[PROG_MEM_SIZE + data_byte_addr + 0]};
                     mem_ready <= 1'b1;
                     
-                    `ifdef SIM_DEBUG
+                    // `ifdef SIM_DEBUG
                     $display("Time %0t: TEST_MEM - Data read: addr=0x%h, data=0x%h", 
-                             $time, mem_addr, {data_mem[data_byte_addr + 3], data_mem[data_byte_addr + 2], 
-                                               data_mem[data_byte_addr + 1], data_mem[data_byte_addr + 0]});
-                    `endif
+                             $time, mem_addr, {unified_mem[PROG_MEM_SIZE + data_byte_addr + 3], unified_mem[PROG_MEM_SIZE + data_byte_addr + 2], 
+                                               unified_mem[PROG_MEM_SIZE + data_byte_addr + 1], unified_mem[PROG_MEM_SIZE + data_byte_addr + 0]});
+                    // `endif
                 end
-            end else if (mem_we || mem_re) begin
-                // Invalid data address
-                mem_rdata <= 32'h00000000;
-                mem_ready <= 1'b1;
+            // end else if (mem_we || mem_re) begin
+            //     // Invalid data address
+            //     mem_rdata <= 32'h00000000;
+            //     mem_ready <= 1'b1;
                 
-                `ifdef SIM_DEBUG
-                $display("Time %0t: TEST_MEM - Invalid data address: 0x%h", $time, mem_addr);
-                `endif
-            end
+            //     `ifdef SIM_DEBUG
+            //     $display("Time %0t: TEST_MEM - Invalid data address: 0x%h", $time, mem_addr);
+            //     `endif
+            // end
         end
     end
     
@@ -202,9 +196,10 @@ module mem_ctl (
     `ifdef SIM_DEBUG
     initial begin
         $display("Test Memory Controller Debug Info:");
-        $display("Program Memory Size: %0d words (%0d bytes)", PROG_MEM_SIZE, PROG_MEM_SIZE * 4);
+        $display("Unified Memory Size: %0d bytes", TOTAL_MEM_SIZE);
+        $display("Program Memory Size: %0d bytes", PROG_MEM_SIZE);
         $display("Data Memory Size: %0d bytes", DATA_MEM_SIZE);
-        $display("Program Address Range: 0x00000000 - 0x%08h", (PROG_MEM_SIZE * 4) - 1);
+        $display("Program Address Range: 0x00000000 - 0x%08h", PROG_MEM_SIZE - 1);
         $display("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + DATA_MEM_SIZE - 1);
         $display("Store operations supported via write_flag (funct3):");
         $display("  - write_flag=3'b000 → SB (Store Byte): Writes 1 byte");
