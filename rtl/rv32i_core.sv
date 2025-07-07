@@ -59,7 +59,7 @@ module rv32i_core #(
     wire load_use_hazard;
 
     // Memory stall signals
-    wire mem_stall;
+    reg mem_stall;
 
     // Instruction fields
     wire [6:0] opcode;
@@ -189,8 +189,9 @@ module rv32i_core #(
     assign mem_addr = ex_mem_result;
     assign mem_wdata = ex_mem_rs2_data;
     assign mem_wflag = ex_mem_instr[14:12];
-    assign mem_we = ex_mem_mem_we;
-    assign mem_re = ex_mem_mem_re;
+    // Only access memory when instruction is ready
+    assign mem_we = instr_ready && ex_mem_mem_we;
+    assign mem_re = instr_ready && ex_mem_mem_re;
 
     // Writeback result selection
     wire [31:0] wb_result;
@@ -251,9 +252,6 @@ module rv32i_core #(
                              ((rs1 == id_ex_rd_addr) || // Next instruction uses rs1
                               (rs2 == id_ex_rd_addr));  // Next instruction uses rs2
 
-    // Memory stall detection
-    assign mem_stall = (ex_mem_mem_we || ex_mem_mem_re) && !mem_ready;  // Data memory not ready - stall pipeline
-
     // Pipeline stages
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -281,6 +279,7 @@ module rv32i_core #(
             ex_mem_mem_we <= 1'b0;
             ex_mem_mem_re <= 1'b0;
             ex_mem_reg_we <= 1'b0;
+            mem_stall <= 1'b0;
             mem_wb_result <= 32'd0;
             mem_wb_pc <= 32'd0;
             mem_wb_rd_addr <= 5'd0;
@@ -307,6 +306,15 @@ module rv32i_core #(
 
             if (mem_stall || !instr_ready) begin
                 // Stall pipeline
+                if (mem_stall && instr_ready) begin
+                    // Only keep we and re signals for 1 cycle
+                    // When the instruction is ready, we start accessing memory (above code) and clear these signals here
+                    ex_mem_mem_we <= 1'b0;
+                    ex_mem_mem_re <= 1'b0;
+                end
+                if (mem_ready) begin
+                    mem_stall <= 1'b0;
+                end
             end else begin
                 // Pipeline stage 1: Instruction Fetch
                 // If load_use_hazard is detected, keep the same instruction in IF/ID stage, don't increment PC
@@ -371,6 +379,9 @@ module rv32i_core #(
                 ex_mem_mem_we <= id_ex_mem_we;
                 ex_mem_mem_re <= id_ex_mem_re;
                 ex_mem_reg_we <= id_ex_reg_we;
+                if (id_ex_mem_we || id_ex_mem_re) begin
+                    mem_stall <= 1'b1;
+                end
 
                 // Pipeline stage 4: Memory
                 mem_wb_result <= wb_result;
@@ -544,9 +555,10 @@ module rv32i_core #(
 
     // Debug logging with $display statements
     always @(posedge clk) begin
-        string if_id_instr_str, id_ex_instr_str;
+        string if_id_instr_str, id_ex_instr_str, ex_mem_instr_str;
         if_id_instr_str = decode_instruction(if_id_instr);
         id_ex_instr_str = decode_instruction(id_ex_instr);
+        ex_mem_instr_str = decode_instruction(ex_mem_instr);
 
         // Log instruction fetch
         $display("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), instr_ready=%b, PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, instr_ready, pc_next);
@@ -585,15 +597,15 @@ module rv32i_core #(
 
         // Log memory issues
         if (!instr_ready) begin
-            $display("Time %0t: NOP_INSERT - Instruction memory not ready, inserting NOP", $time);
+            $display("Time %0t: STALL - Instruction memory not ready, stalling pipeline", $time);
         end
         if (mem_stall) begin
             $display("Time %0t: STALL - Data memory not ready, stalling pipeline", $time);
         end
 
         // Log ALU operations
-        $display("Time %0t: EX - ALU: op=0x%h, a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
-                    $time, alu_op, alu_a, alu_b, alu_result, id_ex_rd_addr);
+        $display("Time %0t: EX - PC=0x%h, Instr=0x%h (%s) - ALU: op=0x%h, a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
+                    $time, ex_mem_pc, ex_mem_instr, ex_mem_instr_str, alu_op, alu_a, alu_b, alu_result, id_ex_rd_addr);
 
         // Log memory operations
         if (ex_mem_mem_we) begin

@@ -16,6 +16,8 @@ async def test_soc(dut):
     await Timer(15, units="ns")
     dut.rst_n.value = 1
 
+    instr_fetch_delay = dut.soc_inst.mem_ctrl.INSTR_FETCH_DELAY.value + 1
+
     max_cycles = 10000;
     cycles = 0;
     
@@ -23,7 +25,7 @@ async def test_soc(dut):
     for _ in range(max_cycles):
         await RisingEdge(dut.clk)
         if dut.soc_inst.cpu_core.instr_data == 0x00000073:
-            cycles = 5;
+            cycles = 5 * instr_fetch_delay;
             print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
             print("Found ECALL instruction")
         if cycles > 0:

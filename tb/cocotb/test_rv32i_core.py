@@ -129,6 +129,7 @@ async def test_load_instruction(dut):
     dut.instr_data.value = 0x30000093
     dut.mem_data.value = 0x00000000
     dut.instr_ready.value = 1
+    dut.mem_ready.value = 1
     
     # Execute ADDI
     for _ in range(CYCLES_PER_INSTRUCTION):

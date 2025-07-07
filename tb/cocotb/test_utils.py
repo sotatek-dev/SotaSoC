@@ -42,11 +42,11 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
     # Execute for several cycles
     for _ in range(cycles * MEMORY_CYCLES):
         await FallingEdge(dut.clk)
-        if mem_wait_cycles == 0 and (dut.mem_we != current_mem_we or dut.mem_re != current_mem_re):
+        if mem_wait_cycles == 0 and ((dut.mem_we == 1 and current_mem_we == 0) or (dut.mem_re == 1 and current_mem_re == 0)):
             dut.mem_ready.value = 0
             mem_wait_cycles = MEMORY_CYCLES
-            current_mem_we = dut.mem_we
-            current_mem_re = dut.mem_re
+            current_mem_we = dut.mem_we.value
+            current_mem_re = dut.mem_re.value
 
         if mem_wait_cycles > 0:
             mem_wait_cycles -= 1
@@ -56,6 +56,9 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
                     mem_addr = dut.mem_addr.value.integer
                     mem_wdata = dut.mem_wdata.value.integer
                     mem_wflag = dut.mem_wflag.value.integer
+                # Reset current memory operation flags when memory operation completes
+                current_mem_we = 0
+                current_mem_re = 0
 
         if instr_wait_cycles == 0 and dut.instr_addr.value.integer != current_pc:
             dut.instr_ready.value = 0
