@@ -33,6 +33,11 @@ module mem_ctl (
     output reg [31:0] mem_rdata,
     output reg mem_ready,
     
+    // UART TX interface
+    output wire uart_tx_en,
+    input wire uart_tx_busy,
+    output wire [7:0] uart_tx_data,
+    
     // Shared SPI interface (unused in test controller)
     output reg flash_cs_n,
     output reg ram_cs_n,
@@ -41,7 +46,7 @@ module mem_ctl (
     input wire spi_miso
 );
 
-    `define USE_MEMORY_DELAY 1
+    // `define USE_MEMORY_DELAY 1
     // Memory access delay constants
     parameter INSTR_FETCH_DELAY = 3;  // Instruction fetch takes 3 cycles
     parameter DATA_ACCESS_DELAY = 2;  // Data read/write takes 2 cycles
@@ -53,10 +58,13 @@ module mem_ctl (
     
     reg [7:0] unified_mem [0:TOTAL_MEM_SIZE-1];  // Single byte-addressed memory array
     reg [31:0] combined_mem [0:(TOTAL_MEM_SIZE/4)-1];  // Temporary array for loading
+    reg [7:0] uart_tx_data_reg;
+    reg uart_tx_en_reg;
     
     // Address mapping
     wire is_prog_addr = (instr_addr < 32'h00002000);  // 0x00000000-0x00001FFF
     wire is_data_addr = (mem_addr >= 32'h00002000) && (mem_addr < 32'h00004000);  // 0x00002000-0x00003FFF
+    wire is_uart_addr = (mem_addr >= 32'h00004000) && (mem_addr < 32'h00004100);  // 0x00004000-0x000040FF
     
     // Convert to byte addresses
     wire [15:0] prog_byte_addr = instr_addr[15:0];  // Byte address for program memory
@@ -84,6 +92,10 @@ module mem_ctl (
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE);
     wire start_instr_access = instr_request && (access_state == ACCESS_IDLE) && !data_request;
+    
+    // UART register addresses
+    wire uart_data_reg_access = (mem_addr == 32'h00004000);  // UART TX Data Register
+    wire uart_ctrl_reg_access = (mem_addr == 32'h00004004);  // UART Control/Status Register
     
     // Memory initialization - load program from file
     initial begin
@@ -143,7 +155,9 @@ module mem_ctl (
             spi_sclk <= 1'b0;
             spi_mosi <= 1'b0;
         end else begin
-            // if (is_prog_addr && prog_byte_addr < PROG_MEM_SIZE) begin
+            // Allow access to both program and data memory,
+            // because there are some tests that write instructions to data memory then jump to that address
+            if (is_prog_addr || is_data_addr) begin
                 // Read 32-bit word from byte memory (little-endian)
                 instr_data <= {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
                               unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]};
@@ -154,16 +168,8 @@ module mem_ctl (
                          $time, instr_addr, {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
                                             unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]});
                 // `endif
-            // end else begin
-            //     instr_data <= 32'h00000000;  // Return NOP for invalid addresses
-            //     instr_ready <= 1'b1;
-                
-            //     `ifdef SIM_DEBUG
-            //     if (is_prog_addr)
-            //         $display("Time %0t: TEST_MEM - Invalid instruction address: 0x%h", $time, instr_addr);
-            //     `endif
-            // end
-        end
+            end // is_prog_addr || is_data_addr
+        end // rst_n
     end
     
     // Data memory handling
@@ -172,9 +178,9 @@ module mem_ctl (
             mem_rdata <= 32'h00000000;
             mem_ready <= 1'b0;
         end else begin
-            mem_ready <= 1'b0;
-            
-            // if (is_data_addr && data_byte_addr < DATA_MEM_SIZE) begin
+            if (is_data_addr) begin
+                mem_ready <= 1'b0;
+
                 if (mem_we) begin
                     // Write operation using byte enable signals based on write_flag
                     // write_flag corresponds to funct3 field:
@@ -212,17 +218,9 @@ module mem_ctl (
                              $time, mem_addr, {unified_mem[PROG_MEM_SIZE + data_byte_addr + 3], unified_mem[PROG_MEM_SIZE + data_byte_addr + 2], 
                                                unified_mem[PROG_MEM_SIZE + data_byte_addr + 1], unified_mem[PROG_MEM_SIZE + data_byte_addr + 0]});
                     // `endif
-                end
-            // end else if (mem_we || mem_re) begin
-            //     // Invalid data address
-            //     mem_rdata <= 32'h00000000;
-            //     mem_ready <= 1'b1;
-                
-            //     `ifdef SIM_DEBUG
-            //     $display("Time %0t: TEST_MEM - Invalid data address: 0x%h", $time, mem_addr);
-            //     `endif
-            // end
-        end
+                end // mem_re
+            end // is_data_addr
+        end // rst_n
     end
     `endif // !USE_MEMORY_DELAY
     
@@ -367,6 +365,62 @@ module mem_ctl (
     end
     `endif // USE_MEMORY_DELAY
     
+    // UART register access handling (immediate response)
+    assign uart_tx_en = uart_tx_en_reg;
+    assign uart_tx_data = uart_tx_data_reg;
+
+    always @(negedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+        end else begin
+            uart_tx_en_reg <= 1'b0;
+
+            // Handle UART register access (only respond to UART address range)
+            if (is_uart_addr && (mem_we || mem_re)) begin
+                // Default values
+                mem_ready <= 1'b0;
+
+                if (mem_we) begin
+                    // UART register write
+                    if (uart_data_reg_access) begin
+                        // Write to UART TX Data Register - trigger transmission
+                        uart_tx_data_reg <= mem_wdata[7:0];
+                        $display("Time %0t: UART_MEM - TX Data Write: data=0x%02h (%c)", 
+                                 $time, mem_wdata[7:0], mem_wdata[7:0]);
+                    end else if (uart_ctrl_reg_access) begin
+                        // Write to UART Control Register (only bit 1 is writable)
+                        uart_tx_en_reg <= mem_wdata[1];
+                        $display("Time %0t: UART_MEM - Control Write: ctrl=0x%08h", 
+                                 $time, mem_wdata);
+                    end else begin
+                        // Write to reserved UART register - ignore but acknowledge
+                        $display("Time %0t: UART_MEM - Reserved register write: addr=0x%08h, data=0x%08h", 
+                                 $time, mem_addr, mem_wdata);
+                    end
+                    mem_ready <= 1'b1;
+                end else if (mem_re) begin
+                    // UART register read
+                    if (uart_data_reg_access) begin
+                        // Reading TX data register returns 0 (write-only)
+                        mem_rdata <= 32'h00000000;
+                        $display("Time %0t: UART_MEM - TX Data Read (write-only): data=0x00000000", $time);
+                    end else if (uart_ctrl_reg_access) begin
+                        // Read UART Control/Status Register
+                        // Bit 0: TX_BUSY (read-only), Bit 1: TX_ENABLE (write-only, reads as 0)
+                        mem_rdata <= {31'b0, uart_tx_busy};
+                        $display("Time %0t: UART_MEM - Control Read: ctrl=0x%08h, busy=%b", 
+                                 $time, {31'b0, uart_tx_busy}, uart_tx_busy);
+                    end else begin
+                        // Read from reserved UART register - return 0
+                        mem_rdata <= 32'h00000000;
+                        $display("Time %0t: UART_MEM - Reserved register read: addr=0x%08h, data=0x00000000", 
+                                 $time, mem_addr);
+                    end
+                    mem_ready <= 1'b1;
+                end
+            end
+        end
+    end
+
     // Debug output for memory contents
     `ifdef SIM_DEBUG
     initial begin

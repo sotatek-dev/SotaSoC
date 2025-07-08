@@ -9,6 +9,7 @@ VERILOG_SOURCES += $(PWD)/rtl/rv32i_alu.v
 VERILOG_SOURCES += $(PWD)/rtl/rv32i_register.v 
 VERILOG_SOURCES += $(PWD)/rtl/test_mem_ctl.v
 VERILOG_SOURCES += $(PWD)/rtl/soc.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_tx.v
 VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 

@@ -3,6 +3,7 @@
  * Integrates:
  * - RV32I processor core
  * - Memory controller with SPI Flash and SPI RAM interfaces
+ * - UART TX for serial communication
  * - Clock and reset management
  * 
  * Memory Map:
@@ -22,6 +23,9 @@ module soc #(
     output wire spi_sclk,
     output wire spi_mosi,
     input wire spi_miso,
+    
+    // UART interface
+    output wire uart_tx,
     
     // Debug interface (optional)
     output wire [31:0] debug_pc,
@@ -44,6 +48,11 @@ module soc #(
     // Memory controller ready signals
     wire mem_instr_ready;
     wire mem_data_ready;
+    
+    // UART TX connections
+    wire uart_tx_en;
+    wire uart_tx_busy;
+    wire [7:0] uart_tx_data;
     
     // Enhanced core with ready signal handling
     wire core_instr_valid;
@@ -94,12 +103,32 @@ module soc #(
         .mem_rdata(core_mem_rdata),
         .mem_ready(mem_data_ready),
         
+        // UART TX interface
+        .uart_tx_en(uart_tx_en),
+        .uart_tx_busy(uart_tx_busy),
+        .uart_tx_data(uart_tx_data),
+        
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),
         .ram_cs_n(ram_cs_n),
         .spi_sclk(spi_sclk),
         .spi_mosi(spi_mosi),
         .spi_miso(spi_miso)
+    );
+    
+    // UART TX module instantiation
+    uart_tx #(
+        .BIT_RATE(115200),
+        .CLK_HZ(10000000),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+    ) uart_transmitter (
+        .clk(clk),
+        .resetn(rst_n),
+        .uart_txd(uart_tx),
+        .uart_tx_busy(uart_tx_busy),
+        .uart_tx_en(uart_tx_en),
+        .uart_tx_data(uart_tx_data)
     );
     
     // Debug outputs

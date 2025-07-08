@@ -1,0 +1,156 @@
+# UART Test Program for RV32I - Infinite Loop
+# 1. Write 'a' (0x63) to 0x4000 (UART data address)
+# 2. Write 0x2 to 0x4004 (write enable bit)  
+# 3. Wait for busy bit to clear (bit 0 = 0)
+# 4. Wait 200000 cycles
+# 5. Jump back to step 1 and repeat forever
+
+# Assembly instructions and their hex encoding:
+
+# main_loop:
+# li t0, 0x63        # Load 'a' character (0x63) into t0
+06300293
+
+# lui t1, 0x4        # Load upper immediate 0x4000 into t1
+00004337
+
+# sw t0, 0(t1)       # Store 'a' to address 0x4000 (UART data)
+00532023
+
+# li t0, 0x2         # Load 0x2 into t0 (write enable bit)
+00200293
+
+# sw t0, 4(t1)       # Store 0x2 to address 0x4004 (control register)
+00532223
+
+# wait_busy:
+# lw t0, 4(t1)       # Load word from 0x4004 (read status)
+00432283
+
+# andi t0, t0, 0x1   # Check bit 0 (busy bit)
+0012f293
+
+# bnez t0, wait_busy # If bit 0 is 1, branch back to wait_busy
+fe029ce3
+
+# lui t1, 0x30d2     # Load upper part of 200000 (0x30d40)
+# 00001337
+030d2337
+
+# addi t1, t1, -1942 # Complete loading 200000 into t1 (0x30d40 - 0x796 = 200000)
+86a30313
+
+# delay_loop:
+# add t2, t1, x0     # Copy counter to t2
+00030393
+
+# addi t2, t2, -1    # Decrement counter
+fff38393
+
+# bnez t2, delay_loop # Branch back if counter != 0
+fe039ee3
+
+# jal x0, main_loop  # Jump back to start of program (infinite loop)
+fc5ff06f
+
+# Padding with NOPs to match expected file size
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013

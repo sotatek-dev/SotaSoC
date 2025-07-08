@@ -8,7 +8,7 @@ import random
 async def test_soc(dut):
     """Test the SoC"""
 
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 100, units="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
@@ -18,7 +18,7 @@ async def test_soc(dut):
 
     instr_fetch_delay = dut.soc_inst.mem_ctrl.INSTR_FETCH_DELAY.value + 1
 
-    max_cycles = 10000;
+    max_cycles = 20000;
     cycles = 0;
     
     # Execute for several cycles
