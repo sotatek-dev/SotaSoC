@@ -553,6 +553,7 @@ module rv32i_core #(
         return result;
     endfunction
 
+`ifndef SYNTHESIS
     // Debug logging with $display statements
     always @(posedge clk) begin
         string if_id_instr_str, id_ex_instr_str, ex_mem_instr_str;
@@ -649,5 +650,6 @@ module rv32i_core #(
 
         $display("--------------------------------");
     end
+`endif
 
 endmodule
