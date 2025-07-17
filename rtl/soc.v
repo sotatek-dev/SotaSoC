@@ -12,9 +12,11 @@
  */
 
 module soc #(
+    parameter CLK_HZ = 10000000,
     parameter RESET_ADDR = 32'h00000000 ,
     parameter PROG_MEM_SIZE = 32'h00002000,
-    parameter DATA_MEM_SIZE = 32'h00002000
+    parameter DATA_MEM_SIZE = 32'h00002000,
+    parameter UART_BIT_RATE = 115200
 ) (
     input wire clk,
     input wire rst_n,
@@ -27,7 +29,8 @@ module soc #(
     input wire spi_miso,
     
     // UART interface
-    output wire uart_tx
+    output wire uart_tx,
+    input wire uart_rx
 );
 
     // Core to Memory Controller connections
@@ -48,6 +51,11 @@ module soc #(
     wire uart_tx_en;
     wire uart_tx_busy;
     wire [7:0] uart_tx_data;
+
+    wire uart_rx_en;
+    wire uart_rx_break;
+    wire uart_rx_valid;
+    wire [7:0] uart_rx_data;
     
     // Enhanced core with ready signal handling
     wire core_instr_valid;
@@ -105,6 +113,12 @@ module soc #(
         .uart_tx_en(uart_tx_en),
         .uart_tx_busy(uart_tx_busy),
         .uart_tx_data(uart_tx_data),
+
+        // UART RX interface
+        .uart_rx_en(uart_rx_en),
+        .uart_rx_break(uart_rx_break),
+        .uart_rx_valid(uart_rx_valid),
+        .uart_rx_data(uart_rx_data),
         
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),
@@ -116,8 +130,8 @@ module soc #(
     
     // UART TX module instantiation
     uart_tx #(
-        .BIT_RATE(115200),
-        .CLK_HZ(10000000),
+        .CLK_HZ(CLK_HZ),
+        .BIT_RATE(UART_BIT_RATE),
         .PAYLOAD_BITS(8),
         .STOP_BITS(1)
     ) uart_transmitter (
@@ -127,6 +141,21 @@ module soc #(
         .uart_tx_busy(uart_tx_busy),
         .uart_tx_en(uart_tx_en),
         .uart_tx_data(uart_tx_data)
+    );
+
+    uart_rx #(
+        .CLK_HZ(CLK_HZ),
+        .BIT_RATE(UART_BIT_RATE),
+        .PAYLOAD_BITS(8),
+        .STOP_BITS(1)
+    ) uart_receiver (
+        .clk(clk),
+        .resetn(rst_n),
+        .uart_rxd(uart_rx),
+        .uart_rx_en(uart_rx_en),
+        .uart_rx_break(uart_rx_break),
+        .uart_rx_valid(uart_rx_valid),
+        .uart_rx_data(uart_rx_data)
     );
 
 endmodule

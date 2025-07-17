@@ -12,13 +12,6 @@ module test_soc_tb;
     wire spi_mosi;
     reg spi_miso;
     
-    // Debug interface
-    wire [31:0] debug_pc;
-    wire [31:0] debug_instr;
-    wire [15:0] debug_reg_addr;
-    wire [31:0] debug_reg_data;
-    wire debug_reg_we;
-    
     // Instantiate the SoC
     soc#(
         .RESET_ADDR(32'h00000000)
@@ -29,12 +22,7 @@ module test_soc_tb;
         .ram_cs_n(ram_cs_n),
         .spi_sclk(spi_sclk),
         .spi_mosi(spi_mosi),
-        .spi_miso(spi_miso),
-        .debug_pc(debug_pc),
-        .debug_instr(debug_instr),
-        .debug_reg_addr(debug_reg_addr),
-        .debug_reg_data(debug_reg_data),
-        .debug_reg_we(debug_reg_we)
+        .spi_miso(spi_miso)
     );
 
     // Monitor signals for debugging

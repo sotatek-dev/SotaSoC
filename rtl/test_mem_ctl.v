@@ -40,6 +40,12 @@ module mem_ctl #(
     output wire uart_tx_en,
     input wire uart_tx_busy,
     output wire [7:0] uart_tx_data,
+
+    // UART RX interface
+    output wire uart_rx_en,
+    input wire uart_rx_break,
+    input wire uart_rx_valid,
+    input wire [7:0] uart_rx_data,
     
     // Shared SPI interface (unused in test controller)
     output reg flash_cs_n,
@@ -62,15 +68,17 @@ module mem_ctl #(
     reg [31:0] combined_mem [0:(TOTAL_MEM_SIZE/4)-1];  // Temporary array for loading
     reg [7:0] uart_tx_data_reg;
     reg uart_tx_en_reg;
+    reg uart_rx_en_reg;
+    reg uart_rx_break_reg;
+    reg uart_rx_valid_reg;
     
     // Address mapping
-    wire is_prog_addr = (instr_addr < PROG_MEM_SIZE);
+    // Allow access to both program and data memory,
+    // because there are some tests that write instructions to data memory then jump to that address
+    // wire is_prog_addr = (instr_addr < PROG_MEM_SIZE);
+    wire is_prog_addr = (instr_addr < PROG_MEM_SIZE + DATA_MEM_SIZE);
     wire is_data_addr = (mem_addr >= PROG_MEM_SIZE) && (mem_addr < PROG_MEM_SIZE + DATA_MEM_SIZE);
     wire is_uart_addr = (mem_addr >= UART_BASE_ADDR) && (mem_addr < UART_BASE_ADDR + UART_SIZE);
-    
-    // Convert to byte addresses
-    wire [15:0] prog_byte_addr = instr_addr[15:0];  // Byte address for program memory
-    wire [15:0] data_byte_addr = mem_addr - 32'h00002000;  // Byte address for data memory (offset by 0x2000)
 
     // ========================================
     // UNIFIED ACCESS CONTROLLER
@@ -96,8 +104,10 @@ module mem_ctl #(
     wire start_instr_access = instr_request && (access_state == ACCESS_IDLE) && !data_request;
     
     // UART register addresses
-    wire uart_data_reg_access = (mem_addr == UART_BASE_ADDR);  // UART TX Data Register
-    wire uart_ctrl_reg_access = (mem_addr == UART_BASE_ADDR + 32'h00000004);  // UART Control/Status Register
+    wire uart_tx_data_reg_access = (mem_addr == UART_BASE_ADDR + 32'h00000000);  // UART TX Data Register
+    wire uart_tx_ctrl_reg_access = (mem_addr == UART_BASE_ADDR + 32'h00000004);  // UART Control/Status Register
+    wire uart_rx_data_reg_access = (mem_addr == UART_BASE_ADDR + 32'h00000008);  // UART RX Data Register
+    wire uart_rx_ctrl_reg_access = (mem_addr == UART_BASE_ADDR + 32'h0000000C);  // UART RX Control/Status Register
     
     // Memory initialization - load program from file
     integer i;
@@ -155,10 +165,15 @@ module mem_ctl #(
     // UART register access handling (immediate response)
     assign uart_tx_en = uart_tx_en_reg;
     assign uart_tx_data = uart_tx_data_reg;
+    assign uart_rx_en = uart_rx_en_reg;
 
     task handle_uart_access;
         begin
             uart_tx_en_reg <= 1'b0;
+
+            if (uart_rx_valid) begin
+                uart_rx_valid_reg <= uart_rx_valid;
+            end
 
             // Handle UART register access (only respond to UART address range)
             if (is_uart_addr && (mem_we || mem_re)) begin
@@ -167,38 +182,57 @@ module mem_ctl #(
 
                 if (mem_we) begin
                     // UART register write
-                    if (uart_data_reg_access) begin
+                    if (uart_tx_data_reg_access) begin
                         // Write to UART TX Data Register - trigger transmission
                         uart_tx_data_reg <= mem_wdata[7:0];
-                        $display("Time %0t: UART_MEM - TX Data Write: data=0x%02h (%c)", 
+                        $display("Time %0t: UART_MEM - TX Data Write: data=0x%02h (%c)",
                                     $time, mem_wdata[7:0], mem_wdata[7:0]);
-                    end else if (uart_ctrl_reg_access) begin
+                    end else if (uart_tx_ctrl_reg_access) begin
                         // Write to UART Control Register (only bit 1 is writable)
                         uart_tx_en_reg <= mem_wdata[1];
-                        $display("Time %0t: UART_MEM - Control Write: ctrl=0x%08h", 
+                        $display("Time %0t: UART_MEM - Control Write: ctrl=0x%08h",
+                                    $time, mem_wdata);
+                    end else if (uart_rx_data_reg_access) begin
+                        // Write to UART RX Data Register - ignore but acknowledge
+                        $display("Time %0t: UART_MEM - RX Data Write: ignored",
+                                    $time, mem_wdata);
+                    end else if (uart_rx_ctrl_reg_access) begin
+                        uart_rx_valid_reg <= mem_wdata[0];
+                        uart_rx_en_reg <= mem_wdata[1];
+                        uart_rx_break_reg <= mem_wdata[2];
+                        $display("Time %0t: UART_MEM - RX Control Write: ctrl=0x%08h",
                                     $time, mem_wdata);
                     end else begin
                         // Write to reserved UART register - ignore but acknowledge
-                        $display("Time %0t: UART_MEM - Reserved register write: addr=0x%08h, data=0x%08h", 
+                        $display("Time %0t: UART_MEM - Reserved register write: addr=0x%08h, data=0x%08h",
                                     $time, mem_addr, mem_wdata);
                     end
                     mem_ready <= 1'b1;
                 end else if (mem_re) begin
                     // UART register read
-                    if (uart_data_reg_access) begin
+                    if (uart_tx_data_reg_access) begin
                         // Reading TX data register returns 0 (write-only)
                         mem_rdata <= 32'h00000000;
                         $display("Time %0t: UART_MEM - TX Data Read (write-only): data=0x00000000", $time);
-                    end else if (uart_ctrl_reg_access) begin
+                    end else if (uart_tx_ctrl_reg_access) begin
                         // Read UART Control/Status Register
                         // Bit 0: TX_BUSY (read-only), Bit 1: TX_ENABLE (write-only, reads as 0)
                         mem_rdata <= {31'b0, uart_tx_busy};
-                        $display("Time %0t: UART_MEM - Control Read: ctrl=0x%08h, busy=%b", 
+                        $display("Time %0t: UART_MEM - Control Read: ctrl=0x%08h, busy=%b",
                                     $time, {31'b0, uart_tx_busy}, uart_tx_busy);
+                    end else if (uart_rx_data_reg_access) begin
+                        // Read UART RX Data Register
+                        mem_rdata <= {24'b0, uart_rx_data};
+                        $display("Time %0t: UART_MEM - RX Data Read: data=0x%08h",
+                                    $time, {24'b0, uart_rx_data});
+                    end else if (uart_rx_ctrl_reg_access) begin
+                        mem_rdata <= {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg};
+                        $display("Time %0t: UART_MEM - RX Control Read: ctrl=0x%08h",
+                                    $time, {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg});
                     end else begin
                         // Read from reserved UART register - return 0
                         mem_rdata <= 32'h00000000;
-                        $display("Time %0t: UART_MEM - Reserved register read: addr=0x%08h, data=0x00000000", 
+                        $display("Time %0t: UART_MEM - Reserved register read: addr=0x%08h, data=0x00000000",
                                     $time, mem_addr);
                     end
                     mem_ready <= 1'b1;
@@ -219,18 +253,16 @@ module mem_ctl #(
             spi_sclk <= 1'b0;
             spi_mosi <= 1'b0;
         end else begin
-            // Allow access to both program and data memory,
-            // because there are some tests that write instructions to data memory then jump to that address
-            if (is_prog_addr || is_data_addr) begin
+            if (is_prog_addr) begin
                 // Read 32-bit word from byte memory (little-endian)
-                instr_data <= {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
-                              unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]};
+                instr_data <= {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
+                              unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]};
                 instr_ready <= 1'b1;
                 
                 // `ifdef SIM_DEBUG
                 $display("Time %0t: TEST_MEM - Instruction fetch: addr=0x%h, data=0x%h", 
-                         $time, instr_addr, {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
-                                            unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]});
+                         $time, instr_addr, {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
+                                            unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]});
                 // `endif
             end // is_prog_addr || is_data_addr
         end // rst_n
@@ -242,6 +274,9 @@ module mem_ctl #(
             mem_rdata <= 32'h00000000;
             mem_ready <= 1'b0;
             uart_tx_en_reg <= 1'b0;
+            uart_rx_en_reg <= 1'b0;
+            uart_rx_break_reg <= 1'b0;
+            uart_rx_valid_reg <= 1'b0;
         end else begin
         
             handle_uart_access();
@@ -256,10 +291,10 @@ module mem_ctl #(
                     // 3'b001 → SH (Store Halfword)
                     // 3'b010 → SW (Store Word)
 
-                    unified_mem[PROG_MEM_SIZE + data_byte_addr + 0] <= mem_wdata[7:0];
-                    if (mem_wflag == 3'b001 || mem_wflag == 3'b010) unified_mem[PROG_MEM_SIZE + data_byte_addr + 1] <= mem_wdata[15:8];
-                    if (mem_wflag == 3'b010) unified_mem[PROG_MEM_SIZE + data_byte_addr + 2] <= mem_wdata[23:16];
-                    if (mem_wflag == 3'b010) unified_mem[PROG_MEM_SIZE + data_byte_addr + 3] <= mem_wdata[31:24];
+                    unified_mem[mem_addr + 0] <= mem_wdata[7:0];
+                    if (mem_wflag == 3'b001 || mem_wflag == 3'b010) unified_mem[mem_addr + 1] <= mem_wdata[15:8];
+                    if (mem_wflag == 3'b010) unified_mem[mem_addr + 2] <= mem_wdata[23:16];
+                    if (mem_wflag == 3'b010) unified_mem[mem_addr + 3] <= mem_wdata[31:24];
                     
                     mem_ready <= 1'b1;
                     
@@ -277,14 +312,14 @@ module mem_ctl #(
                     // `endif
                 end else if (mem_re) begin
                     // Read operation - 32-bit word read from byte memory
-                    mem_rdata <= {unified_mem[PROG_MEM_SIZE + data_byte_addr + 3], unified_mem[PROG_MEM_SIZE + data_byte_addr + 2], 
-                                  unified_mem[PROG_MEM_SIZE + data_byte_addr + 1], unified_mem[PROG_MEM_SIZE + data_byte_addr + 0]};
+                    mem_rdata <= {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
+                                  unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]};
                     mem_ready <= 1'b1;
                     
                     // `ifdef SIM_DEBUG
                     $display("Time %0t: TEST_MEM - Data read: addr=0x%h, data=0x%h", 
-                             $time, mem_addr, {unified_mem[PROG_MEM_SIZE + data_byte_addr + 3], unified_mem[PROG_MEM_SIZE + data_byte_addr + 2], 
-                                               unified_mem[PROG_MEM_SIZE + data_byte_addr + 1], unified_mem[PROG_MEM_SIZE + data_byte_addr + 0]});
+                             $time, mem_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
+                                               unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]});
                     // `endif
                 end // mem_re
             end // is_data_addr
@@ -307,6 +342,12 @@ module mem_ctl #(
             current_wflag <= 3'b0;
             current_we <= 1'b0;
             current_is_instr <= 1'b0;
+
+            uart_tx_en_reg <= 1'b0;
+            uart_rx_en_reg <= 1'b0;
+            uart_rx_break_reg <= 1'b0;
+            uart_rx_valid_reg <= 1'b0;
+
             // Keep SPI signals in safe state
             flash_cs_n <= 1'b1;
             ram_cs_n <= 1'b1;
@@ -370,14 +411,14 @@ module mem_ctl #(
                         // Access complete
                         if (current_is_instr) begin
                             // Instruction fetch complete
-                            instr_data <= {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
-                                          unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]};
+                            instr_data <= {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
+                                          unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]};
                             instr_ready <= 1'b1;
                             
                             // `ifdef SIM_DEBUG
                             $display("Time %0t: TEST_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
-                                     $time, current_addr, {unified_mem[prog_byte_addr + 3], unified_mem[prog_byte_addr + 2], 
-                                                          unified_mem[prog_byte_addr + 1], unified_mem[prog_byte_addr + 0]});
+                                     $time, current_addr, {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
+                                                          unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]});
                             // `endif
                         end else begin
                             // Data access complete
@@ -387,13 +428,13 @@ module mem_ctl #(
                                 // 3'b000 → SB (Store Byte)
                                 // 3'b001 → SH (Store Halfword)
                                 // 3'b010 → SW (Store Word)
-                                unified_mem[PROG_MEM_SIZE + data_byte_addr + 0] <= current_wdata[7:0];
+                                unified_mem[mem_addr + 0] <= current_wdata[7:0];
                                 if (current_wflag == 3'b001 || current_wflag == 3'b010) 
-                                    unified_mem[PROG_MEM_SIZE + data_byte_addr + 1] <= current_wdata[15:8];
+                                    unified_mem[mem_addr + 1] <= current_wdata[15:8];
                                 if (current_wflag == 3'b010) 
-                                    unified_mem[PROG_MEM_SIZE + data_byte_addr + 2] <= current_wdata[23:16];
+                                    unified_mem[mem_addr + 2] <= current_wdata[23:16];
                                 if (current_wflag == 3'b010) 
-                                    unified_mem[PROG_MEM_SIZE + data_byte_addr + 3] <= current_wdata[31:24];
+                                    unified_mem[mem_addr + 3] <= current_wdata[31:24];
                                 
                                 // `ifdef SIM_DEBUG
                                 case (current_wflag)
@@ -409,13 +450,13 @@ module mem_ctl #(
                                 // `endif
                             end else begin
                                 // Read operation - 32-bit word read from byte memory
-                                mem_rdata <= {unified_mem[PROG_MEM_SIZE + data_byte_addr + 3], unified_mem[PROG_MEM_SIZE + data_byte_addr + 2], 
-                                              unified_mem[PROG_MEM_SIZE + data_byte_addr + 1], unified_mem[PROG_MEM_SIZE + data_byte_addr + 0]};
+                                mem_rdata <= {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
+                                              unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]};
                                 
                                 // `ifdef SIM_DEBUG
                                 $display("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
-                                         $time, current_addr, {unified_mem[PROG_MEM_SIZE + data_byte_addr + 3], unified_mem[PROG_MEM_SIZE + data_byte_addr + 2], 
-                                                               unified_mem[PROG_MEM_SIZE + data_byte_addr + 1], unified_mem[PROG_MEM_SIZE + data_byte_addr + 0]});
+                                         $time, current_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
+                                                               unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]});
                                 // `endif
                             end
                             mem_ready <= 1'b1;

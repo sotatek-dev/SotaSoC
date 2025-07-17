@@ -8,8 +8,8 @@
 # li t0, 0x61        # Load 'a' character into t0
 06100293
 
-# lui t1, 0x4        # Load upper immediate 0x4000 into t1
-00004337
+# lui t1, 0x40000    # Load upper immediate 0x40000000 into t1
+40000337
 
 # sw t0, 0(t1)       # Store 'a' to address 0x4000 (UART data)
 00532023

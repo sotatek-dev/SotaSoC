@@ -1,0 +1,47 @@
+# UART RX Test Program for RV32I
+# 1. Write 0x2 to 0x4000C (RX enable bit)  
+# 2. Loop: read 0x4000C, if bit 0 is 0 then continue loop (wait for data)
+# 3. Read received data from 0x40008 (UART RX data address)
+
+# Assembly instructions and their hex encoding:
+
+# lui t1, 0x40000       # Load upper immediate 0x40000000 into t1
+40000337
+
+# li t0, 0x2            # Load 0x2 into t0 (RX enable bit)
+00200293
+
+# sw t0, 12(t1)         # Store 0x2 to address 0x4000C (RX control register)
+00532623
+
+# wait_loop:
+# lw t0, 12(t1)         # Load word from 0x4000C (read RX status)
+00c32283
+
+# andi t0, t0, 0x1      # Check bit 0 (data valid bit)
+0012f293
+
+# beqz t0, wait_loop    # If bit 0 is 0, branch back to wait_loop
+fe028ce3
+
+# lw t2, 8(t1)          # Load received data from 0x40008 (UART RX data)
+00832383
+
+# li	a0,0
+00000513
+
+# ecall
+00000073
+
+# Padding with NOPs to match expected file size
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013
+00000013

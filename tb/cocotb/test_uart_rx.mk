@@ -24,7 +24,7 @@ endif
 TOPLEVEL = test_soc_tb
 
 # MODULE is the basename of the Python test file
-MODULE = test_soc
+MODULE = test_uart_rx
 
 # Set Python path to find the test module
 export PYTHONPATH := $(PWD)/tb/cocotb:$(PYTHONPATH)
