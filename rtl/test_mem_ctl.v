@@ -117,40 +117,24 @@ module mem_ctl #(
         if ($value$plusargs("HEX_FILE=%s", hex_file)) begin
             // Load entire hex file into temporary combined memory
             $readmemh(hex_file, combined_mem);
-            
-            // Copy to unified memory (convert from 32-bit words to bytes)
-            for (i = 0; i < TOTAL_MEM_SIZE/4; i = i + 1) begin
-                unified_mem[i*4 + 0] = combined_mem[i][7:0];
-                unified_mem[i*4 + 1] = combined_mem[i][15:8];
-                unified_mem[i*4 + 2] = combined_mem[i][23:16];
-                unified_mem[i*4 + 3] = combined_mem[i][31:24];
-            end
-            
             $display("Test Memory Controller: Loaded combined hex file %s", hex_file);
-            $display("  - Program memory: %0d bytes (0x00000000-0x%08h)", PROG_MEM_SIZE, PROG_MEM_SIZE - 1);
-            $display("  - Data memory: %0d bytes (0x00002000-0x%08h)", DATA_MEM_SIZE, 32'h00002000 + DATA_MEM_SIZE - 1);
         end else begin
             // Load default test program
-            $display("Test Memory Controller: Loading default test program");
-            
-            // UART loop test program from uart_loop.hex
-            // Store as bytes in little-endian format
-            {unified_mem[3], unified_mem[2], unified_mem[1], unified_mem[0]} = 32'h06200293;  // addi t0, x0, 99
-            {unified_mem[7], unified_mem[6], unified_mem[5], unified_mem[4]} = 32'h40000337;  // lui t1, 0x40000
-            {unified_mem[11], unified_mem[10], unified_mem[9], unified_mem[8]} = 32'h00532023;  // sw t0, 0(t1)
-            {unified_mem[15], unified_mem[14], unified_mem[13], unified_mem[12]} = 32'h00200293;  // addi t0, x0, 2
-            {unified_mem[19], unified_mem[18], unified_mem[17], unified_mem[16]} = 32'h00532223;  // sw t0, 4(t1)
-            {unified_mem[23], unified_mem[22], unified_mem[21], unified_mem[20]} = 32'h00432283;  // lw t0, 4(t1)
-            {unified_mem[27], unified_mem[26], unified_mem[25], unified_mem[24]} = 32'h0012f293;  // andi t0, t0, 1
-            {unified_mem[31], unified_mem[30], unified_mem[29], unified_mem[28]} = 32'hfe029ce3;  // bnez t0, -8
-            {unified_mem[35], unified_mem[34], unified_mem[33], unified_mem[32]} = 32'h00140337;  // lui t1, 0x140
-            {unified_mem[39], unified_mem[38], unified_mem[37], unified_mem[36]} = 32'h86a30313;  // addi t1, t1, -1942
-            {unified_mem[43], unified_mem[42], unified_mem[41], unified_mem[40]} = 32'h00030393;  // addi t2, t1, 0
-            {unified_mem[47], unified_mem[46], unified_mem[45], unified_mem[44]} = 32'hfff38393;  // addi t2, t2, -1
-            {unified_mem[51], unified_mem[50], unified_mem[49], unified_mem[48]} = 32'hfe039ee3;  // bnez t2, -4
-            {unified_mem[55], unified_mem[54], unified_mem[53], unified_mem[52]} = 32'hfc5ff06f;  // j -60
+            $readmemh("program.hex", combined_mem);
+            $display("Test Memory Controller: Loaded default test program");
         end
-        
+
+        // Copy to unified memory (convert from 32-bit words to bytes)
+        for (i = 0; i < TOTAL_MEM_SIZE/4; i = i + 1) begin
+            unified_mem[i*4 + 0] = combined_mem[i][7:0];
+            unified_mem[i*4 + 1] = combined_mem[i][15:8];
+            unified_mem[i*4 + 2] = combined_mem[i][23:16];
+            unified_mem[i*4 + 3] = combined_mem[i][31:24];
+        end
+
+        $display("  - Program memory: %0d bytes (0x00000000-0x%08h)", PROG_MEM_SIZE, PROG_MEM_SIZE - 1);
+        $display("  - Data memory: %0d bytes (0x00002000-0x%08h)", DATA_MEM_SIZE, 32'h00002000 + DATA_MEM_SIZE - 1);
+
         $display("Test Memory Controller: Memory initialization complete");
         $display("  - Instruction fetch delay: %0d cycles", INSTR_FETCH_DELAY);
         $display("  - Data access delay: %0d cycles", DATA_ACCESS_DELAY);
