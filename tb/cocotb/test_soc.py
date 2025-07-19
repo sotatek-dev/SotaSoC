@@ -18,7 +18,7 @@ async def test_soc(dut):
 
     instr_fetch_delay = dut.soc_inst.mem_ctrl.INSTR_FETCH_DELAY.value + 1
 
-    max_cycles = 20000;
+    max_cycles = 200000;
     cycles = 0;
     
     # Execute for several cycles

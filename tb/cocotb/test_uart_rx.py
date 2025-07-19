@@ -37,7 +37,7 @@ async def test_uart_rx(dut):
 
         if dut.soc_inst.mem_ctrl.uart_rx_en_reg == 1:
             if uart_cycles < 0:
-                uart_cycles = 87 * 10 - 1;
+                uart_cycles = 87 * 20 - 1;
                 bit_index = 0;
                 dut.soc_inst.uart_rx.value = bits[bit_index];
             # print(f"UART RX: {dut.soc_inst.mem_ctrl.uart_rx_data.value}")

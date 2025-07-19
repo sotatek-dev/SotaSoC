@@ -102,13 +102,7 @@ module mem_ctl #(
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE);
     wire start_instr_access = instr_request && (access_state == ACCESS_IDLE) && !data_request;
-    
-    // UART register addresses
-    wire uart_tx_data_reg_access = (mem_addr == UART_BASE_ADDR + 32'h00000000);  // UART TX Data Register
-    wire uart_tx_ctrl_reg_access = (mem_addr == UART_BASE_ADDR + 32'h00000004);  // UART Control/Status Register
-    wire uart_rx_data_reg_access = (mem_addr == UART_BASE_ADDR + 32'h00000008);  // UART RX Data Register
-    wire uart_rx_ctrl_reg_access = (mem_addr == UART_BASE_ADDR + 32'h0000000C);  // UART RX Control/Status Register
-    
+
     // Memory initialization - load program from file
     integer i;
     reg [8*256:1] hex_file;  // String to hold filename
@@ -162,84 +156,80 @@ module mem_ctl #(
         $display("  - Data access delay: %0d cycles", DATA_ACCESS_DELAY);
     end
 
+    // UART Register Write Macros
+    `define UART_WRITE_TX_DATA(wdata) \
+        begin \
+            uart_tx_data_reg <= wdata[7:0]; \
+            $display("Time %0t: UART_MEM - TX Data Write: data=0x%02h (%c)", \
+                     $time, wdata[7:0], wdata[7:0]); \
+        end
+
+    `define UART_WRITE_CONTROL(wdata) \
+        begin \
+            uart_tx_en_reg <= wdata[1]; \
+            $display("Time %0t: UART_MEM - Control Write: ctrl=0x%08h", \
+                     $time, wdata); \
+        end
+
+    `define UART_WRITE_RX_DATA_IGNORED(wdata) \
+        begin \
+            $display("Time %0t: UART_MEM - RX Data Write: ignored", $time); \
+        end
+
+    `define UART_WRITE_RX_CONTROL(wdata) \
+        begin \
+            uart_rx_valid_reg <= wdata[0]; \
+            uart_rx_en_reg <= wdata[1]; \
+            uart_rx_break_reg <= wdata[2]; \
+            $display("Time %0t: UART_MEM - RX Control Write: ctrl=0x%08h", \
+                     $time, wdata); \
+        end
+
+    `define UART_WRITE_RESERVED(addr, wdata) \
+        begin \
+            $display("Time %0t: UART_MEM - Reserved register write: addr=0x%08h, data=0x%08h", \
+                     $time, addr, wdata); \
+        end
+
+    // UART Register Read Macros
+    `define UART_READ_TX_DATA(rdata) \
+        begin \
+            rdata <= 32'h00000000; \
+            $display("Time %0t: UART_MEM - TX Data Read (write-only): data=0x00000000", $time); \
+        end
+
+    `define UART_READ_CONTROL(rdata) \
+        begin \
+            rdata <= {31'b0, uart_tx_busy}; \
+            $display("Time %0t: UART_MEM - Control Read: ctrl=0x%08h, busy=%b", \
+                     $time, {31'b0, uart_tx_busy}, uart_tx_busy); \
+        end
+
+    `define UART_READ_RX_DATA(rdata) \
+        begin \
+            rdata <= {24'b0, uart_rx_data}; \
+            $display("Time %0t: UART_MEM - RX Data Read: data=0x%08h", \
+                     $time, {24'b0, uart_rx_data}); \
+        end
+
+    `define UART_READ_RX_CONTROL(rdata) \
+        begin \
+            rdata <= {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg}; \
+            $display("Time %0t: UART_MEM - RX Control Read: ctrl=0x%08h", \
+                     $time, {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg}); \
+        end
+
+    `define UART_READ_RESERVED(rdata, addr) \
+        begin \
+            rdata <= 32'h00000000; \
+            $display("Time %0t: UART_MEM - Reserved register read: addr=0x%08h, data=0x00000000", \
+                     $time, addr); \
+        end
+
     // UART register access handling (immediate response)
     assign uart_tx_en = uart_tx_en_reg;
     assign uart_tx_data = uart_tx_data_reg;
     assign uart_rx_en = uart_rx_en_reg;
-
-    task handle_uart_access;
-        begin
-            uart_tx_en_reg <= 1'b0;
-
-            if (uart_rx_valid) begin
-                uart_rx_valid_reg <= uart_rx_valid;
-            end
-
-            // Handle UART register access (only respond to UART address range)
-            if (is_uart_addr && (mem_we || mem_re)) begin
-                // Default values
-                mem_ready <= 1'b0;
-
-                if (mem_we) begin
-                    // UART register write
-                    if (uart_tx_data_reg_access) begin
-                        // Write to UART TX Data Register - trigger transmission
-                        uart_tx_data_reg <= mem_wdata[7:0];
-                        $display("Time %0t: UART_MEM - TX Data Write: data=0x%02h (%c)",
-                                    $time, mem_wdata[7:0], mem_wdata[7:0]);
-                    end else if (uart_tx_ctrl_reg_access) begin
-                        // Write to UART Control Register (only bit 1 is writable)
-                        uart_tx_en_reg <= mem_wdata[1];
-                        $display("Time %0t: UART_MEM - Control Write: ctrl=0x%08h",
-                                    $time, mem_wdata);
-                    end else if (uart_rx_data_reg_access) begin
-                        // Write to UART RX Data Register - ignore but acknowledge
-                        $display("Time %0t: UART_MEM - RX Data Write: ignored",
-                                    $time, mem_wdata);
-                    end else if (uart_rx_ctrl_reg_access) begin
-                        uart_rx_valid_reg <= mem_wdata[0];
-                        uart_rx_en_reg <= mem_wdata[1];
-                        uart_rx_break_reg <= mem_wdata[2];
-                        $display("Time %0t: UART_MEM - RX Control Write: ctrl=0x%08h",
-                                    $time, mem_wdata);
-                    end else begin
-                        // Write to reserved UART register - ignore but acknowledge
-                        $display("Time %0t: UART_MEM - Reserved register write: addr=0x%08h, data=0x%08h",
-                                    $time, mem_addr, mem_wdata);
-                    end
-                    mem_ready <= 1'b1;
-                end else if (mem_re) begin
-                    // UART register read
-                    if (uart_tx_data_reg_access) begin
-                        // Reading TX data register returns 0 (write-only)
-                        mem_rdata <= 32'h00000000;
-                        $display("Time %0t: UART_MEM - TX Data Read (write-only): data=0x00000000", $time);
-                    end else if (uart_tx_ctrl_reg_access) begin
-                        // Read UART Control/Status Register
-                        // Bit 0: TX_BUSY (read-only), Bit 1: TX_ENABLE (write-only, reads as 0)
-                        mem_rdata <= {31'b0, uart_tx_busy};
-                        $display("Time %0t: UART_MEM - Control Read: ctrl=0x%08h, busy=%b",
-                                    $time, {31'b0, uart_tx_busy}, uart_tx_busy);
-                    end else if (uart_rx_data_reg_access) begin
-                        // Read UART RX Data Register
-                        mem_rdata <= {24'b0, uart_rx_data};
-                        $display("Time %0t: UART_MEM - RX Data Read: data=0x%08h",
-                                    $time, {24'b0, uart_rx_data});
-                    end else if (uart_rx_ctrl_reg_access) begin
-                        mem_rdata <= {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg};
-                        $display("Time %0t: UART_MEM - RX Control Read: ctrl=0x%08h",
-                                    $time, {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg});
-                    end else begin
-                        // Read from reserved UART register - return 0
-                        mem_rdata <= 32'h00000000;
-                        $display("Time %0t: UART_MEM - Reserved register read: addr=0x%08h, data=0x00000000",
-                                    $time, mem_addr);
-                    end
-                    mem_ready <= 1'b1;
-                end // mem_we || mem_re
-            end // is_uart_addr && (mem_we || mem_re)
-        end // handle_uart_access
-    endtask
 
     `ifndef USE_MEMORY_DELAY
     // Instruction fetch handling
@@ -278,8 +268,34 @@ module mem_ctl #(
             uart_rx_break_reg <= 1'b0;
             uart_rx_valid_reg <= 1'b0;
         end else begin
+
+            // This signal is only active for 1 cycle, so we need to latch it
+            if (uart_rx_valid) begin
+                uart_rx_valid_reg <= uart_rx_valid;
+            end
         
-            handle_uart_access();
+            if (is_uart_addr) begin
+                uart_tx_en_reg <= 1'b0;
+
+                if (mem_we) begin
+                    case (mem_addr[3:0])
+                        4'h0: `UART_WRITE_TX_DATA(mem_wdata)
+                        4'h4: `UART_WRITE_CONTROL(mem_wdata)
+                        4'h8: `UART_WRITE_RX_DATA_IGNORED(mem_wdata)
+                        4'hC: `UART_WRITE_RX_CONTROL(mem_wdata)
+                        default: `UART_WRITE_RESERVED(mem_addr, mem_wdata)
+                    endcase
+                end else begin
+                    case (mem_addr[3:0])
+                        4'h0: `UART_READ_TX_DATA(mem_rdata)
+                        4'h4: `UART_READ_CONTROL(mem_rdata)
+                        4'h8: `UART_READ_RX_DATA(mem_rdata)
+                        4'hC: `UART_READ_RX_CONTROL(mem_rdata)
+                        default: `UART_READ_RESERVED(mem_rdata, mem_addr)
+                    endcase
+                end
+                mem_ready <= 1'b1;
+            end
         
             if (is_data_addr) begin
                 mem_ready <= 1'b0;
@@ -355,6 +371,11 @@ module mem_ctl #(
             spi_mosi <= 1'b0;
         end else begin
 
+            // This signal is only active for 1 cycle, so we need to latch it
+            if (uart_rx_valid) begin
+                uart_rx_valid_reg <= uart_rx_valid;
+            end
+
             case (access_state)
                 ACCESS_IDLE: begin
                     // Clear ready signals when starting new access
@@ -372,6 +393,29 @@ module mem_ctl #(
                         current_is_instr <= 1'b0;
                         access_state <= ACCESS_ACTIVE;
                         access_delay_counter <= DATA_ACCESS_DELAY - 1;
+                        if (is_uart_addr) begin
+                            uart_tx_en_reg <= 1'b0;
+
+                            if (mem_we) begin
+                                case (mem_addr[3:0])
+                                    4'h0: `UART_WRITE_TX_DATA(mem_wdata)
+                                    4'h4: `UART_WRITE_CONTROL(mem_wdata)
+                                    4'h8: `UART_WRITE_RX_DATA_IGNORED(mem_wdata)
+                                    4'hC: `UART_WRITE_RX_CONTROL(mem_wdata)
+                                    default: `UART_WRITE_RESERVED(mem_addr, mem_wdata)
+                                endcase
+                            end else begin
+                                case (mem_addr[3:0])
+                                    4'h0: `UART_READ_TX_DATA(mem_rdata)
+                                    4'h4: `UART_READ_CONTROL(mem_rdata)
+                                    4'h8: `UART_READ_RX_DATA(mem_rdata)
+                                    4'hC: `UART_READ_RX_CONTROL(mem_rdata)
+                                    default: `UART_READ_RESERVED(mem_rdata, mem_addr)
+                                endcase
+                            end
+                            mem_ready <= 1'b1;
+                            access_state <= ACCESS_IDLE;
+                        end
                         
                         if (mem_we) begin
                             case (current_wflag)
@@ -445,18 +489,18 @@ module mem_ctl #(
                                     3'b010: $display("Time %0t: TEST_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
                                                     $time, current_addr, current_wdata);
                                     default: $display("Time %0t: TEST_MEM - Unknown store complete: mem_wflag=0x%h, addr=0x%h, data=0x%08h", 
-                                                     $time, current_wflag, current_addr, current_wdata);
+                                                    $time, current_wflag, current_addr, current_wdata);
                                 endcase
                                 // `endif
                             end else begin
                                 // Read operation - 32-bit word read from byte memory
                                 mem_rdata <= {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
-                                              unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]};
+                                            unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]};
                                 
                                 // `ifdef SIM_DEBUG
                                 $display("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
-                                         $time, current_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
-                                                               unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]});
+                                        $time, current_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
+                                                            unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]});
                                 // `endif
                             end
                             mem_ready <= 1'b1;

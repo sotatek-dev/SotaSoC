@@ -11,8 +11,8 @@
 # li t0, 0x63        # Load 'a' character (0x63) into t0
 06300293
 
-# lui t1, 0x4        # Load upper immediate 0x4000 into t1
-00004337
+# lui t1, 0x40000    # Load upper immediate 0x40000000 into t1
+40000337
 
 # sw t0, 0(t1)       # Store 'a' to address 0x4000 (UART data)
 00532023
@@ -20,11 +20,11 @@
 # li t0, 0x2         # Load 0x2 into t0 (write enable bit)
 00200293
 
-# sw t0, 4(t1)       # Store 0x2 to address 0x4004 (control register)
+# sw t0, 4(t1)       # Store 0x2 to address 0x40000004 (control register)
 00532223
 
 # wait_busy:
-# lw t0, 4(t1)       # Load word from 0x4004 (read status)
+# lw t0, 4(t1)       # Load word from 0x40000004 (read status)
 00432283
 
 # andi t0, t0, 0x1   # Check bit 0 (busy bit)
@@ -51,7 +51,7 @@ fff38393
 fe039ee3
 
 # jal x0, main_loop  # Jump back to start of program (infinite loop)
-fc5ff06f
+fcdff06f
 
 # Padding with NOPs to match expected file size
 00000013

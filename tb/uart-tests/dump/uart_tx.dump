@@ -17,11 +17,11 @@
 # li t0, 0x2         # Load 0x2 into t0 (write enable bit)
 00200293
 
-# sw t0, 4(t1)       # Store 0x2 to address 0x4004 (control register)
+# sw t0, 4(t1)       # Store 0x2 to address 0x40000004 (control register)
 00532223
 
 # loop:
-# lw t0, 4(t1)       # Load word from 0x4004 (read status)
+# lw t0, 4(t1)       # Load word from 0x40000004 (read status)
 00432283
 
 # andi t0, t0, 0x1   # Check bit 0 (busy bit)
