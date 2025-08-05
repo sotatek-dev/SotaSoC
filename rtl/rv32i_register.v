@@ -63,8 +63,10 @@ module rv32i_register (
         end else if (rd_we && rd_addr != 5'd0) begin
             // Write to register (x0 is always zero, so don't write to it)
             registers[rd_addr] <= rd_data;
-            $display("Time %0t: REG - Write: x%d = 0x%h (was 0x%h)", 
-                     $time, rd_addr, rd_data, registers[rd_addr]);
+            if (rd_data != registers[rd_addr]) begin
+                $display("Time %0t: REG - Write: x%0d = 0x%h (was 0x%h)", 
+                         $time, rd_addr, rd_data, registers[rd_addr]);
+            end
         end
     end
 

@@ -23,7 +23,7 @@ module rv32i_core #(
     output wire [31:0] instr_addr,   // Instruction address
     output wire [31:0] mem_addr,     // Memory address
     output wire [31:0] mem_wdata,    // Data to write to memory
-    output wire [2:0] mem_wflag,    // funct3 from store instruction: 000=SB, 001=SH, 010=SW
+    output wire [2:0] mem_flag,      // funct3 from store instruction: 000=SB, 001=SH, 010=SW
     output wire mem_we,              // Memory write enable
     output wire mem_re               // Memory read enable
 );
@@ -188,7 +188,7 @@ module rv32i_core #(
     // Memory interface
     assign mem_addr = ex_mem_result;
     assign mem_wdata = ex_mem_rs2_data;
-    assign mem_wflag = ex_mem_instr[14:12];
+    assign mem_flag = ex_mem_instr[14:12];
     // Only access memory when instruction is ready
     assign mem_we = instr_ready && ex_mem_mem_we;
     assign mem_re = instr_ready && ex_mem_mem_re;
