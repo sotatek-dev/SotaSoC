@@ -13,7 +13,7 @@ module test_rv32i_core_tb;
     wire [31:0] instr_addr;
     wire [31:0] mem_addr;
     wire [31:0] mem_wdata;
-    wire [2:0] mem_wflag;
+    wire [2:0] mem_flag;
     wire mem_we;
     wire mem_re;
     
@@ -28,7 +28,7 @@ module test_rv32i_core_tb;
         .instr_addr(instr_addr),
         .mem_addr(mem_addr),
         .mem_wdata(mem_wdata),
-        .mem_wflag(mem_wflag),
+        .mem_flag(mem_flag),
         .mem_we(mem_we),
         .mem_re(mem_re)
     );

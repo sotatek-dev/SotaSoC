@@ -10,15 +10,15 @@ NOP_INSTR = 0x00000013
 # Global variables to track memory operations
 mem_addr = 0x00000000
 mem_wdata = 0x00000000
-mem_wflag = 0x00000000
+mem_flag = 0x00000000
 
 def get_mem_vars():
     """Get the current memory variables (for testing)"""
-    return mem_addr, mem_wdata, mem_wflag
+    return mem_addr, mem_wdata, mem_flag
 
 async def do_test(dut, memory, cycles, mem_data=0x00000000):
     """Do test"""
-    global mem_addr, mem_wdata, mem_wflag
+    global mem_addr, mem_wdata, mem_flag
 
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
@@ -55,7 +55,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
                 if (current_mem_we == 1):
                     mem_addr = dut.mem_addr.value.integer
                     mem_wdata = dut.mem_wdata.value.integer
-                    mem_wflag = dut.mem_wflag.value.integer
+                    mem_flag = dut.mem_flag.value.integer
                 # Reset current memory operation flags when memory operation completes
                 current_mem_we = 0
                 current_mem_re = 0
@@ -74,4 +74,4 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
 
         # print(f"mem_wait_cycles={mem_wait_cycles}, instr_wait_cycles={instr_wait_cycles}")
         # print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
-        # print(f"Cycle {_}: mem_addr={dut.mem_addr.value.integer:08x}, mem_data={dut.mem_data.value.integer:08x}, mem_wdata={dut.mem_wdata.value.integer:08x}, mem_wflag={dut.mem_wflag.value.integer:08x}") 
+        # print(f"Cycle {_}: mem_addr={dut.mem_addr.value.integer:08x}, mem_data={dut.mem_data.value.integer:08x}, mem_wdata={dut.mem_wdata.value.integer:08x}, mem_flag={dut.mem_flag.value.integer:08x}") 

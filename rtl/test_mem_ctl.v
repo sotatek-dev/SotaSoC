@@ -30,7 +30,7 @@ module mem_ctl #(
     
     input wire [31:0] mem_addr,
     input wire [31:0] mem_wdata,
-    input wire [2:0] mem_wflag,    // funct3 from store instruction: 000=SB, 001=SH, 010=SW
+    input wire [2:0] mem_flag,    // funct3 from store instruction: 000=SB, 001=SH, 010=SW
     input wire mem_we,
     input wire mem_re,
     output reg [31:0] mem_rdata,
@@ -88,7 +88,7 @@ module mem_ctl #(
     reg [2:0] access_delay_counter;
     reg [31:0] current_addr;
     reg [31:0] current_wdata;
-    reg [2:0] current_wflag;
+    reg [2:0] current_flag;
     reg current_we;
     reg current_is_instr;
 
@@ -292,22 +292,22 @@ module mem_ctl #(
                     // 3'b010 → SW (Store Word)
 
                     unified_mem[mem_addr + 0] <= mem_wdata[7:0];
-                    if (mem_wflag == 3'b001 || mem_wflag == 3'b010) unified_mem[mem_addr + 1] <= mem_wdata[15:8];
-                    if (mem_wflag == 3'b010) unified_mem[mem_addr + 2] <= mem_wdata[23:16];
-                    if (mem_wflag == 3'b010) unified_mem[mem_addr + 3] <= mem_wdata[31:24];
+                    if (mem_flag == 3'b001 || mem_flag == 3'b010) unified_mem[mem_addr + 1] <= mem_wdata[15:8];
+                    if (mem_flag == 3'b010) unified_mem[mem_addr + 2] <= mem_wdata[23:16];
+                    if (mem_flag == 3'b010) unified_mem[mem_addr + 3] <= mem_wdata[31:24];
                     
                     mem_ready <= 1'b1;
                     
                     // `ifdef SIM_DEBUG
-                    case (mem_wflag)
-                        3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, mem_wflag=0x%h", 
-                                        $time, mem_addr, mem_wdata[7:0], mem_wflag);
-                        3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword): addr=0x%h, data=0x%04h, mem_wflag=0x%h", 
-                                        $time, mem_addr, mem_wdata[15:0], mem_wflag);
-                        3'b010: $display("Time %0t: TEST_MEM - SW (Store Word): addr=0x%h, data=0x%08h, mem_wflag=0x%h", 
-                                        $time, mem_addr, mem_wdata, mem_wflag);
-                        default: $display("Time %0t: TEST_MEM - Unknown store type: mem_wflag=0x%h, addr=0x%h, data=0x%08h", 
-                                         $time, mem_wflag, mem_addr, mem_wdata);
+                    case (mem_flag)
+                        3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, mem_flag=0x%h", 
+                                        $time, mem_addr, mem_wdata[7:0], mem_flag);
+                        3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword): addr=0x%h, data=0x%04h, mem_flag=0x%h", 
+                                        $time, mem_addr, mem_wdata[15:0], mem_flag);
+                        3'b010: $display("Time %0t: TEST_MEM - SW (Store Word): addr=0x%h, data=0x%08h, mem_flag=0x%h", 
+                                        $time, mem_addr, mem_wdata, mem_flag);
+                        default: $display("Time %0t: TEST_MEM - Unknown store type: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
+                                         $time, mem_flag, mem_addr, mem_wdata);
                     endcase
                     // `endif
                 end else if (mem_re) begin
@@ -339,7 +339,7 @@ module mem_ctl #(
             access_delay_counter <= 3'b0;
             current_addr <= 32'h0;
             current_wdata <= 32'h0;
-            current_wflag <= 3'b0;
+            current_flag <= 3'b0;
             current_we <= 1'b0;
             current_is_instr <= 1'b0;
 
@@ -372,7 +372,7 @@ module mem_ctl #(
                     if (start_data_access) begin
                         current_addr <= mem_addr;
                         current_wdata <= mem_wdata;
-                        current_wflag <= mem_wflag;
+                        current_flag <= mem_flag;
                         current_we <= mem_we;
                         current_is_instr <= 1'b0;
                         access_state <= ACCESS_ACTIVE;
@@ -402,15 +402,15 @@ module mem_ctl #(
                         end
                         
                         if (mem_we) begin
-                            case (current_wflag)
+                            case (current_flag)
                                 3'b000: $display("Time %0t: TEST_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h, delay=%0d cycles", 
                                                 $time, mem_addr, mem_wdata[7:0], DATA_ACCESS_DELAY);
                                 3'b001: $display("Time %0t: TEST_MEM - Starting SH (Store Halfword): addr=0x%h, data=0x%04h, delay=%0d cycles", 
                                                 $time, mem_addr, mem_wdata[15:0], DATA_ACCESS_DELAY);
                                 3'b010: $display("Time %0t: TEST_MEM - Starting SW (Store Word): addr=0x%h, data=0x%08h, delay=%0d cycles", 
                                                 $time, mem_addr, mem_wdata, DATA_ACCESS_DELAY);
-                                default: $display("Time %0t: TEST_MEM - Starting unknown store: mem_wflag=0x%h, addr=0x%h, data=0x%08h, delay=%0d cycles", 
-                                                 $time, current_wflag, mem_addr, mem_wdata, DATA_ACCESS_DELAY);
+                                default: $display("Time %0t: TEST_MEM - Starting unknown store: mem_flag=0x%h, addr=0x%h, data=0x%08h, delay=%0d cycles", 
+                                                 $time, current_flag, mem_addr, mem_wdata, DATA_ACCESS_DELAY);
                             endcase
                         end else begin
                             $display("Time %0t: TEST_MEM - Starting data read: addr=0x%h, delay=%0d cycles", 
@@ -421,7 +421,7 @@ module mem_ctl #(
                     else if (start_instr_access) begin
                         current_addr <= instr_addr;
                         current_wdata <= 32'h0;
-                        current_wflag <= 3'b0;
+                        current_flag <= 3'b0;
                         current_we <= 1'b0;
                         current_is_instr <= 1'b1;
                         access_state <= ACCESS_ACTIVE;
@@ -457,23 +457,23 @@ module mem_ctl #(
                                 // 3'b001 → SH (Store Halfword)
                                 // 3'b010 → SW (Store Word)
                                 unified_mem[mem_addr + 0] <= current_wdata[7:0];
-                                if (current_wflag == 3'b001 || current_wflag == 3'b010) 
+                                if (current_flag == 3'b001 || current_flag == 3'b010) 
                                     unified_mem[mem_addr + 1] <= current_wdata[15:8];
-                                if (current_wflag == 3'b010) 
+                                if (current_flag == 3'b010) 
                                     unified_mem[mem_addr + 2] <= current_wdata[23:16];
-                                if (current_wflag == 3'b010) 
+                                if (current_flag == 3'b010) 
                                     unified_mem[mem_addr + 3] <= current_wdata[31:24];
                                 
                                 // `ifdef SIM_DEBUG
-                                case (current_wflag)
+                                case (current_flag)
                                     3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
                                                     $time, current_addr, current_wdata[7:0]);
                                     3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
                                                     $time, current_addr, current_wdata[15:0]);
                                     3'b010: $display("Time %0t: TEST_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
                                                     $time, current_addr, current_wdata);
-                                    default: $display("Time %0t: TEST_MEM - Unknown store complete: mem_wflag=0x%h, addr=0x%h, data=0x%08h", 
-                                                    $time, current_wflag, current_addr, current_wdata);
+                                    default: $display("Time %0t: TEST_MEM - Unknown store complete: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
+                                                    $time, current_flag, current_addr, current_wdata);
                                 endcase
                                 // `endif
                             end else begin
