@@ -12,7 +12,9 @@
 
 module mem_ctl #(
     parameter PROG_MEM_SIZE = 32'h00002000,
-    parameter DATA_MEM_SIZE = 32'h00002000
+    parameter DATA_MEM_SIZE = 32'h00002000,
+    parameter UART_BASE_ADDR = 32'h40000000,
+    parameter UART_SIZE = 16
 ) (
     input wire clk,
     input wire rst_n,
@@ -73,6 +75,20 @@ module mem_ctl #(
     reg [5:0] spi_data_len;
     reg spi_is_instr;
 
+    reg [7:0] uart_tx_data_reg;
+    reg uart_tx_en_reg;
+    reg uart_rx_en_reg;
+    reg uart_rx_break_reg;
+    reg uart_rx_valid_reg;
+
+
+    // Include UART defines from shared header
+    `include "uart_defines.vh"
+
+    assign uart_tx_en = uart_tx_en_reg;
+    assign uart_tx_data = uart_tx_data_reg;
+    assign uart_rx_en = uart_rx_en_reg;
+
     // SPI Master instance
     spi_master spi_master_inst (
         .clk(clk),
@@ -101,6 +117,7 @@ module mem_ctl #(
     // Request signals
     wire data_request = mem_we || mem_re;
     wire instr_request = (instr_addr[23:0] != spi_cmd_addr[23:0]) || !instr_ready;
+    wire uart_request = data_request && (mem_addr >= UART_BASE_ADDR) && (mem_addr < UART_BASE_ADDR + UART_SIZE);
     
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE);
@@ -115,10 +132,10 @@ module mem_ctl #(
             mem_ready <= 1'b0;
             access_state <= ACCESS_IDLE;
 
-            // uart_tx_en_reg <= 1'b0;
-            // uart_rx_en_reg <= 1'b0;
-            // uart_rx_break_reg <= 1'b0;
-            // uart_rx_valid_reg <= 1'b0;
+            uart_tx_en_reg <= 1'b0;
+            uart_rx_en_reg <= 1'b0;
+            uart_rx_break_reg <= 1'b0;
+            uart_rx_valid_reg <= 1'b0;
 
             spi_start <= 1'b0;
             spi_write_enable <= 1'b0;
@@ -162,29 +179,29 @@ module mem_ctl #(
                         spi_is_instr <= 1'b0;
                         access_state <= ACCESS_ACTIVE;
 
-                        // if (is_uart_addr) begin
-                        //     uart_tx_en_reg <= 1'b0;
+                        if (uart_request) begin
+                            uart_tx_en_reg <= 1'b0;
 
-                        //     if (mem_we) begin
-                        //         case (mem_addr[3:0])
-                        //             4'h0: `UART_WRITE_TX_DATA(mem_wdata)
-                        //             4'h4: `UART_WRITE_CONTROL(mem_wdata)
-                        //             4'h8: `UART_WRITE_RX_DATA_IGNORED(mem_wdata)
-                        //             4'hC: `UART_WRITE_RX_CONTROL(mem_wdata)
-                        //             default: `UART_WRITE_RESERVED(mem_addr, mem_wdata)
-                        //         endcase
-                        //     end else begin
-                        //         case (mem_addr[3:0])
-                        //             4'h0: `UART_READ_TX_DATA(mem_rdata)
-                        //             4'h4: `UART_READ_CONTROL(mem_rdata)
-                        //             4'h8: `UART_READ_RX_DATA(mem_rdata)
-                        //             4'hC: `UART_READ_RX_CONTROL(mem_rdata)
-                        //             default: `UART_READ_RESERVED(mem_rdata, mem_addr)
-                        //         endcase
-                        //     end
-                        //     mem_ready <= 1'b1;
-                        //     access_state <= ACCESS_IDLE;
-                        // end
+                            if (mem_we) begin
+                                case (mem_addr[3:0])
+                                    4'h0: `UART_WRITE_TX_DATA(mem_wdata)
+                                    4'h4: `UART_WRITE_CONTROL(mem_wdata)
+                                    4'h8: `UART_WRITE_RX_DATA_IGNORED(mem_wdata)
+                                    4'hC: `UART_WRITE_RX_CONTROL(mem_wdata)
+                                    default: `UART_WRITE_RESERVED(mem_addr, mem_wdata)
+                                endcase
+                            end else begin
+                                case (mem_addr[3:0])
+                                    4'h0: `UART_READ_TX_DATA(mem_rdata)
+                                    4'h4: `UART_READ_CONTROL(mem_rdata)
+                                    4'h8: `UART_READ_RX_DATA(mem_rdata)
+                                    4'hC: `UART_READ_RX_CONTROL(mem_rdata)
+                                    default: `UART_READ_RESERVED(mem_rdata, mem_addr)
+                                endcase
+                            end
+                            mem_ready <= 1'b1;
+                            access_state <= ACCESS_IDLE;
+                        end
                         
                         if (mem_we) begin
                             case (mem_flag)
