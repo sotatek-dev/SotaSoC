@@ -16,7 +16,8 @@ module soc #(
     parameter RESET_ADDR = 32'h00000000 ,
     parameter PROG_MEM_SIZE = 32'h00002000,
     parameter DATA_MEM_SIZE = 32'h00002000,
-    parameter UART_BIT_RATE = 115200
+    parameter UART_BIT_RATE = 115200,
+    parameter GPIO_SIZE = 5
 ) (
     input wire clk,
     input wire rst_n,
@@ -30,7 +31,10 @@ module soc #(
     
     // UART interface
     output wire uart_tx,
-    input wire uart_rx
+    input wire uart_rx,
+
+    // GPIO interface
+    output wire [GPIO_SIZE-1:0] gpio_out
 );
 
     // Core to Memory Controller connections
@@ -90,7 +94,8 @@ module soc #(
     // Memory Controller instantiation
     mem_ctl #(
         .PROG_MEM_SIZE(PROG_MEM_SIZE),
-        .DATA_MEM_SIZE(DATA_MEM_SIZE)
+        .DATA_MEM_SIZE(DATA_MEM_SIZE),
+        .GPIO_SIZE(GPIO_SIZE)
     ) mem_ctrl (
         .clk(clk),
         .rst_n(rst_n),
@@ -119,6 +124,9 @@ module soc #(
         .uart_rx_break(uart_rx_break),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_data(uart_rx_data),
+        
+        // GPIO interface
+        .gpio_out(gpio_out),
         
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),

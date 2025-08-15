@@ -14,7 +14,9 @@ module mem_ctl #(
     parameter PROG_MEM_SIZE = 32'h00002000,
     parameter DATA_MEM_SIZE = 32'h00002000,
     parameter UART_BASE_ADDR = 32'h40000000,
-    parameter UART_SIZE = 16
+    parameter UART_SIZE = 16,
+    parameter GPIO_BASE_ADDR = 32'h40001000,
+    parameter GPIO_SIZE = 5
 ) (
     input wire clk,
     input wire rst_n,
@@ -42,6 +44,9 @@ module mem_ctl #(
     input wire uart_rx_break,
     input wire uart_rx_valid,
     input wire [7:0] uart_rx_data,
+
+    // GPIO interface
+    output wire [GPIO_SIZE-1:0] gpio_out,
 
     // Shared SPI interface
     output wire flash_cs_n,
@@ -81,6 +86,8 @@ module mem_ctl #(
     reg uart_rx_break_reg;
     reg uart_rx_valid_reg;
 
+    reg [GPIO_SIZE-1:0] gpio_reg;
+
 
     // Include UART defines from shared header
     `include "uart_defines.vh"
@@ -88,6 +95,8 @@ module mem_ctl #(
     assign uart_tx_en = uart_tx_en_reg;
     assign uart_tx_data = uart_tx_data_reg;
     assign uart_rx_en = uart_rx_en_reg;
+
+    assign gpio_out = gpio_reg;
 
     // SPI Master instance
     spi_master spi_master_inst (
@@ -118,6 +127,7 @@ module mem_ctl #(
     wire data_request = mem_we || mem_re;
     wire instr_request = (instr_addr[23:0] != spi_cmd_addr[23:0]) || !instr_ready;
     wire uart_request = data_request && (mem_addr >= UART_BASE_ADDR) && (mem_addr < UART_BASE_ADDR + UART_SIZE);
+    wire gpio_request = data_request && (mem_addr == GPIO_BASE_ADDR);
     
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE);
@@ -137,6 +147,8 @@ module mem_ctl #(
             uart_rx_break_reg <= 1'b0;
             uart_rx_valid_reg <= 1'b0;
 
+            gpio_reg <= {GPIO_SIZE{1'b0}};
+
             spi_start <= 1'b0;
             spi_write_enable <= 1'b0;
             spi_cmd_addr <= 32'h0;
@@ -146,9 +158,9 @@ module mem_ctl #(
             spi_is_instr <= 1'b0;
         end else begin
             // This signal is only active for 1 cycle, so we need to latch it
-            // if (uart_rx_valid) begin
-            //     uart_rx_valid_reg <= uart_rx_valid;
-            // end
+            if (uart_rx_valid) begin
+                uart_rx_valid_reg <= uart_rx_valid;
+            end
 
             spi_start <= 1'b0;
 
@@ -199,6 +211,18 @@ module mem_ctl #(
                                     default: `UART_READ_RESERVED(mem_rdata, mem_addr)
                                 endcase
                             end
+                            spi_start <= 1'b0;
+                            mem_ready <= 1'b1;
+                            access_state <= ACCESS_IDLE;
+                        end
+
+                        if (gpio_request) begin
+                            if (mem_we) begin
+                                gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
+                            end else begin
+                                mem_rdata <= {27'b0, gpio_reg};
+                            end
+                            spi_start <= 1'b0;
                             mem_ready <= 1'b1;
                             access_state <= ACCESS_IDLE;
                         end

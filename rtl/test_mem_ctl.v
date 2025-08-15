@@ -18,7 +18,11 @@
 
 module mem_ctl #(
     parameter PROG_MEM_SIZE = 32'h00002000,
-    parameter DATA_MEM_SIZE = 32'h00002000
+    parameter DATA_MEM_SIZE = 32'h00002000,
+    parameter UART_BASE_ADDR = 32'h40000000,
+    parameter UART_SIZE = 16,
+    parameter GPIO_BASE_ADDR = 32'h40001000,
+    parameter GPIO_SIZE = 5
 ) (
     input wire clk,
     input wire rst_n,
@@ -46,6 +50,9 @@ module mem_ctl #(
     input wire uart_rx_break,
     input wire uart_rx_valid,
     input wire [7:0] uart_rx_data,
+
+    // GPIO interface
+    output wire [GPIO_SIZE-1:0] gpio_out,
     
     // Shared SPI interface (unused in test controller)
     output reg flash_cs_n,
@@ -61,8 +68,6 @@ module mem_ctl #(
     parameter DATA_ACCESS_DELAY = 2;  // Data read/write takes 2 cycles
     
     parameter TOTAL_MEM_SIZE = PROG_MEM_SIZE + DATA_MEM_SIZE;  // Total memory size in bytes
-    parameter UART_BASE_ADDR = 32'h40000000;
-    parameter UART_SIZE = 16;
 
     reg [7:0] unified_mem [0:TOTAL_MEM_SIZE-1];  // Single byte-addressed memory array
     reg [31:0] combined_mem [0:(TOTAL_MEM_SIZE/4)-1];  // Temporary array for loading
@@ -71,6 +76,8 @@ module mem_ctl #(
     reg uart_rx_en_reg;
     reg uart_rx_break_reg;
     reg uart_rx_valid_reg;
+
+    reg [GPIO_SIZE-1:0] gpio_reg;
     
     // Address mapping
     // Allow access to both program and data memory,
@@ -79,6 +86,7 @@ module mem_ctl #(
     wire is_prog_addr = (instr_addr < PROG_MEM_SIZE + DATA_MEM_SIZE);
     wire is_data_addr = (mem_addr >= PROG_MEM_SIZE) && (mem_addr < PROG_MEM_SIZE + DATA_MEM_SIZE);
     wire is_uart_addr = (mem_addr >= UART_BASE_ADDR) && (mem_addr < UART_BASE_ADDR + UART_SIZE);
+    wire gpio_request = is_data_addr && (mem_addr == GPIO_BASE_ADDR);
 
     // ========================================
     // UNIFIED ACCESS CONTROLLER
@@ -148,6 +156,9 @@ module mem_ctl #(
     assign uart_tx_data = uart_tx_data_reg;
     assign uart_rx_en = uart_rx_en_reg;
 
+    // GPIO register access handling (immediate response)
+    assign gpio_out = gpio_reg;
+
     `ifndef USE_MEMORY_DELAY
     // Instruction fetch handling
     always @(negedge clk or negedge rst_n) begin
@@ -184,6 +195,7 @@ module mem_ctl #(
             uart_rx_en_reg <= 1'b0;
             uart_rx_break_reg <= 1'b0;
             uart_rx_valid_reg <= 1'b0;
+            gpio_reg <= {GPIO_SIZE{1'b0}};
         end else begin
 
             // This signal is only active for 1 cycle, so we need to latch it
@@ -212,6 +224,16 @@ module mem_ctl #(
                     endcase
                 end
                 mem_ready <= 1'b1;
+            end
+
+            if (gpio_request) begin
+                if (mem_we) begin
+                    gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
+                end else begin
+                    mem_rdata <= {27'b0, gpio_reg};
+                end
+                mem_ready <= 1'b1;
+                access_state <= ACCESS_IDLE;
             end
         
             if (is_data_addr) begin
@@ -281,6 +303,8 @@ module mem_ctl #(
             uart_rx_break_reg <= 1'b0;
             uart_rx_valid_reg <= 1'b0;
 
+            gpio_reg <= {GPIO_SIZE{1'b0}};
+
             // Keep SPI signals in safe state
             flash_cs_n <= 1'b1;
             ram_cs_n <= 1'b1;
@@ -329,6 +353,16 @@ module mem_ctl #(
                                     4'hC: `UART_READ_RX_CONTROL(mem_rdata)
                                     default: `UART_READ_RESERVED(mem_rdata, mem_addr)
                                 endcase
+                            end
+                            mem_ready <= 1'b1;
+                            access_state <= ACCESS_IDLE;
+                        end
+
+                        if (gpio_request) begin
+                            if (mem_we) begin
+                                gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
+                            end else begin
+                                mem_rdata <= {27'b0, gpio_reg};
                             end
                             mem_ready <= 1'b1;
                             access_state <= ACCESS_IDLE;
