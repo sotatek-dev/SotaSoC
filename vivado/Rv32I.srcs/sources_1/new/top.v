@@ -1,4 +1,6 @@
-module top(
+module top #(
+    parameter GPIO_SIZE = 5
+)(
     input clk_p,
     input clk_n,
     input rst_n,
@@ -7,8 +9,10 @@ module top(
     output spi_sclk,
     output spi_mosi,
     input spi_miso,
-    output uart_tx
-    );
+    output uart_tx,
+    input wire uart_rx,
+    output wire [GPIO_SIZE-1:0] gpio_out
+);
 
 wire clk_200m;
 wire clk;
@@ -40,7 +44,9 @@ soc #(
     .spi_mosi(spi_mosi),
     .spi_miso(spi_miso),
 
-    .uart_tx(uart_tx)
+    .uart_tx(uart_tx),
+    .uart_rx(uart_rx),
+    .gpio_out(gpio_out)
 );
 
 

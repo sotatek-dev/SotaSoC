@@ -21,9 +21,12 @@ module spi_master (
     // Parameters
     parameter CLK_DIV = 4;               // Clock divider for SPI clock (system_clk / CLK_DIV)
     parameter FSM_IDLE = 3'b000;
-    parameter FSM_SEND_CMD_ADDR = 3'b001;
-    parameter FSM_DATA_TRANSFER = 3'b010;
-    parameter FSM_DONE_STATE = 3'b011;
+    parameter FSM_INIT = 3'b001;
+    parameter FSM_SEND_CMD_ADDR = 3'b010;
+    parameter FSM_DATA_TRANSFER = 3'b011;
+    parameter FSM_DONE_STATE = 3'b100;
+
+    localparam INIT_CYCLES = 12'd4095;
 
     // Internal signals
     reg [2:0] fsm_state;
@@ -37,6 +40,9 @@ module spi_master (
     reg is_write_op;
 
     reg write_mosi;
+
+    reg initialized = 1'b0;
+    reg [11:0] init_cnt = 12'b0;
     
     // Clock generation for SPI
     // always @(posedge clk or negedge rst_n) begin
@@ -82,10 +88,23 @@ module spi_master (
         case (fsm_state)
             FSM_IDLE: begin
                 if (start) begin
-                    fsm_next_state = FSM_SEND_CMD_ADDR;
-                    $display("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr);
+                    if (initialized) begin
+                        fsm_next_state = FSM_SEND_CMD_ADDR;
+                        $display("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr);
+                    end else begin
+                        fsm_next_state = FSM_INIT;
+                        $display("Time %0t: SPI_MASTER - Initializing SPI", $time);
+                    end
                 end else begin
                     fsm_next_state = FSM_IDLE;
+                end
+            end
+
+            FSM_INIT: begin
+                if (initialized) begin
+                    fsm_next_state = FSM_SEND_CMD_ADDR;
+                end else begin
+                    fsm_next_state = FSM_INIT;
                 end
             end
             
@@ -139,6 +158,22 @@ module spi_master (
                     write_mosi <= 1'b0;
                     
                     if (start) begin
+                        if (initialized) begin
+                            spi_cs_n <= 1'b0;
+                            shift_reg_out <= cmd_addr;  // Load command and address
+                            shift_reg_in <= 32'b0;
+                            is_write_op <= write_enable; // Store operation type
+
+                            write_mosi <= 1'b1;
+                        end else begin
+                        end
+                    end
+                end
+
+                FSM_INIT: begin
+                    init_cnt <= init_cnt + 1;
+                    if (init_cnt == INIT_CYCLES) begin
+                        initialized <= 1'b1;
                         spi_cs_n <= 1'b0;
                         shift_reg_out <= cmd_addr;  // Load command and address
                         shift_reg_in <= 32'b0;
