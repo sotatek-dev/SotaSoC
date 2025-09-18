@@ -118,10 +118,10 @@ module mem_ctl #(
         .spi_mosi(spi_mosi),
         .spi_miso(spi_miso)
     );
-    
-    assign flash_cs_n = (spi_is_instr == 1'b1) ? spi_cs_n : 1'b1;
-    assign ram_cs_n = (spi_is_instr == 1'b0) ? spi_cs_n : 1'b1;
 
+    assign flash_cs_n = (spi_is_instr == 1'b1) ? spi_cs_n : 1'b1;
+    // we can access data in flash memory, like const data
+    assign ram_cs_n = (spi_is_instr == 1'b0 || (spi_is_instr == 1'b1 && mem_addr < PROG_MEM_SIZE)) ? spi_cs_n : 1'b1;
 
     // Request signals
     wire data_request = mem_we || mem_re;
@@ -265,7 +265,7 @@ module mem_ctl #(
                         // Access complete
                         if (spi_is_instr) begin
                             // Instruction fetch complete
-                            instr_data <= spi_data_out;
+                            instr_data <= {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
                             instr_ready <= 1'b1;
                             
                             // `ifdef SIM_DEBUG

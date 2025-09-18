@@ -164,6 +164,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             if is_instr:
                                 print(f"Reading from instr memory: addr=0x{addr:08x}")
                                 data = read_word_from_memory(memory, addr & 0x00FFFFFF);
+                                data = int.from_bytes(data.to_bytes(4, 'little'), 'big')
                             else:
                                 command = (addr >> 24) & 0xFF
                                 if command == 0x03:
