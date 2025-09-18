@@ -34,7 +34,10 @@ module soc #(
     input wire uart_rx,
 
     // GPIO interface
-    output wire [GPIO_SIZE-1:0] gpio_out
+    output wire [GPIO_SIZE-1:0] gpio_out,
+
+    // Error flag
+    output wire error_flag
 );
 
     // Core to Memory Controller connections
@@ -88,7 +91,10 @@ module soc #(
         .mem_we(core_mem_we),
         .mem_re(core_mem_re),
         .mem_data(core_mem_rdata),
-        .mem_ready(mem_data_ready)
+        .mem_ready(mem_data_ready),
+
+        // Error flag
+        .error_flag(error_flag)
     );
     
     // Memory Controller instantiation

@@ -115,7 +115,7 @@ module spi_master (
                     fsm_next_state = FSM_SEND_CMD_ADDR;
              end
              
-             FSM_DATA_TRANSFER: begin
+            FSM_DATA_TRANSFER: begin
                 if (bit_counter == data_len/* && spi_clk == 1'b0*/)
                     fsm_next_state = FSM_DONE_STATE;
                 else

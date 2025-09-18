@@ -25,7 +25,9 @@ module rv32i_core #(
     output wire [31:0] mem_wdata,    // Data to write to memory
     output wire [2:0] mem_flag,      // funct3 from store instruction: 000=SB, 001=SH, 010=SW
     output wire mem_we,              // Memory write enable
-    output wire mem_re               // Memory read enable
+    output wire mem_re,              // Memory read enable
+
+    output wire error_flag            // Error flag
 );
 
     // Pipeline registers
@@ -44,6 +46,8 @@ module rv32i_core #(
     reg [31:0] wb___result;
     reg [4:0] wb___rd_addr;
     reg wb___reg_we;
+
+    reg error_flag_reg;
 
     // Instruction type signals
     wire is_r_type, is_i_type, is_s_type, is_b_type, is_j_type, is_u_type, is_risb_type, is_rsb_type;
@@ -131,6 +135,19 @@ module rv32i_core #(
         .negative_flag(alu_negative),
         .overflow_flag(alu_overflow)
     );
+
+    assign is_valid_opcode = (opcode == 7'b0110011)
+                            || (opcode == 7'b0010011)
+                            || (opcode == 7'b0000011)
+                            || (opcode == 7'b0100011)
+                            || (opcode == 7'b1100011)
+                            || (opcode == 7'b1101111)
+                            || (opcode == 7'b1100111)
+                            || (opcode == 7'b0110111)
+                            || (opcode == 7'b0010111)
+                            || (opcode == 7'b1110011);
+
+    assign error_flag = error_flag_reg;
 
     assign is_r_type = (id_opcode == 7'b0110011);
     assign is_i_type = (id_opcode == 7'b0010011) || (id_opcode == 7'b0000011) || (id_opcode == 7'b1100111);
@@ -287,6 +304,8 @@ module rv32i_core #(
             wb___result <= 32'd0;
             wb___rd_addr <= 5'd0;
             wb___reg_we <= 1'b0;
+
+            error_flag_reg <= 1'b0;
             
             $display("=== RV32I Core Reset ===");
         end else begin
@@ -322,6 +341,13 @@ module rv32i_core #(
                     pc <= pc_next;
                     if_id_instr <= instr_data;
                     if_id_pc <= pc;
+                end
+
+                if (!error_flag_reg) begin
+                    if (is_valid_opcode == 1'b0) begin
+                        $display("Time %0t: Invalid opcode: %b, instr=0x%h", $time, opcode, if_id_instr);
+                    end
+                    error_flag_reg <= !is_valid_opcode;
                 end
 
                 // Pipeline stage 2: Instruction Decode

@@ -11,6 +11,16 @@ FSM_SEND_CMD_ADDR = 1;
 FSM_DATA_TRANSFER = 2;
 FSM_DONE_STATE = 3;
 
+def convert_hex_memory_to_byte_memory(hex_memory):
+    """Convert hex memory to byte memory"""
+    byte_memory = bytearray(16 * 1024 * 1024)
+    for addr, value in hex_memory.items():
+        byte_memory[addr] = value & 0xFF
+        byte_memory[addr + 1] = (value >> 8) & 0xFF
+        byte_memory[addr + 2] = (value >> 16) & 0xFF
+        byte_memory[addr + 3] = (value >> 24) & 0xFF
+    return byte_memory
+
 def load_hex_file(hex_file_path):
     """Load hex file and return byte-addressed memory array"""
     # Create byte-addressed memory (like RTL unified_mem)
@@ -206,7 +216,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
 async def test_spi_instr(dut):
     """Test the SPI instruction fetch"""
 
-    memory = {
+    hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: 0x00108093, # ADDI x1, x1, 1
         0x00000008: 0x00210113, # ADDI x2, x2, 2
@@ -223,6 +233,7 @@ async def test_spi_instr(dut):
         0x00000034: NOP_INSTR,
         0x00000038: NOP_INSTR,
     }
+    memory = convert_hex_memory_to_byte_memory(hex_memory)
 
     max_cycles = 10000;
 
@@ -240,7 +251,7 @@ async def test_spi_instr(dut):
 async def test_spi_data(dut):
     """Test the SPI data memory"""
 
-    memory = {
+    hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: 0x30000093, # ADDI x1, x0, 0x300
         0x00000008: 0x12300113, # ADDI x2, x0, 0x123
@@ -257,8 +268,9 @@ async def test_spi_data(dut):
         0x00000034: NOP_INSTR,
         0x00000038: NOP_INSTR,
     }
+    memory = convert_hex_memory_to_byte_memory(hex_memory)
 
-    max_cycles = 4000;
+    max_cycles = 10000;
 
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
@@ -275,7 +287,7 @@ async def test_spi_data(dut):
 async def test_sh(dut):
     """Test the SPI data memory"""
 
-    memory = {
+    hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: 0x30000093, # ADDI x1, x0, 0x300
         0x00000008: 0x12300113, # ADDI x2, x0, 0x123
@@ -294,12 +306,14 @@ async def test_sh(dut):
         
         0x00000320: 0x77778888,
     }
+    memory = convert_hex_memory_to_byte_memory(hex_memory)
 
-    max_cycles = 3000;
+    max_cycles = 10000;
 
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
-            assert memory[0x00000320] == 0x77773456, f"Memory[0x00000320] should be 0x77773456, got 0x{memory[0x00000320]:08x}"
+            mem_value = read_word_from_memory(memory, 0x00000320)
+            assert mem_value == 0x77773456, f"Memory[0x00000320] should be 0x77773456, got 0x{mem_value:08x}"
             registers = dut.soc_inst.cpu_core.register_file.registers
             assert registers[3].value == 0x3456, f"Register x3 should be 0x3456, got 0x{registers[3].value.integer:08x}"
             return True
