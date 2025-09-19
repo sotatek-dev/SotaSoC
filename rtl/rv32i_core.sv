@@ -136,16 +136,16 @@ module rv32i_core #(
         .overflow_flag(alu_overflow)
     );
 
-    assign is_valid_opcode = (opcode == 7'b0110011)
-                            || (opcode == 7'b0010011)
-                            || (opcode == 7'b0000011)
-                            || (opcode == 7'b0100011)
-                            || (opcode == 7'b1100011)
-                            || (opcode == 7'b1101111)
-                            || (opcode == 7'b1100111)
-                            || (opcode == 7'b0110111)
-                            || (opcode == 7'b0010111)
-                            || (opcode == 7'b1110011);
+    assign is_valid_opcode = (id_opcode == 7'b0110011)
+                            || (id_opcode == 7'b0010011)
+                            || (id_opcode == 7'b0000011)
+                            || (id_opcode == 7'b0100011)
+                            || (id_opcode == 7'b1100011)
+                            || (id_opcode == 7'b1101111)
+                            || (id_opcode == 7'b1100111)
+                            || (id_opcode == 7'b0110111)
+                            || (id_opcode == 7'b0010111)
+                            || (id_opcode == 7'b1110011);
 
     assign error_flag = error_flag_reg;
 
@@ -345,7 +345,7 @@ module rv32i_core #(
 
                 if (!error_flag_reg) begin
                     if (is_valid_opcode == 1'b0) begin
-                        $display("Time %0t: Invalid opcode: %b, instr=0x%h", $time, opcode, if_id_instr);
+                        $display("Time %0t: Invalid opcode: %b, instr=0x%h, pc=0x%h", $time, id_opcode, id_ex_instr, pc - 8);
                     end
                     error_flag_reg <= !is_valid_opcode;
                 end
