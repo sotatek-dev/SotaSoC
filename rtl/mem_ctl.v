@@ -11,8 +11,8 @@
  */
 
 module mem_ctl #(
-    parameter PROG_MEM_SIZE = 32'h00002000,
-    parameter DATA_MEM_SIZE = 32'h00002000,
+    parameter FLASH_SIZE = 32'h00002000,
+    parameter PSRAM_SIZE = 32'h00002000,
     parameter UART_BASE_ADDR = 32'h40000000,
     parameter UART_SIZE = 16,
     parameter GPIO_BASE_ADDR = 32'h40001000,
@@ -120,8 +120,8 @@ module mem_ctl #(
     );
 
     // we can access data in flash memory, like const data
-    assign flash_cs_n = (spi_is_instr == 1'b1 || (spi_is_instr == 1'b0 && mem_addr < PROG_MEM_SIZE)) ? spi_cs_n : 1'b1;
-    assign ram_cs_n = (spi_is_instr == 1'b0 && mem_addr >= PROG_MEM_SIZE) ? spi_cs_n : 1'b1;
+    assign flash_cs_n = (spi_is_instr == 1'b1 || (spi_is_instr == 1'b0 && mem_addr < FLASH_SIZE)) ? spi_cs_n : 1'b1;
+    assign ram_cs_n = (spi_is_instr == 1'b0 && mem_addr >= FLASH_SIZE) ? spi_cs_n : 1'b1;
 
     // Request signals
     wire data_request = mem_we || mem_re;
@@ -178,9 +178,9 @@ module mem_ctl #(
                             spi_cmd_addr <= {8'h03, mem_addr[23:0]};
                         end
                         spi_data_in <= (mem_flag == 3'b000) ? {mem_wdata[7:0], 24'h0} :
-                                        (mem_flag == 3'b001) ? {mem_wdata[15:0], 16'h0} :
-                                        (mem_flag == 3'b010) ? mem_wdata :
-                                        mem_wdata;
+                                        (mem_flag == 3'b001) ? {mem_wdata[7:0], mem_wdata[15:8], 16'h0} :
+                                        (mem_flag == 3'b010) ? {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]} :
+                                        {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]};
                         spi_data_len <= (mem_flag == 3'b000) ? 6'h08 :
                                         (mem_flag == 3'b001) ? 6'h10 :
                                         (mem_flag == 3'b010) ? 6'h20 :

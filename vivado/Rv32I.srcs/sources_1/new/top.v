@@ -32,8 +32,8 @@ clk_wiz_0 clk_ins(
 );
 
 soc #(
-    .PROG_MEM_SIZE(32'h00000080),
-    .DATA_MEM_SIZE(32'h00000080)
+    .FLASH_SIZE(32'h00000080),
+    .PSRAM_SIZE(32'h00000080)
 ) soc_ins(
     .clk(clk),
     .rst_n(rst_n),

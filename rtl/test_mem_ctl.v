@@ -17,8 +17,8 @@
  */
 
 module mem_ctl #(
-    parameter PROG_MEM_SIZE = 32'h00002000,
-    parameter DATA_MEM_SIZE = 32'h00002000,
+    parameter FLASH_SIZE = 32'h00002000,
+    parameter PSRAM_SIZE = 32'h00002000,
     parameter UART_BASE_ADDR = 32'h40000000,
     parameter UART_SIZE = 16,
     parameter GPIO_BASE_ADDR = 32'h40001000,
@@ -67,7 +67,7 @@ module mem_ctl #(
     parameter INSTR_FETCH_DELAY = 3;  // Instruction fetch takes 3 cycles
     parameter DATA_ACCESS_DELAY = 2;  // Data read/write takes 2 cycles
     
-    parameter TOTAL_MEM_SIZE = PROG_MEM_SIZE + DATA_MEM_SIZE;  // Total memory size in bytes
+    parameter TOTAL_MEM_SIZE = FLASH_SIZE + PSRAM_SIZE;  // Total memory size in bytes
 
     reg [7:0] unified_mem [0:TOTAL_MEM_SIZE-1];  // Single byte-addressed memory array
     reg [31:0] combined_mem [0:(TOTAL_MEM_SIZE/4)-1];  // Temporary array for loading
@@ -82,9 +82,9 @@ module mem_ctl #(
     // Address mapping
     // Allow access to both program and data memory,
     // because there are some tests that write instructions to data memory then jump to that address
-    // wire is_prog_addr = (instr_addr < PROG_MEM_SIZE);
-    wire is_prog_addr = (instr_addr < PROG_MEM_SIZE + DATA_MEM_SIZE);
-    wire is_data_addr = (mem_addr >= PROG_MEM_SIZE) && (mem_addr < PROG_MEM_SIZE + DATA_MEM_SIZE);
+    // wire is_prog_addr = (instr_addr < FLASH_SIZE);
+    wire is_prog_addr = (instr_addr < FLASH_SIZE + PSRAM_SIZE);
+    wire is_data_addr = (mem_addr >= FLASH_SIZE) && (mem_addr < FLASH_SIZE + PSRAM_SIZE);
     wire is_uart_addr = (mem_addr >= UART_BASE_ADDR) && (mem_addr < UART_BASE_ADDR + UART_SIZE);
     wire gpio_request = is_data_addr && (mem_addr == GPIO_BASE_ADDR);
 
@@ -140,8 +140,8 @@ module mem_ctl #(
             unified_mem[i*4 + 3] = combined_mem[i][31:24];
         end
 
-        $display("  - Program memory: %0d bytes (0x00000000-0x%08h)", PROG_MEM_SIZE, PROG_MEM_SIZE - 1);
-        $display("  - Data memory: %0d bytes (0x00002000-0x%08h)", DATA_MEM_SIZE, 32'h00002000 + DATA_MEM_SIZE - 1);
+        $display("  - Program memory: %0d bytes (0x00000000-0x%08h)", FLASH_SIZE, FLASH_SIZE - 1);
+        $display("  - Data memory: %0d bytes (0x00002000-0x%08h)", PSRAM_SIZE, 32'h00002000 + PSRAM_SIZE - 1);
 
         $display("Test Memory Controller: Memory initialization complete");
         $display("  - Instruction fetch delay: %0d cycles", INSTR_FETCH_DELAY);
@@ -474,10 +474,10 @@ module mem_ctl #(
     initial begin
         $display("Test Memory Controller Debug Info:");
         $display("Unified Memory Size: %0d bytes", TOTAL_MEM_SIZE);
-        $display("Program Memory Size: %0d bytes", PROG_MEM_SIZE);
-        $display("Data Memory Size: %0d bytes", DATA_MEM_SIZE);
-        $display("Program Address Range: 0x00000000 - 0x%08h", PROG_MEM_SIZE - 1);
-        $display("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + DATA_MEM_SIZE - 1);
+        $display("Program Memory Size: %0d bytes", FLASH_SIZE);
+        $display("Data Memory Size: %0d bytes", PSRAM_SIZE);
+        $display("Program Address Range: 0x00000000 - 0x%08h", FLASH_SIZE - 1);
+        $display("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + PSRAM_SIZE - 1);
         $display("Memory Access Policy:");
         $display("  - SEQUENTIAL ACCESS: Only instruction OR data access at a time");
         $display("  - DATA PRIORITY: Data memory access has higher priority than instruction fetch");

@@ -22,6 +22,20 @@ ifdef HEX_FILE
     export HEX_FILE
 endif
 
+ifdef CLK_HZ
+    COMPILE_ARGS += -DCLK_HZ=$(CLK_HZ)
+endif
+
+ifdef FLASH_SIZE
+    FLASH_SIZE_DEC := $(shell printf "%d" $(FLASH_SIZE))
+    COMPILE_ARGS += -DFLASH_SIZE=$(FLASH_SIZE_DEC)
+endif
+
+ifdef PSRAM_SIZE
+    PSRAM_SIZE_DEC := $(shell printf "%d" $(PSRAM_SIZE))
+    COMPILE_ARGS += -DPSRAM_SIZE=$(PSRAM_SIZE_DEC)
+endif
+
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 TOPLEVEL = test_soc_tb
 

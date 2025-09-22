@@ -12,9 +12,25 @@ module test_soc_tb;
     wire spi_mosi;
     reg spi_miso;
     
+    // Define default values if not provided
+    `ifndef CLK_HZ
+    `define CLK_HZ 10000000
+    `endif
+    
+    `ifndef FLASH_SIZE  
+    `define FLASH_SIZE 32'h00000080
+    `endif
+    
+    `ifndef PSRAM_SIZE
+    `define PSRAM_SIZE 32'h00000080
+    `endif
+    
     // Instantiate the SoC
     soc#(
-        .RESET_ADDR(32'h00000000)
+        .CLK_HZ(`CLK_HZ),
+        .RESET_ADDR(32'h00000000),
+        .FLASH_SIZE(`FLASH_SIZE),
+        .PSRAM_SIZE(`PSRAM_SIZE)
     ) soc_inst (
         .clk(clk),
         .rst_n(rst_n),

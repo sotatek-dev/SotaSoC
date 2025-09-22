@@ -58,26 +58,26 @@ def load_hex_file(hex_file_path):
 
 def read_word_from_memory(memory, addr):
     """Read a 32-bit word from byte-addressed memory (little-endian)"""
-    return (memory[addr] | 
-            (memory[addr + 1] << 8) | 
-            (memory[addr + 2] << 16) | 
-            (memory[addr + 3] << 24))
+    return ((memory[addr] << 24) | 
+            (memory[addr + 1] << 16) | 
+            (memory[addr + 2] << 8) | 
+            (memory[addr + 3]))
 
 def write_word_to_memory(memory, addr, data):
     """Write a 32-bit word to byte-addressed memory (little-endian)"""
-    memory[addr] = data & 0xFF
-    memory[addr + 1] = (data >> 8) & 0xFF
-    memory[addr + 2] = (data >> 16) & 0xFF
-    memory[addr + 3] = (data >> 24) & 0xFF
+    memory[addr] = (data >> 24) & 0xFF
+    memory[addr + 1] = (data >> 16) & 0xFF
+    memory[addr + 2] = (data >> 8) & 0xFF
+    memory[addr + 3] = data & 0xFF
 
 def read_halfword_from_memory(memory, addr):
     """Read a 16-bit halfword from byte-addressed memory (little-endian)"""
-    return memory[addr] | (memory[addr + 1] << 8)
+    return (memory[addr] << 8) | (memory[addr + 1])
 
 def write_halfword_to_memory(memory, addr, data):
     """Write a 16-bit halfword to byte-addressed memory (little-endian)"""
-    memory[addr] = data & 0xFF
-    memory[addr + 1] = (data >> 8) & 0xFF
+    memory[addr] = (data >> 8) & 0xFF
+    memory[addr + 1] = data & 0xFF
 
 def read_byte_from_memory(memory, addr):
     """Read a 8-bit byte from byte-addressed memory"""
@@ -90,7 +90,10 @@ def write_byte_to_memory(memory, addr, data):
 async def test_spi_memory(dut, memory, max_cycles, callback):
     """Test the SPI memory"""
 
-    clock = Clock(dut.clk, 100, units="ns")
+    clk_hz = dut.soc_inst.CLK_HZ.value
+    clk_cycle_time = 1000000000 / clk_hz
+
+    clock = Clock(dut.clk, clk_cycle_time, units="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
@@ -133,21 +136,15 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 # print(f"SPI1: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, addr=0x{addr:08x}, data=0x{data:08x}")
                 if not is_instr and command == 0x02:
                     if bit_counter > 0:
-                        mask = (1 << bit_counter) - 1
-                        # valid_data = int.from_bytes(data.to_bytes(4, 'little'), 'big')
-                        # valid_data = valid_data >> (32 - bit_counter)
-                        valid_data = data & mask # Keep only bit_counter bits
-                        print(f"Writing {bit_counter} bits to memory: addr=0x{addr:08x}, data=0x{valid_data:08x} (raw_data=0x{data:08x})")
-                        
-                        # Get existing data from memory
-                        mem_addr = addr & 0x00FFFFFF
-                        existing_data = read_word_from_memory(memory, mem_addr)
-                        print(f"original data: 0x{existing_data:08x}")
-                        
-                        cleared_data = existing_data & (~mask)  # Clear the upper bit_counter bits
-                        combined_data = cleared_data | valid_data  # Set the new bits at MSB
-                        write_word_to_memory(memory, mem_addr, combined_data);
-                        print(f"new data: 0x{combined_data:08x} (mask: 0x{mask:08x}, cleared: 0x{cleared_data:08x}, new bits: 0x{valid_data:08x})")
+                        print(f"Writing {bit_counter} bits to memory: addr=0x{addr:08x}, data=0x{data:08x})")
+                        if (bit_counter == 32):
+                            write_word_to_memory(memory, addr & 0x00FFFFFF, data);
+                        elif (bit_counter == 16):
+                            write_halfword_to_memory(memory, addr & 0x00FFFFFF, data);
+                        elif (bit_counter == 8):
+                            write_byte_to_memory(memory, addr & 0x00FFFFFF, data);
+                        else:
+                            assert False, f"Invalid bit_counter: {bit_counter}"
                 # assert False, "SPI CSN is not active"
                 fsm_state = FSM_IDLE;
                 
@@ -164,14 +161,12 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             if is_instr:
                                 print(f"Reading from instr memory: addr=0x{addr:08x}")
                                 data = read_word_from_memory(memory, addr & 0x00FFFFFF);
-                                data = int.from_bytes(data.to_bytes(4, 'little'), 'big')
+                                print(f"data: 0x{data:08x}")
                             else:
                                 command = (addr >> 24) & 0xFF
                                 if command == 0x03:
                                     print(f"Reading from data memory: addr=0x{addr:08x}")
                                     data = read_word_from_memory(memory, addr & 0x00FFFFFF);
-                                    # Reverse the byte order
-                                    data = int.from_bytes(data.to_bytes(4, 'little'), 'big')
                                     print(f"data: 0x{data:08x}")
                                 else:
                                     print(f"Writing to data memory: addr=0x{addr:08x}")
@@ -314,7 +309,7 @@ async def test_sh(dut):
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
             mem_value = read_word_from_memory(memory, 0x00000320)
-            assert mem_value == 0x77773456, f"Memory[0x00000320] should be 0x77773456, got 0x{mem_value:08x}"
+            assert mem_value == 0x56347777, f"Memory[0x00000320] should be 0x56347777, got 0x{mem_value:08x}"
             registers = dut.soc_inst.cpu_core.register_file.registers
             assert registers[3].value == 0x3456, f"Register x3 should be 0x3456, got 0x{registers[3].value.integer:08x}"
             return True
@@ -335,7 +330,7 @@ async def test_spi_hex_file(dut):
 
     cycles = 0;
 
-    max_cycles = 400000;
+    max_cycles = 4000000;
 
     def callback(dut, memory):
         nonlocal cycles
