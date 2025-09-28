@@ -11,7 +11,8 @@ module top #(
     input spi_miso,
     output uart_tx,
     input wire uart_rx,
-    output wire [GPIO_SIZE-1:0] gpio_out
+    output wire [GPIO_SIZE-1:0] gpio_out,
+    output wire error_flag
 );
 
 wire clk_200m;
@@ -27,13 +28,14 @@ IBUFDS #(
 );
 
 clk_wiz_0 clk_ins(
-   .clk_out1(clk),
+   .clk_out100(clk),
    .clk_in1(clk_200m)
 );
 
 soc #(
-    .FLASH_SIZE(32'h00000080),
-    .PSRAM_SIZE(32'h00000080)
+    .CLK_HZ(20000000),
+    .FLASH_SIZE(32'h00020000),
+    .PSRAM_SIZE(32'h00020000)
 ) soc_ins(
     .clk(clk),
     .rst_n(rst_n),
@@ -46,7 +48,9 @@ soc #(
 
     .uart_tx(uart_tx),
     .uart_rx(uart_rx),
-    .gpio_out(gpio_out)
+    .gpio_out(gpio_out),
+    
+    .error_flag(error_flag)
 );
 
 

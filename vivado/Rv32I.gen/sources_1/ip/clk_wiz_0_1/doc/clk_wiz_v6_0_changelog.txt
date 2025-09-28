@@ -1,3 +1,19 @@
+2025.1.1:
+ * Version 6.0 (Rev. 16)
+ * No changes
+
+2025.1:
+ * Version 6.0 (Rev. 16)
+ * General: Updated IP Catalog taxonomy structure. This change has no impact to the IP.
+
+2024.2.2:
+ * Version 6.0 (Rev. 15)
+ * No changes
+
+2024.2.1:
+ * Version 6.0 (Rev. 15)
+ * No changes
+
 2024.2:
  * Version 6.0 (Rev. 15)
  * General: Updated for 2024.2
@@ -289,7 +305,7 @@
  * Lower case ports for Verilog
  * Added Safe Clock Startup and Clock Sequencing
 
-(c) Copyright 2008 - 2024 Advanced Micro Devices, Inc. All rights reserved.
+(c) Copyright 2008 - 2025 Advanced Micro Devices, Inc. All rights reserved.
 
 This file contains confidential and proprietary information
 of AMD and is protected under U.S. and international copyright

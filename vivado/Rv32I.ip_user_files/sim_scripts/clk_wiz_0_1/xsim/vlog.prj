@@ -1,4 +1,4 @@
-verilog xil_defaultlib --include "../../../ipstatic" \
+verilog xil_defaultlib -i "../../../../../../../../../Xilinx/2025.1.1/Vivado/data/rsb/busdef" --include "../../../ipstatic" \
 "../../../../Rv32I.gen/sources_1/ip/clk_wiz_0_1/clk_wiz_0_clk_wiz.v" \
 "../../../../Rv32I.gen/sources_1/ip/clk_wiz_0_1/clk_wiz_0.v" \
 

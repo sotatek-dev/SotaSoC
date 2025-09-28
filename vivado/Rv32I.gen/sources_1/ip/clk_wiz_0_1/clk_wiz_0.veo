@@ -52,7 +52,13 @@
 //  Output     Output      Phase    Duty Cycle   Pk-to-Pk     Phase
 //   Clock     Freq (MHz)  (degrees)    (%)     Jitter (ps)  Error (ps)
 //----------------------------------------------------------------------------
-// clk_out1__10.00000______0.000______50.0______280.649____133.882
+// clk_out5___7.00000______0.000______50.0______325.434____208.392
+// clk_out10__10.00000______0.000______50.0______305.034____208.392
+// clk_out20__20.00000______0.000______50.0______268.531____208.392
+// clk_out40__40.00000______0.000______50.0______235.834____208.392
+// clk_out50__49.41176______0.000______50.0______225.799____208.392
+// clk_out60__60.00000______0.000______50.0______216.789____208.392
+// clk_out100__105.00000______0.000______50.0______193.826____208.392
 //
 //----------------------------------------------------------------------------
 // Input Clock   Freq (MHz)    Input Jitter (UI)
@@ -68,7 +74,16 @@
   clk_wiz_0 instance_name
    (
     // Clock out ports
-    .clk_out1(clk_out1),     // output clk_out1
+    .clk_out5(clk_out5),     // output clk_out5
+    .clk_out10(clk_out10),     // output clk_out10
+    .clk_out20(clk_out20),     // output clk_out20
+    .clk_out40(clk_out40),     // output clk_out40
+    .clk_out50(clk_out50),     // output clk_out50
+    .clk_out60(clk_out60),     // output clk_out60
+    .clk_out100(clk_out100),     // output clk_out100
+    // Status and control signals
+    .reset(reset), // input reset
+    .locked(locked),       // output locked
    // Clock in ports
     .clk_in1(clk_in1)      // input clk_in1
 );

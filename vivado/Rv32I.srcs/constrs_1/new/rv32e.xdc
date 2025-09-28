@@ -5,8 +5,6 @@ set_property CONFIG_VOLTAGE 3.3 [current_design]
 set_property PACKAGE_PIN R4 [get_ports clk_p]
 set_property IOSTANDARD DIFF_SSTL15 [get_ports clk_p]
 
-# Define primary clock constraint for differential clock input
-create_clock -period 5.000 -name sys_clk [get_ports clk_p]
 set_property PACKAGE_PIN R14 [get_ports rst_n]
 set_property IOSTANDARD LVCMOS33 [get_ports rst_n]
 set_property PACKAGE_PIN L20 [get_ports flash_cs_n]
@@ -29,7 +27,7 @@ set_property PACKAGE_PIN N22 [get_ports {gpio_out[0]}]
 set_property PACKAGE_PIN M22 [get_ports {gpio_out[1]}]
 set_property PACKAGE_PIN H17 [get_ports {gpio_out[2]}]
 set_property PACKAGE_PIN H18 [get_ports {gpio_out[3]}]
-set_property PACKAGE_PIN J15 [get_ports {gpio_out[4]}]
+set_property PACKAGE_PIN H14 [get_ports {gpio_out[4]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {gpio_out[4]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {gpio_out[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {gpio_out[2]}]
@@ -41,7 +39,7 @@ set_property DRIVE 4 [get_ports ram_cs_n]
 set_property DRIVE 4 [get_ports spi_mosi]
 set_property DRIVE 4 [get_ports spi_sclk]
 
-create_clock -name sys_clk -period 5.000 [get_ports clk_p]
+create_clock -period 5.000 -name sys_clk [get_ports clk_p]
 
 set_false_path -from [get_ports uart_rx]
 
@@ -63,3 +61,6 @@ set_output_delay -clock [get_clocks -of_objects [get_pins clk_ins/inst/mmcm_adv_
 
 set_false_path -from [get_ports rst_n]
 
+
+set_property IOSTANDARD LVCMOS33 [get_ports error_flag]
+set_property PACKAGE_PIN J15 [get_ports error_flag]

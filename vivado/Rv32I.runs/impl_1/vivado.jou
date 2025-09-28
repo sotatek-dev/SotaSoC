@@ -1,0 +1,24 @@
+#-----------------------------------------------------------
+# Vivado v2025.1.1 (64-bit)
+# SW Build 6233196 on Thu Sep 11 21:27:30 MDT 2025
+# IP Build 6232796 on Fri Sep 12 01:46:16 MDT 2025
+# SharedData Build 6233195 on Thu Sep 11 17:56:43 MDT 2025
+# Start of session at: Sun Sep 28 21:47:22 2025
+# Process ID         : 15696
+# Current directory  : C:/Users/admin/fpga/rv32e/vivado/Rv32I.runs/impl_1
+# Command line       : vivado.exe -log top.vdi -applog -product Vivado -messageDb vivado.pb -mode batch -source top.tcl -notrace
+# Log file           : C:/Users/admin/fpga/rv32e/vivado/Rv32I.runs/impl_1/top.vdi
+# Journal file       : C:/Users/admin/fpga/rv32e/vivado/Rv32I.runs/impl_1\vivado.jou
+# Running On         : DESKTOP-FSFULEL
+# Platform           : Windows Server 2016 or Windows 10
+# Operating System   : 19045
+# Processor Detail   : 12th Gen Intel(R) Core(TM) i5-1235U
+# CPU Frequency      : 2496 MHz
+# CPU Physical cores : 10
+# CPU Logical cores  : 12
+# Host memory        : 16848 MB
+# Swap memory        : 15030 MB
+# Total Virtual      : 31878 MB
+# Available Virtual  : 5837 MB
+#-----------------------------------------------------------
+source top.tcl -notrace
