@@ -11,6 +11,7 @@ VERILOG_SOURCES += $(PWD)/rtl/mem_ctl.v
 VERILOG_SOURCES += $(PWD)/rtl/uart_defines.vh
 VERILOG_SOURCES += $(PWD)/rtl/soc.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/spi/spi_master.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_ctl.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_tx.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_rx.v
 VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv

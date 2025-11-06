@@ -71,13 +71,11 @@ module mem_ctl #(
 
     reg [7:0] unified_mem [0:TOTAL_MEM_SIZE-1];  // Single byte-addressed memory array
     reg [31:0] combined_mem [0:(TOTAL_MEM_SIZE/4)-1];  // Temporary array for loading
-    reg [7:0] uart_tx_data_reg;
-    reg uart_tx_en_reg;
-    reg uart_rx_en_reg;
-    reg uart_rx_break_reg;
-    reg uart_rx_valid_reg;
 
     reg [GPIO_SIZE-1:0] gpio_reg;
+    
+    // UART controller interface signals
+    wire [31:0] uart_mem_rdata;
     
     // Address mapping
     // Allow access to both program and data memory,
@@ -148,16 +146,32 @@ module mem_ctl #(
         $display("  - Data access delay: %0d cycles", DATA_ACCESS_DELAY);
     end
 
-    // Include UART defines from shared header
-    `include "uart_defines.vh"
-
-    // UART register access handling (immediate response)
-    assign uart_tx_en = uart_tx_en_reg;
-    assign uart_tx_data = uart_tx_data_reg;
-    assign uart_rx_en = uart_rx_en_reg;
-
     // GPIO register access handling (immediate response)
     assign gpio_out = gpio_reg;
+    
+    // UART Controller instance
+    uart_ctl uart_ctl_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        
+        // Memory-mapped interface
+        .mem_addr(mem_addr),
+        .mem_wdata(mem_wdata),
+        .mem_we(mem_we),
+        .mem_re(mem_re),
+        .mem_rdata(uart_mem_rdata),
+        
+        // UART TX interface
+        .uart_tx_en(uart_tx_en),
+        .uart_tx_data(uart_tx_data),
+        .uart_tx_busy(uart_tx_busy),
+        
+        // UART RX interface
+        .uart_rx_en(uart_rx_en),
+        .uart_rx_break(uart_rx_break),
+        .uart_rx_valid(uart_rx_valid),
+        .uart_rx_data(uart_rx_data)
+    );
 
     `ifndef USE_MEMORY_DELAY
     // Instruction fetch handling
@@ -191,38 +205,13 @@ module mem_ctl #(
         if (!rst_n) begin
             mem_rdata <= 32'h00000000;
             mem_ready <= 1'b0;
-            uart_tx_en_reg <= 1'b0;
-            uart_rx_en_reg <= 1'b0;
-            uart_rx_break_reg <= 1'b0;
-            uart_rx_valid_reg <= 1'b0;
             gpio_reg <= {GPIO_SIZE{1'b0}};
         end else begin
-
-            // This signal is only active for 1 cycle, so we need to latch it
-            if (uart_rx_valid) begin
-                uart_rx_valid_reg <= uart_rx_valid;
-            end
         
             if (is_uart_addr) begin
-                uart_tx_en_reg <= 1'b0;
-
-                if (mem_we) begin
-                    case (mem_addr[3:0])
-                        4'h0: `UART_WRITE_TX_DATA(mem_wdata)
-                        4'h4: `UART_WRITE_CONTROL(mem_wdata)
-                        4'h8: `UART_WRITE_RX_DATA_IGNORED(mem_wdata)
-                        4'hC: `UART_WRITE_RX_CONTROL(mem_wdata)
-                        default: `UART_WRITE_RESERVED(mem_addr, mem_wdata)
-                    endcase
-                end else begin
-                    case (mem_addr[3:0])
-                        4'h0: `UART_READ_TX_DATA(mem_rdata)
-                        4'h4: `UART_READ_CONTROL(mem_rdata)
-                        4'h8: `UART_READ_RX_DATA(mem_rdata)
-                        4'hC: `UART_READ_RX_CONTROL(mem_rdata)
-                        default: `UART_READ_RESERVED(mem_rdata, mem_addr)
-                    endcase
-                end
+                // UART requests are handled by uart_ctl module
+                // Just forward the response
+                mem_rdata <= uart_mem_rdata;
                 mem_ready <= 1'b1;
             end
 
@@ -298,11 +287,6 @@ module mem_ctl #(
             current_we <= 1'b0;
             current_is_instr <= 1'b0;
 
-            uart_tx_en_reg <= 1'b0;
-            uart_rx_en_reg <= 1'b0;
-            uart_rx_break_reg <= 1'b0;
-            uart_rx_valid_reg <= 1'b0;
-
             gpio_reg <= {GPIO_SIZE{1'b0}};
 
             // Keep SPI signals in safe state
@@ -311,11 +295,6 @@ module mem_ctl #(
             spi_sclk <= 1'b0;
             spi_mosi <= 1'b0;
         end else begin
-
-            // This signal is only active for 1 cycle, so we need to latch it
-            if (uart_rx_valid) begin
-                uart_rx_valid_reg <= uart_rx_valid;
-            end
 
             case (access_state)
                 ACCESS_IDLE: begin
@@ -335,25 +314,9 @@ module mem_ctl #(
                         access_state <= ACCESS_ACTIVE;
                         access_delay_counter <= DATA_ACCESS_DELAY - 1;
                         if (is_uart_addr) begin
-                            uart_tx_en_reg <= 1'b0;
-
-                            if (mem_we) begin
-                                case (mem_addr[3:0])
-                                    4'h0: `UART_WRITE_TX_DATA(mem_wdata)
-                                    4'h4: `UART_WRITE_CONTROL(mem_wdata)
-                                    4'h8: `UART_WRITE_RX_DATA_IGNORED(mem_wdata)
-                                    4'hC: `UART_WRITE_RX_CONTROL(mem_wdata)
-                                    default: `UART_WRITE_RESERVED(mem_addr, mem_wdata)
-                                endcase
-                            end else begin
-                                case (mem_addr[3:0])
-                                    4'h0: `UART_READ_TX_DATA(mem_rdata)
-                                    4'h4: `UART_READ_CONTROL(mem_rdata)
-                                    4'h8: `UART_READ_RX_DATA(mem_rdata)
-                                    4'hC: `UART_READ_RX_CONTROL(mem_rdata)
-                                    default: `UART_READ_RESERVED(mem_rdata, mem_addr)
-                                endcase
-                            end
+                            // UART requests are handled by uart_ctl module
+                            // Just forward the response
+                            mem_rdata <= uart_mem_rdata;
                             mem_ready <= 1'b1;
                             access_state <= ACCESS_IDLE;
                         end
