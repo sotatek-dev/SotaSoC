@@ -216,6 +216,33 @@ async def test_data_hazard_rs1_1(dut):
     assert registers[1].value == 10, f"Register x1 should be 10, got {registers[1].value.integer:08x}"
 
 @cocotb.test()
+async def test_data_hazard_rs1_1b(dut):
+    """Test data hazard: forward rs1 from EX stage"""
+
+    memory = {
+        0x80000000: NOP_INSTR,
+        0x80000004: 0x00108093, # ADDI x1, x1, 1
+        0x80000008: 0x00208093, # ADDI x1, x1, 2
+        0x8000000C: 0x00308113, # ADDI x2, x1, 3
+        0x80000010: 0x00410113, # ADDI x2, x2, 4
+        0x80000014: NOP_INSTR,
+        0x80000018: NOP_INSTR,
+        0x8000001C: NOP_INSTR,
+        0x80000020: NOP_INSTR,
+        0x80000024: NOP_INSTR,
+        0x80000028: NOP_INSTR,
+        0x8000002C: NOP_INSTR,
+        0x80000030: NOP_INSTR,
+        0x80000034: NOP_INSTR,
+        0x80000038: NOP_INSTR,
+    }
+    await do_test(dut, memory, 14)
+
+    registers = dut.core.register_file.registers
+    assert registers[1].value == 3, f"Register x1 should be 3, got {registers[1].value.integer:08x}"
+    assert registers[2].value == 10, f"Register x2 should be 10, got {registers[2].value.integer:08x}"
+
+@cocotb.test()
 async def test_data_hazard_rs1_2(dut):
     """Test data hazard: forward rs1 from MEM stage"""
 

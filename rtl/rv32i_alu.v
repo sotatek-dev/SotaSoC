@@ -46,6 +46,10 @@ module rv32i_alu (
     assign srl_result = a >> shift_amount;
     assign sra_result = $signed(a) >>> shift_amount;
 
+    wire sign_a = a[31];
+    wire sign_b = b[31];
+    wire lt_signed = (sign_a ^ sign_b) ? sign_a : sub_result[31]; // a < b (signed)
+
     always @(*) begin
         case (op)
             ADD:  result = add_result;
@@ -56,7 +60,7 @@ module rv32i_alu (
             SLL:  result = sll_result;
             SRL:  result = srl_result;
             SRA:  result = sra_result;
-            SLT:  result = ($signed(a) < $signed(b)) ? 32'd1 : 32'd0;
+            SLT:  result = lt_signed ? 32'd1 : 32'd0;
             SLTU: result = (a < b) ? 32'd1 : 32'd0;
             default: result = 32'd0;
         endcase
