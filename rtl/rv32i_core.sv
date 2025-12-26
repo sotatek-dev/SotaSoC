@@ -9,6 +9,8 @@
     WB (Writeback): Writes results back to registers
 */
 
+`include "debug_defines.vh"
+
 module rv32i_core #(
     parameter RESET_ADDR = 32'h80000000  // Configurable reset address
 ) (
@@ -91,6 +93,7 @@ module rv32i_core #(
     // Use to check data hazard
     wire [6:0] id_opcode;
     wire [4:0] id_rs1, id_rs2;
+    wire is_valid_opcode;
 
     // Control signals
     wire [3:0] if_id_alu_op;
@@ -342,7 +345,7 @@ module rv32i_core #(
 
             error_flag_reg <= 1'b0;
             
-            $display("=== RV32I Core Reset ===");
+            `DEBUG_PRINT(("=== RV32I Core Reset ==="));
         end else begin
 
             // Hazard handling logic:
@@ -380,7 +383,7 @@ module rv32i_core #(
 
                 if (!error_flag_reg) begin
                     if (is_valid_opcode == 1'b0) begin
-                        $display("Time %0t: Invalid if_id_opcode: %b, instr=0x%h, pc=0x%h", $time, id_opcode, id_ex_instr, pc - 8);
+                        `DEBUG_PRINT(("Time %0t: Invalid if_id_opcode: %b, instr=0x%h, pc=0x%h", $time, id_opcode, id_ex_instr, pc - 8));
                     end
                     error_flag_reg <= !is_valid_opcode;
                 end
@@ -412,7 +415,7 @@ module rv32i_core #(
 
                 // If branch_hazard is detected, flush IF/ID stage with NOP
                 if (branch_hazard) begin
-                    $display("Time %0t: IF/ID - Flushing with NOP", $time);
+                    `DEBUG_PRINT(("Time %0t: IF/ID - Flushing with NOP", $time));
                     if_id_instr <= 32'h00000013; // NOP instruction
                     if_id_pc <= 32'h00000000;    // Invalid PC
                     
@@ -502,6 +505,7 @@ module rv32i_core #(
                      (id_opcode == 7'b1100111) ? ((id_ex_rs1_final_data_forwarded + id_ex_imm) & ~1) : // JALR
                      pc + 4; // default: sequential execution
 
+`ifdef SIMULATION
     // Function to decode instruction and return human-readable string
     function automatic string decode_instruction(input [31:0] instr);
         reg [6:0] opcode;
@@ -636,7 +640,6 @@ module rv32i_core #(
         return result;
     endfunction
 
-`ifndef SYNTHESIS
     // Debug logging with $display statements
     always @(posedge clk) begin
         string if_id_instr_str, id_ex_instr_str, ex_mem_instr_str;
@@ -645,29 +648,29 @@ module rv32i_core #(
         ex_mem_instr_str = decode_instruction(ex_mem_instr);
 
         // Log instruction fetch
-        $display("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), instr_ready=%b, PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, instr_ready, pc_next);
+        `DEBUG_PRINT(("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), instr_ready=%b, PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, instr_ready, pc_next));
         
         // Log instruction decode and register reads
-        $display("Time %0t: ID - PC=0x%h, Instr=0x%h (%s), alu_a=x%0d(0x%h), alu_b=x%0d(0x%h), rd=x%0d, rs1=0x%h, rs2=0x%h", 
+        `DEBUG_PRINT(("Time %0t: ID - PC=0x%h, Instr=0x%h (%s), alu_a=x%0d(0x%h), alu_b=x%0d(0x%h), rd=x%0d, rs1=0x%h, rs2=0x%h", 
                     $time, id_ex_pc, id_ex_instr, id_ex_instr_str, id_ex_rs1_addr, id_ex_alu_a_forwarded,
-                    id_ex_rs2_addr, id_ex_alu_b_forwarded, id_ex_rd_addr, id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded);
+                    id_ex_rs2_addr, id_ex_alu_b_forwarded, id_ex_rd_addr, id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded));
 
         if (id_ex_alu_a_forward_ex) begin
-            $display("Time %0t: FORWARD - alu_a forwarding: rs1=x%0d, id_ex_alu_a_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs1_addr, id_ex_alu_a_forward_ex, id_ex_alu_a);
+            `DEBUG_PRINT(("Time %0t: FORWARD - alu_a forwarding: rs1=x%0d, id_ex_alu_a_forward_ex=%b, data=0x%h", 
+                     $time, id_ex_rs1_addr, id_ex_alu_a_forward_ex, id_ex_alu_a));
         end
         if (id_ex_alu_b_forward_ex) begin
-            $display("Time %0t: FORWARD - alu_b forwarding: rs2=x%0d, id_ex_alu_b_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs2_addr, id_ex_alu_b_forward_ex, id_ex_alu_b);
+            `DEBUG_PRINT(("Time %0t: FORWARD - alu_b forwarding: rs2=x%0d, id_ex_alu_b_forward_ex=%b, data=0x%h", 
+                     $time, id_ex_rs2_addr, id_ex_alu_b_forward_ex, id_ex_alu_b));
         end
 
         if (id_ex_rs1_forward_ex) begin
-            $display("Time %0t: FORWARD - rs1 forwarding: rs1=x%0d, id_ex_rs1_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs1_addr, id_ex_rs1_forward_ex, id_ex_rs1_final_data_forwarded);
+            `DEBUG_PRINT(("Time %0t: FORWARD - rs1 forwarding: rs1=x%0d, id_ex_rs1_forward_ex=%b, data=0x%h", 
+                     $time, id_ex_rs1_addr, id_ex_rs1_forward_ex, id_ex_rs1_final_data_forwarded));
         end
         if (id_ex_rs2_forward_ex) begin
-            $display("Time %0t: FORWARD - rs2 forwarding: rs2=x%0d, id_ex_rs2_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs2_addr, id_ex_rs2_forward_ex, id_ex_rs2_final_data_forwarded);
+            `DEBUG_PRINT(("Time %0t: FORWARD - rs2 forwarding: rs2=x%0d, id_ex_rs2_forward_ex=%b, data=0x%h", 
+                     $time, id_ex_rs2_addr, id_ex_rs2_forward_ex, id_ex_rs2_final_data_forwarded));
         end
         
         // Log data hazard detection
@@ -677,72 +680,72 @@ module rv32i_core #(
             (id_rs2 != 0 && id_rs2 == mem_wb_rd_addr && mem_wb_reg_we) ||
             (id_rs1 != 0 && id_rs1 == wb___rd_addr && wb___reg_we) ||
             (id_rs2 != 0 && id_rs2 == wb___rd_addr && wb___reg_we)) begin
-            $display("Time %0t: HAZARD - Data hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d, wb___rd=x%0d", 
-                     $time, id_rs1, id_rs2, ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr);
+            `DEBUG_PRINT(("Time %0t: HAZARD - Data hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d, wb___rd=x%0d", 
+                     $time, id_rs1, id_rs2, ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr));
         end
 
         // Log load-use hazard detection
         if (load_use_hazard) begin
-            $display("Time %0t: HAZARD - Load-use hazard detected: load_rd=x%0d, next_rs1=x%0d, next_rs2=x%0d", 
-                     $time, id_ex_rd_addr, if_id_rs1, if_id_rs2);
+            `DEBUG_PRINT(("Time %0t: HAZARD - Load-use hazard detected: load_rd=x%0d, next_rs1=x%0d, next_rs2=x%0d", 
+                     $time, id_ex_rd_addr, if_id_rs1, if_id_rs2));
         end
 
         // Log memory issues
         if (!instr_ready) begin
-            $display("Time %0t: STALL - Instruction memory not ready, stalling pipeline", $time);
+            `DEBUG_PRINT(("Time %0t: STALL - Instruction memory not ready, stalling pipeline", $time));
         end
         if (mem_stall) begin
-            $display("Time %0t: STALL - Data memory not ready, stalling pipeline", $time);
+            `DEBUG_PRINT(("Time %0t: STALL - Data memory not ready, stalling pipeline", $time));
         end
 
         // Log ALU operations
-        $display("Time %0t: ALU - ALU: op=0x%h, a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
-                    $time, id_ex_alu_op, id_ex_alu_a, id_ex_alu_b, alu_result, id_ex_rd_addr);
+        `DEBUG_PRINT(("Time %0t: ALU - ALU: op=0x%h, a=0x%h, b=0x%h, result=0x%h, rd=x%0d", 
+                    $time, id_ex_alu_op, id_ex_alu_a, id_ex_alu_b, alu_result, id_ex_rd_addr));
 
-        $display("Time %0t: EX - PC=0x%h, Instr=0x%h (%s)", 
-                    $time, ex_mem_pc, ex_mem_instr, ex_mem_instr_str);
+        `DEBUG_PRINT(("Time %0t: EX - PC=0x%h, Instr=0x%h (%s)", 
+                    $time, ex_mem_pc, ex_mem_instr, ex_mem_instr_str));
 
         // Log memory operations
         if (ex_mem_mem_we) begin
-            $display("Time %0t: MEM - Store: addr=0x%h, data=0x%h", 
-                     $time, ex_mem_result, ex_mem_rs2_data);
+            `DEBUG_PRINT(("Time %0t: MEM - Store: addr=0x%h, data=0x%h", 
+                     $time, ex_mem_result, ex_mem_rs2_data));
         end
         if (ex_mem_mem_re) begin
-            $display("Time %0t: MEM - Load: addr=0x%h, mem_data=0x%h, wb_result=0x%h", 
-                     $time, ex_mem_result, mem_data, wb_result);
+            `DEBUG_PRINT(("Time %0t: MEM - Load: addr=0x%h, mem_data=0x%h, wb_result=0x%h", 
+                     $time, ex_mem_result, mem_data, wb_result));
         end
         if (!ex_mem_mem_we && !ex_mem_mem_re) begin
-            $display("Time %0t: MEM - Non-Memory Operation", $time);
+            `DEBUG_PRINT(("Time %0t: MEM - Non-Memory Operation", $time));
         end
         
         // Log register writes
         if (mem_wb_reg_we) begin
-            $display("Time %0t: WB - Reg Write: x%d = 0x%h", 
-                     $time, mem_wb_rd_addr, mem_wb_result);
+            `DEBUG_PRINT(("Time %0t: WB - Reg Write: x%d = 0x%h", 
+                     $time, mem_wb_rd_addr, mem_wb_result));
         end
         else begin
-            $display("Time %0t: WB - Non-Reg Write", $time);
+            `DEBUG_PRINT(("Time %0t: WB - Non-Reg Write", $time));
         end
         
         // Log branches and jumps
         if (id_opcode == 7'b1100011) begin
             case (pc_id_ex_funct3)
-                3'b000: $display("Time %0t: BRANCH - BEQ: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_eq);
-                3'b001: $display("Time %0t: BRANCH - BNE: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ne);
-                3'b100: $display("Time %0t: BRANCH - BLT: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_lt_s);
-                3'b101: $display("Time %0t: BRANCH - BGE: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ge_s);
-                3'b110: $display("Time %0t: BRANCH - BLTU: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_lt);
-                3'b111: $display("Time %0t: BRANCH - BGEU: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ge);
+                3'b000: `DEBUG_PRINT(("Time %0t: BRANCH - BEQ: rs1=0x%h, rs2=0x%h, taken=%b", 
+                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_eq));
+                3'b001: `DEBUG_PRINT(("Time %0t: BRANCH - BNE: rs1=0x%h, rs2=0x%h, taken=%b", 
+                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ne));
+                3'b100: `DEBUG_PRINT(("Time %0t: BRANCH - BLT: rs1=0x%h, rs2=0x%h, taken=%b", 
+                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_lt_s));
+                3'b101: `DEBUG_PRINT(("Time %0t: BRANCH - BGE: rs1=0x%h, rs2=0x%h, taken=%b", 
+                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ge_s));
+                3'b110: `DEBUG_PRINT(("Time %0t: BRANCH - BLTU: rs1=0x%h, rs2=0x%h, taken=%b", 
+                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_lt));
+                3'b111: `DEBUG_PRINT(("Time %0t: BRANCH - BGEU: rs1=0x%h, rs2=0x%h, taken=%b", 
+                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ge));
             endcase
         end
 
-        $display("--------------------------------");
+        `DEBUG_PRINT(("--------------------------------"));
     end
 `endif
 

@@ -16,6 +16,8 @@
  * 0x00002000 - 0x00003FFF: Data RAM (8KB)
  */
 
+`include "debug_defines.vh"
+
 module mem_ctl #(
     parameter FLASH_SIZE = 32'h00002000,
     parameter PSRAM_SIZE = 32'h00002000,
@@ -123,11 +125,11 @@ module mem_ctl #(
         if ($value$plusargs("HEX_FILE=%s", hex_file)) begin
             // Load entire hex file into temporary combined memory
             $readmemh(hex_file, combined_mem);
-            $display("Test Memory Controller: Loaded combined hex file %s", hex_file);
+            `DEBUG_PRINT(("Test Memory Controller: Loaded combined hex file %s", hex_file));
         end else begin
             // Load default test program
             $readmemh("program.hex", combined_mem);
-            $display("Test Memory Controller: Loaded default test program");
+            `DEBUG_PRINT(("Test Memory Controller: Loaded default test program"));
         end
 
         // Copy to unified memory (convert from 32-bit words to bytes)
@@ -138,12 +140,12 @@ module mem_ctl #(
             unified_mem[i*4 + 3] = combined_mem[i][31:24];
         end
 
-        $display("  - Program memory: %0d bytes (0x00000000-0x%08h)", FLASH_SIZE, FLASH_SIZE - 1);
-        $display("  - Data memory: %0d bytes (0x00002000-0x%08h)", PSRAM_SIZE, 32'h00002000 + PSRAM_SIZE - 1);
+        `DEBUG_PRINT(("  - Program memory: %0d bytes (0x00000000-0x%08h)", FLASH_SIZE, FLASH_SIZE - 1));
+        `DEBUG_PRINT(("  - Data memory: %0d bytes (0x00002000-0x%08h)", PSRAM_SIZE, 32'h00002000 + PSRAM_SIZE - 1));
 
-        $display("Test Memory Controller: Memory initialization complete");
-        $display("  - Instruction fetch delay: %0d cycles", INSTR_FETCH_DELAY);
-        $display("  - Data access delay: %0d cycles", DATA_ACCESS_DELAY);
+        `DEBUG_PRINT(("Test Memory Controller: Memory initialization complete"));
+        `DEBUG_PRINT(("  - Instruction fetch delay: %0d cycles", INSTR_FETCH_DELAY));
+        `DEBUG_PRINT(("  - Data access delay: %0d cycles", DATA_ACCESS_DELAY));
     end
 
     // GPIO register access handling (immediate response)
@@ -192,9 +194,9 @@ module mem_ctl #(
                 instr_ready <= 1'b1;
                 
                 // `ifdef SIM_DEBUG
-                $display("Time %0t: TEST_MEM - Instruction fetch: addr=0x%h, data=0x%h", 
+                `DEBUG_PRINT(("Time %0t: TEST_MEM - Instruction fetch: addr=0x%h, data=0x%h", 
                          $time, instr_addr, {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
-                                            unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]});
+                                            unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]}));
                 // `endif
             end // is_prog_addr || is_data_addr
         end // rst_n
@@ -244,14 +246,14 @@ module mem_ctl #(
                     
                     // `ifdef SIM_DEBUG
                     case (mem_flag)
-                        3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, mem_flag=0x%h", 
-                                        $time, mem_addr, mem_wdata[7:0], mem_flag);
-                        3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword): addr=0x%h, data=0x%04h, mem_flag=0x%h", 
-                                        $time, mem_addr, mem_wdata[15:0], mem_flag);
-                        3'b010: $display("Time %0t: TEST_MEM - SW (Store Word): addr=0x%h, data=0x%08h, mem_flag=0x%h", 
-                                        $time, mem_addr, mem_wdata, mem_flag);
-                        default: $display("Time %0t: TEST_MEM - Unknown store type: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
-                                         $time, mem_flag, mem_addr, mem_wdata);
+                        3'b000: `DEBUG_PRINT(("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, mem_flag=0x%h", 
+                                        $time, mem_addr, mem_wdata[7:0], mem_flag));
+                        3'b001: `DEBUG_PRINT(("Time %0t: TEST_MEM - SH (Store Halfword): addr=0x%h, data=0x%04h, mem_flag=0x%h", 
+                                        $time, mem_addr, mem_wdata[15:0], mem_flag));
+                        3'b010: `DEBUG_PRINT(("Time %0t: TEST_MEM - SW (Store Word): addr=0x%h, data=0x%08h, mem_flag=0x%h", 
+                                        $time, mem_addr, mem_wdata, mem_flag));
+                        default: `DEBUG_PRINT(("Time %0t: TEST_MEM - Unknown store type: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
+                                         $time, mem_flag, mem_addr, mem_wdata));
                     endcase
                     // `endif
                 end else if (mem_re) begin
@@ -261,9 +263,9 @@ module mem_ctl #(
                     mem_ready <= 1'b1;
                     
                     // `ifdef SIM_DEBUG
-                    $display("Time %0t: TEST_MEM - Data read: addr=0x%h, data=0x%h", 
+                    `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read: addr=0x%h, data=0x%h", 
                              $time, mem_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
-                                               unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]});
+                                               unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]}));
                     // `endif
                 end // mem_re
             end // is_data_addr
@@ -333,18 +335,18 @@ module mem_ctl #(
                         
                         if (mem_we) begin
                             case (current_flag)
-                                3'b000: $display("Time %0t: TEST_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h, delay=%0d cycles", 
-                                                $time, mem_addr, mem_wdata[7:0], DATA_ACCESS_DELAY);
-                                3'b001: $display("Time %0t: TEST_MEM - Starting SH (Store Halfword): addr=0x%h, data=0x%04h, delay=%0d cycles", 
-                                                $time, mem_addr, mem_wdata[15:0], DATA_ACCESS_DELAY);
-                                3'b010: $display("Time %0t: TEST_MEM - Starting SW (Store Word): addr=0x%h, data=0x%08h, delay=%0d cycles", 
-                                                $time, mem_addr, mem_wdata, DATA_ACCESS_DELAY);
-                                default: $display("Time %0t: TEST_MEM - Starting unknown store: mem_flag=0x%h, addr=0x%h, data=0x%08h, delay=%0d cycles", 
-                                                 $time, current_flag, mem_addr, mem_wdata, DATA_ACCESS_DELAY);
+                                3'b000: `DEBUG_PRINT(("Time %0t: TEST_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h, delay=%0d cycles", 
+                                                $time, mem_addr, mem_wdata[7:0], DATA_ACCESS_DELAY));
+                                3'b001: `DEBUG_PRINT(("Time %0t: TEST_MEM - Starting SH (Store Halfword): addr=0x%h, data=0x%04h, delay=%0d cycles", 
+                                                $time, mem_addr, mem_wdata[15:0], DATA_ACCESS_DELAY));
+                                3'b010: `DEBUG_PRINT(("Time %0t: TEST_MEM - Starting SW (Store Word): addr=0x%h, data=0x%08h, delay=%0d cycles", 
+                                                $time, mem_addr, mem_wdata, DATA_ACCESS_DELAY));
+                                default: `DEBUG_PRINT(("Time %0t: TEST_MEM - Starting unknown store: mem_flag=0x%h, addr=0x%h, data=0x%08h, delay=%0d cycles", 
+                                                 $time, current_flag, mem_addr, mem_wdata, DATA_ACCESS_DELAY));
                             endcase
                         end else begin
-                            $display("Time %0t: TEST_MEM - Starting data read: addr=0x%h, delay=%0d cycles", 
-                                     $time, mem_addr, DATA_ACCESS_DELAY);
+                            `DEBUG_PRINT(("Time %0t: TEST_MEM - Starting data read: addr=0x%h, delay=%0d cycles", 
+                                     $time, mem_addr, DATA_ACCESS_DELAY));
                         end
                     end
                     // Priority 2: Instruction fetch (lower priority)
@@ -358,8 +360,8 @@ module mem_ctl #(
                         access_delay_counter <= INSTR_FETCH_DELAY - 1;
                         
                         // `ifdef SIM_DEBUG
-                        $display("Time %0t: TEST_MEM - Starting instruction fetch: addr=0x%h, delay=%0d cycles", 
-                                 $time, instr_addr, INSTR_FETCH_DELAY);
+                        `DEBUG_PRINT(("Time %0t: TEST_MEM - Starting instruction fetch: addr=0x%h, delay=%0d cycles", 
+                                 $time, instr_addr, INSTR_FETCH_DELAY));
                         // `endif
                     end
                 end
@@ -374,9 +376,9 @@ module mem_ctl #(
                             instr_ready <= 1'b1;
                             
                             // `ifdef SIM_DEBUG
-                            $display("Time %0t: TEST_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
+                            `DEBUG_PRINT(("Time %0t: TEST_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
                                      $time, current_addr, {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
-                                                          unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]});
+                                                          unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]}));
                             // `endif
                         end else begin
                             // Data access complete
@@ -396,14 +398,14 @@ module mem_ctl #(
                                 
                                 // `ifdef SIM_DEBUG
                                 case (current_flag)
-                                    3'b000: $display("Time %0t: TEST_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
-                                                    $time, current_addr, current_wdata[7:0]);
-                                    3'b001: $display("Time %0t: TEST_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
-                                                    $time, current_addr, current_wdata[15:0]);
-                                    3'b010: $display("Time %0t: TEST_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
-                                                    $time, current_addr, current_wdata);
-                                    default: $display("Time %0t: TEST_MEM - Unknown store complete: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
-                                                    $time, current_flag, current_addr, current_wdata);
+                                    3'b000: `DEBUG_PRINT(("Time %0t: TEST_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
+                                                    $time, current_addr, current_wdata[7:0]));
+                                    3'b001: `DEBUG_PRINT(("Time %0t: TEST_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
+                                                    $time, current_addr, current_wdata[15:0]));
+                                    3'b010: `DEBUG_PRINT(("Time %0t: TEST_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
+                                                    $time, current_addr, current_wdata));
+                                    default: `DEBUG_PRINT(("Time %0t: TEST_MEM - Unknown store complete: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
+                                                    $time, current_flag, current_addr, current_wdata));
                                 endcase
                                 // `endif
                             end else begin
@@ -412,9 +414,9 @@ module mem_ctl #(
                                             unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]};
                                 
                                 // `ifdef SIM_DEBUG
-                                $display("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
+                                `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
                                         $time, current_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
-                                                            unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]});
+                                                            unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]}));
                                 // `endif
                             end
                             mem_ready <= 1'b1;
@@ -435,22 +437,22 @@ module mem_ctl #(
     // Debug output for memory contents
     `ifdef SIM_DEBUG
     initial begin
-        $display("Test Memory Controller Debug Info:");
-        $display("Unified Memory Size: %0d bytes", TOTAL_MEM_SIZE);
-        $display("Program Memory Size: %0d bytes", FLASH_SIZE);
-        $display("Data Memory Size: %0d bytes", PSRAM_SIZE);
-        $display("Program Address Range: 0x00000000 - 0x%08h", FLASH_SIZE - 1);
-        $display("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + PSRAM_SIZE - 1);
-        $display("Memory Access Policy:");
-        $display("  - SEQUENTIAL ACCESS: Only instruction OR data access at a time");
-        $display("  - DATA PRIORITY: Data memory access has higher priority than instruction fetch");
-        $display("Memory Access Delays:");
-        $display("  - Instruction fetch: %0d cycles", INSTR_FETCH_DELAY);
-        $display("  - Data access: %0d cycles", DATA_ACCESS_DELAY);
-        $display("Store operations supported via write_flag (funct3):");
-        $display("  - write_flag=3'b000 → SB (Store Byte): Writes 1 byte");
-        $display("  - write_flag=3'b001 → SH (Store Halfword): Writes 2 bytes");
-        $display("  - write_flag=3'b010 → SW (Store Word): Writes 4 bytes");
+        `DEBUG_PRINT(("Test Memory Controller Debug Info:"));
+        `DEBUG_PRINT(("Unified Memory Size: %0d bytes", TOTAL_MEM_SIZE));
+        `DEBUG_PRINT(("Program Memory Size: %0d bytes", FLASH_SIZE));
+        `DEBUG_PRINT(("Data Memory Size: %0d bytes", PSRAM_SIZE));
+        `DEBUG_PRINT(("Program Address Range: 0x00000000 - 0x%08h", FLASH_SIZE - 1));
+        `DEBUG_PRINT(("Data Address Range: 0x00002000 - 0x%08h", 32'h00002000 + PSRAM_SIZE - 1));
+        `DEBUG_PRINT(("Memory Access Policy:"));
+        `DEBUG_PRINT(("  - SEQUENTIAL ACCESS: Only instruction OR data access at a time"));
+        `DEBUG_PRINT(("  - DATA PRIORITY: Data memory access has higher priority than instruction fetch"));
+        `DEBUG_PRINT(("Memory Access Delays:"));
+        `DEBUG_PRINT(("  - Instruction fetch: %0d cycles", INSTR_FETCH_DELAY));
+        `DEBUG_PRINT(("  - Data access: %0d cycles", DATA_ACCESS_DELAY));
+        `DEBUG_PRINT(("Store operations supported via write_flag (funct3):"));
+        `DEBUG_PRINT(("  - write_flag=3'b000 → SB (Store Byte): Writes 1 byte"));
+        `DEBUG_PRINT(("  - write_flag=3'b001 → SH (Store Halfword): Writes 2 bytes"));
+        `DEBUG_PRINT(("  - write_flag=3'b010 → SW (Store Word): Writes 4 bytes"));
     end
     `endif
 

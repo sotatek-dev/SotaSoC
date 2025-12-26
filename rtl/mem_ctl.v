@@ -10,6 +10,8 @@
  * 0x00000000 - 0x0FFFFFFF: RAM (Data)
  */
 
+`include "debug_defines.vh"
+
 module mem_ctl #(
     parameter FLASH_SIZE = 32'h00002000,
     parameter PSRAM_SIZE = 32'h00002000,
@@ -217,18 +219,18 @@ module mem_ctl #(
                         
                         if (mem_we) begin
                             case (mem_flag)
-                                3'b000: $display("Time %0t: SPI_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h", 
-                                                $time, mem_addr, mem_wdata[7:0]);
-                                3'b001: $display("Time %0t: SPI_MEM - Starting SH (Store Halfword): addr=0x%h, data=0x%04h", 
-                                                $time, mem_addr, mem_wdata[15:0]);
-                                3'b010: $display("Time %0t: SPI_MEM - Starting SW (Store Word): addr=0x%h, data=0x%08h", 
-                                                $time, mem_addr, mem_wdata);
-                                default: $display("Time %0t: SPI_MEM - Starting unknown store: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
-                                                 $time, mem_flag, mem_addr, mem_wdata);
+                                3'b000: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h", 
+                                                $time, mem_addr, mem_wdata[7:0]));
+                                3'b001: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SH (Store Halfword): addr=0x%h, data=0x%04h", 
+                                                $time, mem_addr, mem_wdata[15:0]));
+                                3'b010: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SW (Store Word): addr=0x%h, data=0x%08h", 
+                                                $time, mem_addr, mem_wdata));
+                                default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting unknown store: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
+                                                 $time, mem_flag, mem_addr, mem_wdata));
                             endcase
                         end else begin
-                            $display("Time %0t: SPI_MEM - Starting data read: addr=0x%h", 
-                                     $time, mem_addr);
+                            `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting data read: addr=0x%h", 
+                                     $time, mem_addr));
                         end
                     end
                     // Priority 2: Instruction fetch (lower priority)
@@ -242,8 +244,8 @@ module mem_ctl #(
                         access_state <= ACCESS_ACTIVE;
                         
                         // `ifdef SIM_DEBUG
-                        $display("Time %0t: SPI_MEM - Starting instruction fetch: addr=0x%h", 
-                                 $time, instr_addr);
+                        `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting instruction fetch: addr=0x%h", 
+                                 $time, instr_addr));
                         // `endif
                     end
                 end
@@ -257,22 +259,22 @@ module mem_ctl #(
                             instr_ready <= 1'b1;
                             
                             // `ifdef SIM_DEBUG
-                            $display("Time %0t: SPI_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
-                                     $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out);
+                            `DEBUG_PRINT(("Time %0t: SPI_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
+                                     $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
                             // `endif
                         end else begin
                             // Data access complete
                             if (spi_write_enable) begin
                                 // `ifdef SIM_DEBUG
                                 case (spi_data_len)
-                                    6'h08: $display("Time %0t: SPI_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
-                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[7:0]);
-                                    6'h10: $display("Time %0t: SPI_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
-                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[15:0]);
-                                    6'h20: $display("Time %0t: SPI_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
-                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in);
-                                    default: $display("Time %0t: SPI_MEM - Unknown store complete: spi_data_len=0x%h, addr=0x%h, data=0x%08h", 
-                                                    $time, spi_data_len, {8'b0, spi_cmd_addr[23:0]}, spi_data_in);
+                                    6'h08: `DEBUG_PRINT(("Time %0t: SPI_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
+                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[7:0]));
+                                    6'h10: `DEBUG_PRINT(("Time %0t: SPI_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
+                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[15:0]));
+                                    6'h20: `DEBUG_PRINT(("Time %0t: SPI_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
+                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
+                                    default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Unknown store complete: spi_data_len=0x%h, addr=0x%h, data=0x%08h", 
+                                                    $time, spi_data_len, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
                                 endcase
                                 // `endif
                             end else begin
@@ -285,8 +287,8 @@ module mem_ctl #(
                                             {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
                                 
                                 // `ifdef SIM_DEBUG
-                                $display("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
-                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out);
+                                `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
+                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
                                 // `endif
                             end
                             mem_ready <= 1'b1;

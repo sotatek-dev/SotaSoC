@@ -1,5 +1,7 @@
 /* RV32I ALU - Optimized implementation for reduced delay */
 
+`include "debug_defines.vh"
+
 module rv32i_alu (
     input [4:0] op,
     input [31:0] a,
@@ -91,28 +93,28 @@ module rv32i_alu (
     // Debug logging for ALU operations
     always @(*) begin
         case (op)
-            ADD:  $display("Time %0t: ALU - ADD: 0x%h + 0x%h = 0x%h", 
-                          $time, a, b, result);
-            SUB:  $display("Time %0t: ALU - SUB: 0x%h - 0x%h = 0x%h", 
-                          $time, a, b, result);
-            AND:  $display("Time %0t: ALU - AND: 0x%h & 0x%h = 0x%h", 
-                          $time, a, b, result);
-            OR:   $display("Time %0t: ALU - OR:  0x%h | 0x%h = 0x%h", 
-                          $time, a, b, result);
-            XOR:  $display("Time %0t: ALU - XOR: 0x%h ^ 0x%h = 0x%h", 
-                          $time, a, b, result);
-            SLL:  $display("Time %0t: ALU - SLL: 0x%h << %d = 0x%h", 
-                          $time, a, shift_amount, result);
-            SRL:  $display("Time %0t: ALU - SRL: 0x%h >> %d = 0x%h", 
-                          $time, a, shift_amount, result);
-            SRA:  $display("Time %0t: ALU - SRA: 0x%h >>> %d = 0x%h", 
-                          $time, a, shift_amount, result);
-            SLT:  $display("Time %0t: ALU - SLT: 0x%h < 0x%h = %0d", 
-                          $time, a, b, result);
-            SLTU: $display("Time %0t: ALU - SLTU: 0x%h < 0x%h = %0d", 
-                          $time, a, b, result);
-            default: $display("Time %0t: ALU - UNKNOWN OP: %b, a=0x%h, b=0x%h, result=0x%h", 
-                             $time, op, a, b, result);
+            ADD:  `DEBUG_PRINT(("Time %0t: ALU - ADD: 0x%h + 0x%h = 0x%h", 
+                          $time, a, b, result));
+            SUB:  `DEBUG_PRINT(("Time %0t: ALU - SUB: 0x%h - 0x%h = 0x%h", 
+                          $time, a, b, result));
+            AND:  `DEBUG_PRINT(("Time %0t: ALU - AND: 0x%h & 0x%h = 0x%h", 
+                          $time, a, b, result));
+            OR:   `DEBUG_PRINT(("Time %0t: ALU - OR:  0x%h | 0x%h = 0x%h", 
+                          $time, a, b, result));
+            XOR:  `DEBUG_PRINT(("Time %0t: ALU - XOR: 0x%h ^ 0x%h = 0x%h", 
+                          $time, a, b, result));
+            SLL:  `DEBUG_PRINT(("Time %0t: ALU - SLL: 0x%h << %d = 0x%h", 
+                          $time, a, shift_amount, result));
+            SRL:  `DEBUG_PRINT(("Time %0t: ALU - SRL: 0x%h >> %d = 0x%h", 
+                          $time, a, shift_amount, result));
+            SRA:  `DEBUG_PRINT(("Time %0t: ALU - SRA: 0x%h >>> %d = 0x%h", 
+                          $time, a, shift_amount, result));
+            SLT:  `DEBUG_PRINT(("Time %0t: ALU - SLT: 0x%h < 0x%h = %0d", 
+                          $time, a, b, result));
+            SLTU: `DEBUG_PRINT(("Time %0t: ALU - SLTU: 0x%h < 0x%h = %0d", 
+                          $time, a, b, result));
+            default: `DEBUG_PRINT(("Time %0t: ALU - UNKNOWN OP: %b, a=0x%h, b=0x%h, result=0x%h", 
+                             $time, op, a, b, result));
         endcase
     end
 

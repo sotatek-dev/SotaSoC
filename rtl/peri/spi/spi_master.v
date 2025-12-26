@@ -90,10 +90,10 @@ module spi_master (
                 if (start) begin
                     if (initialized) begin
                         fsm_next_state = FSM_SEND_CMD_ADDR;
-                        $display("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr);
+                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
                     end else begin
                         fsm_next_state = FSM_INIT;
-                        $display("Time %0t: SPI_MASTER - Initializing SPI", $time);
+                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Initializing SPI", $time));
                     end
                 end else begin
                     fsm_next_state = FSM_IDLE;
@@ -146,7 +146,7 @@ module spi_master (
 
             write_mosi <= 1'b0;
         end else begin
-            // $display("Time %0t: SPI_MASTER - fsm_state=%d, bit_counter=%d, spi_clk=%b, spi_mosi=%b, spi_miso=%b", $time, fsm_state, bit_counter, spi_clk, spi_mosi, spi_miso);
+            // `DEBUG_PRINT(("Time %0t: SPI_MASTER - fsm_state=%d, bit_counter=%d, spi_clk=%b, spi_mosi=%b, spi_miso=%b", $time, fsm_state, bit_counter, spi_clk, spi_mosi, spi_miso));
             case (fsm_state)
                 FSM_IDLE: begin
                     done <= 1'b0;
