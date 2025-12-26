@@ -58,10 +58,6 @@ module rv32i_core #(
     reg [4:0] mem_wb_rd_addr;
     reg mem_wb_reg_we;
 
-    reg [31:0] wb___result;
-    reg [4:0] wb___rd_addr;
-    reg wb___reg_we;
-
     reg error_flag_reg;
 
     // Instruction type signals
@@ -339,9 +335,6 @@ module rv32i_core #(
             mem_wb_result <= 32'd0;
             mem_wb_rd_addr <= 5'd0;
             mem_wb_reg_we <= 1'b0;
-            wb___result <= 32'd0;
-            wb___rd_addr <= 5'd0;
-            wb___reg_we <= 1'b0;
 
             error_flag_reg <= 1'b0;
             
@@ -465,9 +458,7 @@ module rv32i_core #(
                 mem_wb_reg_we <= ex_mem_reg_we;
 
                 // Pipeline stage 5: Writeback
-                wb___result <= mem_wb_result;
-                wb___rd_addr <= mem_wb_rd_addr;
-                wb___reg_we <= mem_wb_reg_we;
+                // nothing for now
             end // !mem_stall
         end // rst_n
     end // always block
@@ -677,11 +668,9 @@ module rv32i_core #(
         if ((id_rs1 != 0 && id_rs1 == ex_mem_rd_addr && ex_mem_reg_we) ||
             (id_rs2 != 0 && id_rs2 == ex_mem_rd_addr && ex_mem_reg_we) ||
             (id_rs1 != 0 && id_rs1 == mem_wb_rd_addr && mem_wb_reg_we) ||
-            (id_rs2 != 0 && id_rs2 == mem_wb_rd_addr && mem_wb_reg_we) ||
-            (id_rs1 != 0 && id_rs1 == wb___rd_addr && wb___reg_we) ||
-            (id_rs2 != 0 && id_rs2 == wb___rd_addr && wb___reg_we)) begin
-            `DEBUG_PRINT(("Time %0t: HAZARD - Data hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d, wb___rd=x%0d", 
-                     $time, id_rs1, id_rs2, ex_mem_rd_addr, mem_wb_rd_addr, wb___rd_addr));
+            (id_rs2 != 0 && id_rs2 == mem_wb_rd_addr && mem_wb_reg_we)) begin
+            `DEBUG_PRINT(("Time %0t: HAZARD - Data hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d", 
+                     $time, id_rs1, id_rs2, ex_mem_rd_addr, mem_wb_rd_addr));
         end
 
         // Log load-use hazard detection
