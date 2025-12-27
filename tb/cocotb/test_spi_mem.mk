@@ -15,7 +15,7 @@ VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_tx.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_rx.v
 VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv
 
-COMPILE_ARGS += -g2012 -I$(PWD)/rtl
+COMPILE_ARGS += -g2012 -I$(PWD)/rtl -DSIMULATION
 
 # Pass HEX_FILE parameter to simulation if provided
 ifdef HEX_FILE

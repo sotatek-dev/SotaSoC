@@ -1,7 +1,7 @@
 `ifndef DEBUG_DEFINES_VH
 `define DEBUG_DEFINES_VH
 
-`ifdef IVERILOG
+`ifdef SIMULATION
 `define DEBUG_PRINT(args) $display args
 `else
 `define DEBUG_PRINT(args)
