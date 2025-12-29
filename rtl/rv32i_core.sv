@@ -50,7 +50,7 @@ module rv32i_core #(
     reg [31:0] id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded;
 
 
-    reg [31:0] ex_mem_instr, ex_mem_result, ex_mem_rs2_data, ex_mem_pc;
+    reg [31:0] ex_mem_instr, ex_mem_result, ex_mem_rs1_data, ex_mem_rs2_data, ex_mem_pc;
     reg [4:0] ex_mem_rd_addr;
     reg ex_mem_mem_we, ex_mem_mem_re, ex_mem_reg_we;
 
@@ -59,6 +59,16 @@ module rv32i_core #(
     reg mem_wb_reg_we;
 
     reg error_flag_reg;
+
+    // CSR-related pipeline registers
+    reg [11:0] id_ex_csr_addr;
+    reg [2:0] id_ex_csr_op;
+    reg id_ex_csr_we;
+    reg [11:0] ex_mem_csr_addr;
+    reg [2:0] ex_mem_csr_op;
+    reg ex_mem_csr_we;
+    reg [31:0] ex_mem_csr_rdata;
+    reg csr_should_update;
 
     // Instruction type signals
     wire if_id_is_r_type, if_id_is_i_type, if_id_is_s_type, if_id_is_b_type, if_id_is_j_type, if_id_is_u_type, if_id_is_risb_type, if_id_is_rsb_type;
@@ -105,6 +115,16 @@ module rv32i_core #(
 
     // ALU operand selection
     wire [31:0] id_ex_alu_a, id_ex_alu_b;
+
+    // CSR signals
+    wire if_id_is_csr;
+    wire [11:0] if_id_csr_addr;
+    wire [2:0] if_id_csr_op;
+    wire [31:0] if_id_csr_wdata;
+    wire [31:0] csr_rdata;
+    wire csr_illegal;
+    reg [31:0] cycle_counter;
+    reg [31:0] instret_counter;
 
     // Instruction decoding
     assign if_id_opcode = if_id_instr[6:0];
@@ -162,6 +182,20 @@ module rv32i_core #(
         // .overflow_flag(alu_overflow)
     );
 
+    // CSR module instantiation
+    rv32i_csr csr_file (
+        .clk(clk),
+        .rst_n(rst_n),
+        .csr_addr(ex_mem_csr_addr),
+        .csr_wdata(ex_mem_csr_wdata),
+        .csr_we(ex_mem_csr_we && csr_should_update),
+        .csr_op(ex_mem_csr_op),
+        .csr_rdata(csr_rdata),
+        .csr_illegal(csr_illegal),
+        .cycle_count(cycle_counter),
+        .instret_count(instret_counter)
+    );
+
     assign is_valid_opcode = (id_opcode == 7'b0110011)
                             || (id_opcode == 7'b0010011)
                             || (id_opcode == 7'b0000011)
@@ -184,6 +218,12 @@ module rv32i_core #(
     assign if_id_is_risb_type = if_id_is_r_type || if_id_is_i_type || if_id_is_s_type || if_id_is_b_type;
     assign if_id_is_rsb_type = if_id_is_r_type || if_id_is_s_type || if_id_is_b_type;
 
+    // CSR instruction detection
+    assign if_id_is_csr = (if_id_opcode == 7'b1110011) && (funct3 != 3'b000); // CSR instructions (not ECALL/EBREAK)
+    assign if_id_csr_addr = if_id_instr[31:20];  // CSR address (12 bits)
+    assign if_id_csr_op = funct3;  // CSR operation type
+    assign if_id_csr_wdata = if_id_is_csr ? (if_id_csr_op[2] ? {27'd0, if_id_rs1} : if_id_rs1_data_forwarded) : 32'd0;
+
     // Control unit
     wire alu_i_type_bit;
     assign alu_i_type_bit = (funct3 == 3'b101) ? funct7[5] : 1'b0;
@@ -193,7 +233,7 @@ module rv32i_core #(
                     (if_id_opcode == 7'b0100011) ? 4'b0000 :                       // S-type (Store) - ADD for address
                     (if_id_opcode == 7'b0110111) ? 4'b0000 :                       // U-type (LUI)
                     (if_id_opcode == 7'b0010111) ? 4'b0000 :                       // U-type (AUIPC) - ADD
-                    4'b0000; // default (NOP)
+                    4'b1111; // default (NOP)
 
     assign if_id_is_alu_a_fixed = (if_id_instr[6:0] == 7'b0010111)     // AUIPC
                             || (if_id_instr[6:0] == 7'b0110111);    // LUI
@@ -211,11 +251,11 @@ module rv32i_core #(
     assign if_id_fixed_alu_b = if_id_is_alu_b_fixed ? if_id_imm : 0;
 
     // ALU operand A selection - use forwarded data
-    assign id_ex_alu_a = id_ex_alu_a_forward_ex ? ex_mem_result :
+    assign id_ex_alu_a = id_ex_alu_a_forward_ex ? wb_result :
                         id_ex_alu_a_forwarded;
     
     // ALU operand B selection - use forwarded data
-    assign id_ex_alu_b = id_ex_alu_b_forward_ex ? ex_mem_result :
+    assign id_ex_alu_b = id_ex_alu_b_forward_ex ? wb_result :
                         id_ex_alu_b_forwarded;
 
     assign mem_we_ctrl = (if_id_opcode == 7'b0100011) ? 1'b1 : 1'b0; // Only Store instructions write to memory
@@ -229,6 +269,7 @@ module rv32i_core #(
                          (if_id_opcode == 7'b1100111) ? 1'b1 :  // I-type (JALR)
                          (if_id_opcode == 7'b0110111) ? 1'b1 :  // U-type (LUI)
                          (if_id_opcode == 7'b0010111) ? 1'b1 :  // U-type (AUIPC)
+                         (if_id_is_csr && (rd != 5'd0)) ? 1'b1 :  // CSR instructions (if rd != 0)
                          1'b0; // default (Store, Branch, and others don't write to registers)
 
     // Memory interface
@@ -249,10 +290,20 @@ module rv32i_core #(
                        (ex_mem_instr[14:12] == 3'b100) ? {{24'b0}, mem_data[7:0]} :             // LBU
                        (ex_mem_instr[14:12] == 3'b101) ? {{16'b0}, mem_data[15:0]} :            // LHU
                        0;
+
+    // CSR write data selection (rs1 for register-based, immediate for immediate-based)
+    // Note: For CSR instructions, rs1 is in bits [19:15], and for immediate versions, this is the immediate value
+    wire ex_mem_is_csr;
+    wire [31:0] ex_mem_csr_wdata;
+    assign ex_mem_is_csr = (ex_mem_instr[6:0] == 7'b1110011) && (ex_mem_instr[14:12] != 3'b000);
+    assign ex_mem_csr_wdata = (ex_mem_csr_op[2]) ? {27'd0, ex_mem_instr[19:15]} :  // Immediate versions (CSRRWI, CSRRSI, CSRRCI)
+                              ex_mem_rs1_data;  // Register versions (CSRRW, CSRRS, CSRRC) - uses rs1, not rs2
+    
     assign wb_result = (ex_mem_instr[6:0] == 7'b0000011) ? mem_value :          // Load: use memory data
                        (ex_mem_instr[6:0] == 7'b1101111) ? ex_mem_pc + 4 :      // JAL: return address
                        (ex_mem_instr[6:0] == 7'b1100111) ? ex_mem_pc + 4 :      // JALR: return address
                        (ex_mem_instr[6:0] == 7'b0110111) ? ex_mem_result :      // LUI: ALU result (immediate)
+                       (ex_mem_is_csr) ? ex_mem_csr_rdata :                     // CSR: use CSR read data
                        ex_mem_result;                                           // Others: ALU result
 
     // Branch hazard detection
@@ -262,14 +313,14 @@ module rv32i_core #(
 
     // Data hazard detection and forwarding logic in IF/ID stage
     // Check if we need to forward from ID/EX stage
-    assign if_id_rs1_forward_id = if_id_is_risb_type && (if_id_rs1 != 0) && (if_id_rs1 == id_ex_rd_addr) && id_ex_reg_we && 
+    assign if_id_rs1_forward_id = (if_id_is_risb_type || if_id_is_csr) && (if_id_rs1 != 0) && (if_id_rs1 == id_ex_rd_addr) && id_ex_reg_we && 
                             !(id_ex_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
     assign if_id_rs2_forward_id = if_id_is_rsb_type && (if_id_rs2 != 0) && (if_id_rs2 == id_ex_rd_addr) && id_ex_reg_we && 
                             !(id_ex_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
     assign if_id_alu_b_forward_id = !if_id_is_alu_b_fixed && if_id_rs2_forward_id;
 
     // Check if we need to forward from EX/MEM stage
-    assign if_id_rs1_forward_ex = if_id_is_risb_type && (if_id_rs1 != 0) && (if_id_rs1 == ex_mem_rd_addr) && ex_mem_reg_we && 
+    assign if_id_rs1_forward_ex = (if_id_is_risb_type || if_id_is_csr) && (if_id_rs1 != 0) && (if_id_rs1 == ex_mem_rd_addr) && ex_mem_reg_we && 
                              !if_id_rs1_forward_id; // Only if not already forwarding from EX/MEM
     assign if_id_rs2_forward_ex = if_id_is_rsb_type && (if_id_rs2 != 0) && (if_id_rs2 == ex_mem_rd_addr) && ex_mem_reg_we && 
                              !if_id_rs2_forward_id; // Only if not already forwarding from EX/MEM
@@ -324,6 +375,7 @@ module rv32i_core #(
             pc_id_ex_funct3 <= 3'd0;
 
             ex_mem_result <= 32'd0;
+            ex_mem_rs1_data <= 32'd0;
             ex_mem_rs2_data <= 32'd0;
             ex_mem_pc <= 32'd0;
             ex_mem_instr <= 32'h00000013;
@@ -338,8 +390,28 @@ module rv32i_core #(
 
             error_flag_reg <= 1'b0;
             
+            // CSR pipeline registers
+            id_ex_csr_addr <= 12'd0;
+            id_ex_csr_op <= 3'd0;
+            id_ex_csr_we <= 1'b0;
+            ex_mem_csr_addr <= 12'd0;
+            ex_mem_csr_op <= 3'd0;
+            ex_mem_csr_we <= 1'b0;
+            ex_mem_csr_rdata <= 32'd0;
+            csr_should_update <= 1'b0;
+            
+            // Counters
+            cycle_counter <= 32'd0;
+            instret_counter <= 32'd0;
+            
             `DEBUG_PRINT(("=== RV32I Core Reset ==="));
         end else begin
+            cycle_counter <= cycle_counter + 1;
+
+            csr_should_update <= 1'b0;
+            if (csr_should_update == 1'b1) begin
+                ex_mem_csr_rdata <= csr_rdata;
+            end
 
             // Hazard handling logic:
             // * Branch hazard
@@ -402,6 +474,12 @@ module rv32i_core #(
                 id_ex_alu_a_forwarded <= if_id_alu_a_forwarded;
                 id_ex_alu_b_forwarded <= if_id_alu_b_forwarded;
 
+                // CSR signals
+                id_ex_csr_addr <= if_id_csr_addr;
+                id_ex_csr_op <= if_id_csr_op;
+                id_ex_csr_we <= if_id_is_csr;
+                csr_should_update <= 1'b1;
+
                 pc_branch_taken <= if_id_pc_branch_taken;
                 pc_branch_not_taken <= if_id_pc_branch_not_taken;
                 pc_id_ex_funct3 <= funct3;
@@ -434,6 +512,12 @@ module rv32i_core #(
                     id_ex_alu_a_forwarded <= 32'd0;
                     id_ex_alu_b_forwarded <= 32'd0;
 
+                    // Clear CSR signals
+                    id_ex_csr_addr <= 12'd0;
+                    id_ex_csr_op <= 3'd0;
+                    id_ex_csr_we <= 1'b0;
+                    csr_should_update <= 1'b1;
+
                     pc_branch_taken <= 32'd0;
                     pc_branch_not_taken <= 32'd0;
                     pc_id_ex_funct3 <= 3'd0;
@@ -441,6 +525,7 @@ module rv32i_core #(
 
                 // Pipeline stage 3: Execute
                 ex_mem_result <= alu_result;
+                ex_mem_rs1_data <= id_ex_rs1_final_data_forwarded;
                 ex_mem_rs2_data <= id_ex_rs2_final_data_forwarded;
                 ex_mem_pc <= id_ex_pc;
                 ex_mem_instr <= id_ex_instr;
@@ -448,6 +533,12 @@ module rv32i_core #(
                 ex_mem_mem_we <= id_ex_mem_we;
                 ex_mem_mem_re <= id_ex_mem_re;
                 ex_mem_reg_we <= id_ex_reg_we;
+
+                // CSR signals pass through
+                ex_mem_csr_addr <= id_ex_csr_addr;
+                ex_mem_csr_op <= id_ex_csr_op;
+                ex_mem_csr_we <= id_ex_csr_we;
+
                 if (id_ex_mem_we || id_ex_mem_re) begin
                     mem_stall <= 1'b1;
                 end
@@ -456,6 +547,9 @@ module rv32i_core #(
                 mem_wb_result <= wb_result;
                 mem_wb_rd_addr <= ex_mem_rd_addr;
                 mem_wb_reg_we <= ex_mem_reg_we;
+
+                // For now, this counter includes bubble instructions, it should be fixed in the future
+                instret_counter <= instret_counter + 1;
 
                 // Pipeline stage 5: Writeback
                 // nothing for now
@@ -617,6 +711,24 @@ module rv32i_core #(
                             default: result = $sformatf("UNKNOWN_SYSTEM (imm12=0x%h)", imm12);
                         endcase
                     end
+                    3'b001: begin // CSRRW
+                        result = $sformatf("CSRRW x%0d, 0x%h, x%0d", rd, instr[31:20], rs1);
+                    end
+                    3'b010: begin // CSRRS
+                        result = $sformatf("CSRRS x%0d, 0x%h, x%0d", rd, instr[31:20], rs1);
+                    end
+                    3'b011: begin // CSRRC
+                        result = $sformatf("CSRRC x%0d, 0x%h, x%0d", rd, instr[31:20], rs1);
+                    end
+                    3'b101: begin // CSRRWI
+                        result = $sformatf("CSRRWI x%0d, 0x%h, 0x%h", rd, instr[31:20], rs1);
+                    end
+                    3'b110: begin // CSRRSI
+                        result = $sformatf("CSRRSI x%0d, 0x%h, 0x%h", rd, instr[31:20], rs1);
+                    end
+                    3'b111: begin // CSRRCI
+                        result = $sformatf("CSRRCI x%0d, 0x%h, 0x%h", rd, instr[31:20], rs1);
+                    end
                     default: result = $sformatf("UNKNOWN_SYSTEM (funct3=%b)", funct3);
                 endcase
             end
@@ -693,6 +805,11 @@ module rv32i_core #(
 
         `DEBUG_PRINT(("Time %0t: EX - PC=0x%h, Instr=0x%h (%s)", 
                     $time, ex_mem_pc, ex_mem_instr, ex_mem_instr_str));
+
+        if (ex_mem_csr_we) begin
+            `DEBUG_PRINT(("Time %0t: EX - CSR Write: op=0x%h, addr=0x%h, wdata=0x%h, rdata=0x%h", 
+                     $time, ex_mem_csr_op, ex_mem_csr_addr, ex_mem_csr_wdata, csr_rdata));
+        end
 
         // Log memory operations
         if (ex_mem_mem_we) begin

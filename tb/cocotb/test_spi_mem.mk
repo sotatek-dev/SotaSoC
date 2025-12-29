@@ -6,7 +6,8 @@ TOPLEVEL_LANG ?= verilog
 
 VERILOG_SOURCES += $(PWD)/rtl/rv32i_core.sv
 VERILOG_SOURCES += $(PWD)/rtl/rv32i_alu.v
-VERILOG_SOURCES += $(PWD)/rtl/rv32i_register.v 
+VERILOG_SOURCES += $(PWD)/rtl/rv32i_register.v
+VERILOG_SOURCES += $(PWD)/rtl/rv32i_csr.v
 VERILOG_SOURCES += $(PWD)/rtl/mem_ctl.v
 VERILOG_SOURCES += $(PWD)/rtl/soc.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/spi/spi_master.v
