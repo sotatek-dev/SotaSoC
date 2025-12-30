@@ -7,6 +7,8 @@ TOPLEVEL_LANG ?= verilog
 VERILOG_SOURCES += $(PWD)/rtl/rv32i_register.v
 VERILOG_SOURCES += $(PWD)/tb/cocotb/test_rv32i_register_tb.v
 
+COMPILE_ARGS += -g2012 -I$(PWD)/rtl -DSIMULATION
+
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
 TOPLEVEL = test_rv32i_register_tb
 

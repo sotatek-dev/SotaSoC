@@ -8,3 +8,6 @@ test_logs
 .DS_Store
 deploy.sh
 download.sh
+venv
+__pycache__
+riscof_work

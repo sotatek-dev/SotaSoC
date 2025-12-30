@@ -11,6 +11,7 @@ module test_soc_tb;
     wire spi_sclk;
     wire spi_mosi;
     reg spi_miso;
+    wire error_flag;
     
     // Define default values if not provided
     `ifndef CLK_HZ
@@ -38,7 +39,8 @@ module test_soc_tb;
         .ram_cs_n(ram_cs_n),
         .spi_sclk(spi_sclk),
         .spi_mosi(spi_mosi),
-        .spi_miso(spi_miso)
+        .spi_miso(spi_miso),
+        .error_flag(error_flag)
     );
 
     // Monitor signals for debugging
@@ -55,11 +57,9 @@ module test_soc_tb;
     // end
 
     // Waveform dump for cocotb
-    `ifdef COCOTB_SIM
     initial begin
         $dumpfile("vcd/test_soc_tb.vcd");
         $dumpvars(0, test_soc_tb);
     end
-    `endif
 
 endmodule

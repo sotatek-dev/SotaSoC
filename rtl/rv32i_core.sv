@@ -126,6 +126,16 @@ module rv32i_core #(
     reg [31:0] cycle_counter;
     reg [31:0] instret_counter;
 
+    // Exception handling signals
+    wire if_id_is_ecall, if_id_is_ebreak, if_id_is_mret;
+    reg id_ex_is_ecall, id_ex_is_ebreak, id_ex_is_mret;
+    reg ex_mem_is_ecall, ex_mem_is_ebreak, ex_mem_is_mret;
+    wire [31:0] mtvec, mepc;
+    reg exception_trigger, mret_trigger;
+    reg [31:0] exception_cause;
+    reg [31:0] exception_pc;
+    reg [31:0] exception_value;
+
     // Instruction decoding
     assign if_id_opcode = if_id_instr[6:0];
     assign rd = if_id_instr[11:7];
@@ -193,19 +203,27 @@ module rv32i_core #(
         .csr_rdata(csr_rdata),
         .csr_illegal(csr_illegal),
         .cycle_count(cycle_counter),
-        .instret_count(instret_counter)
+        .instret_count(instret_counter),
+        .exception_trigger(exception_trigger),
+        .exception_cause(exception_cause),
+        .exception_pc(exception_pc),
+        .exception_value(exception_value),
+        .mtvec_out(mtvec),
+        .mret_trigger(mret_trigger),
+        .mepc_out(mepc)
     );
 
-    assign is_valid_opcode = (id_opcode == 7'b0110011)
-                            || (id_opcode == 7'b0010011)
-                            || (id_opcode == 7'b0000011)
-                            || (id_opcode == 7'b0100011)
-                            || (id_opcode == 7'b1100011)
-                            || (id_opcode == 7'b1101111)
-                            || (id_opcode == 7'b1100111)
-                            || (id_opcode == 7'b0110111)
-                            || (id_opcode == 7'b0010111)
-                            || (id_opcode == 7'b1110011);
+    assign is_valid_opcode = (id_opcode == 7'b0110011)  // R-type
+                            || (id_opcode == 7'b0010011)  // I-type ALU
+                            || (id_opcode == 7'b0000011)  // I-type Load
+                            || (id_opcode == 7'b0100011)  // S-type Store
+                            || (id_opcode == 7'b1100011)  // B-type Branch
+                            || (id_opcode == 7'b1101111)  // J-type JAL
+                            || (id_opcode == 7'b1100111)  // I-type JALR
+                            || (id_opcode == 7'b0110111)  // U-type LUI
+                            || (id_opcode == 7'b0010111)  // U-type AUIPC
+                            || (id_opcode == 7'b1110011)  // I-type System (CSR, ECALL, EBREAK, MRET)
+                            || (id_opcode == 7'b0001111); // I-type FENCE
 
     assign error_flag = error_flag_reg;
 
@@ -217,6 +235,15 @@ module rv32i_core #(
     assign if_id_is_u_type = (if_id_opcode == 7'b0110111) || (if_id_opcode == 7'b0010111);
     assign if_id_is_risb_type = if_id_is_r_type || if_id_is_i_type || if_id_is_s_type || if_id_is_b_type;
     assign if_id_is_rsb_type = if_id_is_r_type || if_id_is_s_type || if_id_is_b_type;
+
+    // ECALL detection (opcode 7'b1110011, funct3 == 3'b000, imm12 == 12'h000)
+    assign if_id_is_ecall = (if_id_opcode == 7'b1110011) && (funct3 == 3'b000) && (imm12 == 12'h000);
+    
+    // EBREAK detection (opcode 7'b1110011, funct3 == 3'b000, imm12 == 12'h001)
+    assign if_id_is_ebreak = (if_id_opcode == 7'b1110011) && (funct3 == 3'b000) && (imm12 == 12'h001);
+    
+    // MRET detection (opcode 7'b1110011, funct3 == 3'b000, imm12 == 12'h302)
+    assign if_id_is_mret = (if_id_opcode == 7'b1110011) && (funct3 == 3'b000) && (imm12 == 12'h302);
 
     // CSR instruction detection
     assign if_id_is_csr = (if_id_opcode == 7'b1110011) && (funct3 != 3'b000); // CSR instructions (not ECALL/EBREAK)
@@ -369,6 +396,9 @@ module rv32i_core #(
             id_ex_rs2_data_forwarded <= 32'd0;
             id_ex_alu_a_forwarded <= 32'd0;
             id_ex_alu_b_forwarded <= 32'd0;
+            id_ex_is_ecall <= 1'b0;
+            id_ex_is_ebreak <= 1'b0;
+            id_ex_is_mret <= 1'b0;
 
             pc_branch_taken <= 32'd0;
             pc_branch_not_taken <= 32'd0;
@@ -383,12 +413,21 @@ module rv32i_core #(
             ex_mem_mem_we <= 1'b0;
             ex_mem_mem_re <= 1'b0;
             ex_mem_reg_we <= 1'b0;
+            ex_mem_is_ecall <= 1'b0;
+            ex_mem_is_ebreak <= 1'b0;
             mem_stall <= 1'b0;
             mem_wb_result <= 32'd0;
             mem_wb_rd_addr <= 5'd0;
             mem_wb_reg_we <= 1'b0;
 
             error_flag_reg <= 1'b0;
+            
+            // Exception handling registers
+            exception_trigger <= 1'b0;
+            exception_cause <= 32'd0;
+            exception_pc <= 32'd0;
+            exception_value <= 32'd0;
+            mret_trigger <= 1'b0;
             
             // CSR pipeline registers
             id_ex_csr_addr <= 12'd0;
@@ -464,6 +503,9 @@ module rv32i_core #(
                 id_ex_mem_re <= mem_re_ctrl;
                 id_ex_reg_we <= reg_we_ctrl;
                 id_ex_imm <= if_id_imm;
+                id_ex_is_ecall <= if_id_is_ecall;
+                id_ex_is_ebreak <= if_id_is_ebreak;
+                id_ex_is_mret <= if_id_is_mret;
 
                 id_ex_rs1_forward_ex <= if_id_rs1_forward_id;
                 id_ex_rs2_forward_ex <= if_id_rs2_forward_id;
@@ -484,15 +526,15 @@ module rv32i_core #(
                 pc_branch_not_taken <= if_id_pc_branch_not_taken;
                 pc_id_ex_funct3 <= funct3;
 
-                // If branch_hazard is detected, flush IF/ID stage with NOP
-                if (branch_hazard) begin
+                // If branch_hazard, exception, or mret is detected, flush IF/ID stage with NOP
+                if (branch_hazard || id_ex_is_exception || id_ex_is_mret) begin
                     `DEBUG_PRINT(("Time %0t: IF/ID - Flushing with NOP", $time));
                     if_id_instr <= 32'h00000013; // NOP instruction
                     if_id_pc <= 32'h00000000;    // Invalid PC
                     
                 end
-                // If load_use_hazard or branch_hazard is detected, flush ID/EX stage with NOP
-                if (branch_hazard == 1'b1 || load_use_hazard == 1'b1) begin
+                // If load_use_hazard, branch_hazard, exception, or mret is detected, flush ID/EX stage with NOP
+                if (branch_hazard == 1'b1 || load_use_hazard == 1'b1 || id_ex_is_exception == 1'b1 || id_ex_is_mret == 1'b1) begin
                     id_ex_instr <= 32'h00000013;
                     id_ex_pc <= 32'h00000000;
                     id_ex_rs1_addr <= 5'd0;
@@ -511,6 +553,8 @@ module rv32i_core #(
                     id_ex_rs2_data_forwarded <= 32'd0;
                     id_ex_alu_a_forwarded <= 32'd0;
                     id_ex_alu_b_forwarded <= 32'd0;
+                    id_ex_is_ecall <= 1'b0;
+                    id_ex_is_ebreak <= 1'b0;
 
                     // Clear CSR signals
                     id_ex_csr_addr <= 12'd0;
@@ -530,16 +574,29 @@ module rv32i_core #(
                 ex_mem_pc <= id_ex_pc;
                 ex_mem_instr <= id_ex_instr;
                 ex_mem_rd_addr <= id_ex_rd_addr;
-                ex_mem_mem_we <= id_ex_mem_we;
-                ex_mem_mem_re <= id_ex_mem_re;
-                ex_mem_reg_we <= id_ex_reg_we;
+                // Disable memory write/read when exception occurs (for store/load misalignment)
+                ex_mem_mem_we <= id_ex_mem_we && !id_ex_is_exception;
+                ex_mem_mem_re <= id_ex_mem_re && !id_ex_is_exception;
+                // Disable register write when exception occurs
+                ex_mem_reg_we <= id_ex_reg_we && !id_ex_is_exception;
+                ex_mem_is_ecall <= id_ex_is_ecall;
+                ex_mem_is_ebreak <= id_ex_is_ebreak;
+                ex_mem_is_mret <= id_ex_is_mret;
 
                 // CSR signals pass through
                 ex_mem_csr_addr <= id_ex_csr_addr;
                 ex_mem_csr_op <= id_ex_csr_op;
                 ex_mem_csr_we <= id_ex_csr_we;
 
-                if (id_ex_mem_we || id_ex_mem_re) begin
+                // Exception handling - assign combinational logic results
+                exception_trigger <= id_ex_is_exception;
+                exception_cause <= exception_cause_next;
+                exception_pc <= exception_pc_next;
+                exception_value <= exception_value_next;
+                mret_trigger <= mret_trigger_next;
+
+                // Only set mem_stall if memory access is needed and no exception occurred
+                if ((id_ex_mem_we || id_ex_mem_re) && !id_ex_is_exception) begin
                     mem_stall <= 1'b1;
                 end
 
@@ -560,9 +617,9 @@ module rv32i_core #(
 
 
     // Select forwarded data
-    wire [31:0] id_ex_rs1_final_data_forwarded = id_ex_rs1_forward_ex ? ex_mem_result :
+    wire [31:0] id_ex_rs1_final_data_forwarded = id_ex_rs1_forward_ex ? wb_result :
                                 id_ex_rs1_data_forwarded;
-    wire [31:0] id_ex_rs2_final_data_forwarded = id_ex_rs2_forward_ex ? ex_mem_result :
+    wire [31:0] id_ex_rs2_final_data_forwarded = id_ex_rs2_forward_ex ? wb_result :
                                 id_ex_rs2_data_forwarded;
 
     wire        id_ex_sign_rs1 = id_ex_rs1_final_data_forwarded[31];
@@ -576,8 +633,9 @@ module rv32i_core #(
     wire id_ex_ne = ~id_ex_eq;
     wire id_ex_lt = (id_ex_rs1_final_data_forwarded < id_ex_rs2_final_data_forwarded);
     wire id_ex_ge = ~id_ex_lt;
+
     // PC update logic
-    assign pc_next = (id_opcode == 7'b1100011) ? ( // Branch
+    wire [31:0] pc_target = (id_opcode == 7'b1100011) ? ( // Branch
                         (pc_id_ex_funct3 == 3'b000) ? ((id_ex_eq) ? pc_branch_taken : pc_branch_not_taken) : // BEQ
                         (pc_id_ex_funct3 == 3'b001) ? ((id_ex_ne) ? pc_branch_taken : pc_branch_not_taken) : // BNE
                         (pc_id_ex_funct3 == 3'b100) ? ((id_ex_lt_s) ? pc_branch_taken : pc_branch_not_taken) : // BLT
@@ -587,8 +645,70 @@ module rv32i_core #(
                         pc_branch_not_taken // default
                      ) :
                      (id_opcode == 7'b1101111) ? pc_branch_taken : // JAL
-                     (id_opcode == 7'b1100111) ? ((id_ex_rs1_final_data_forwarded + id_ex_imm) & ~1) : // JALR
+                     (id_opcode == 7'b1100111) ? (id_ex_rs1_final_data_forwarded + id_ex_imm) & ~1 : // JALR
                      pc + 4; // default: sequential execution
+
+    // Exception handling logic
+    // Priority: misaligned address > ECALL > MRET
+
+    wire id_ex_is_exception;
+    wire [31:0] exception_cause_next;
+    wire [31:0] exception_pc_next;
+    wire [31:0] exception_value_next;
+    wire mret_trigger_next;
+
+    // Check for instruction address misalignment
+    // Instruction addresses must be aligned (divisible by 4, i.e., bits [1:0] must be 00)
+    wire id_ex_is_misaligned = pc_target[1:0] != 2'b00;
+
+    // Check for load/store address misalignment in EX stage
+    // Alignment requirements:
+    // - LW/SW: address[1:0] must be 00 (4-byte aligned)
+    // - LH/SH: address[0] must be 0 (2-byte aligned)
+    // - LB/SB: no alignment requirement
+    wire id_ex_is_load = (id_ex_instr[6:0] == 7'b0000011);
+    wire id_ex_is_store = (id_ex_instr[6:0] == 7'b0100011);
+    wire [2:0] id_ex_mem_funct3 = id_ex_instr[14:12];
+
+    // Check alignment for load instructions
+    wire id_ex_load_misaligned = id_ex_is_load && (
+        (id_ex_mem_funct3 == 3'b010 && alu_result[1:0] != 2'b00) ||  // LW: must be 4-byte aligned
+        (id_ex_mem_funct3 == 3'b001 && alu_result[0] != 1'b0) ||     // LH: must be 2-byte aligned
+        (id_ex_mem_funct3 == 3'b101 && alu_result[0] != 1'b0)        // LHU: must be 2-byte aligned
+    );
+    
+    // Check alignment for store instructions
+    wire id_ex_store_misaligned = id_ex_is_store && (
+        (id_ex_mem_funct3 == 3'b010 && alu_result[1:0] != 2'b00) ||  // SW: must be 4-byte aligned
+        (id_ex_mem_funct3 == 3'b001 && alu_result[0] != 1'b0)        // SH: must be 2-byte aligned
+    );
+
+    wire id_ex_is_illegal_instruction = !is_valid_opcode;
+    // Exception priority: misaligned address > illegal instruction > ECALL > EBREAK
+    assign id_ex_is_exception = id_ex_is_misaligned || id_ex_is_illegal_instruction || id_ex_load_misaligned || id_ex_store_misaligned || id_ex_is_ecall || id_ex_is_ebreak;
+
+    assign exception_cause_next = id_ex_is_misaligned ? 32'd0 :           // CAUSE_INSTRUCTION_ADDRESS_MISALIGNED = 0
+                                  id_ex_load_misaligned ? 32'd4 :         // CAUSE_LOAD_ADDRESS_MISALIGNED = 4
+                                  id_ex_store_misaligned ? 32'd6 :        // CAUSE_STORE_ADDRESS_MISALIGNED = 6
+                                  id_ex_is_illegal_instruction ? 32'd2 :  // CAUSE_ILLEGAL_INSTRUCTION = 2
+                                  id_ex_is_ecall ? 32'd11 :               // CAUSE_MACHINE_ECALL = 11
+                                  id_ex_is_ebreak ? 32'd3 :               // CAUSE_BREAKPOINT = 3
+                                  32'd0;
+    assign exception_pc_next = id_ex_is_exception ? id_ex_pc : 32'd0;
+    assign exception_value_next = id_ex_is_misaligned ? pc_target :             // mtval = misaligned target address
+                                  id_ex_is_illegal_instruction ? id_ex_instr :  // mtval = instruction code for illegal instruction
+                                  id_ex_load_misaligned ? alu_result :          // mtval = misaligned effective address for load
+                                  id_ex_store_misaligned ? alu_result :         // mtval = misaligned effective address for store
+                                  id_ex_is_ecall ? 32'd0 :                      // mtval is 0 for ECALL
+                                  id_ex_is_ebreak ? id_ex_pc :                  // mtval is pc for EBREAK
+                                  32'd0;
+    assign mret_trigger_next = id_ex_is_mret;
+
+    // Exception handling takes priority - redirect to mtvec when exception occurs
+    // MRET takes priority - redirect to mepc when mret occurs
+    assign pc_next = (id_ex_is_mret) ? mepc :        // MRET: jump to mepc
+                     (id_ex_is_exception) ? mtvec :  // jump to exception handler
+                     pc_target;
 
 `ifdef SIMULATION
     // Function to decode instruction and return human-readable string
@@ -708,6 +828,7 @@ module rv32i_core #(
                         case (imm12)
                             12'h000: result = "ECALL";
                             12'h001: result = "EBREAK";
+                            12'h302: result = "MRET";
                             default: result = $sformatf("UNKNOWN_SYSTEM (imm12=0x%h)", imm12);
                         endcase
                     end
@@ -749,6 +870,9 @@ module rv32i_core #(
         if_id_instr_str = decode_instruction(if_id_instr);
         id_ex_instr_str = decode_instruction(id_ex_instr);
         ex_mem_instr_str = decode_instruction(ex_mem_instr);
+
+        if (!mem_stall && instr_ready) begin
+
 
         // Log instruction fetch
         `DEBUG_PRINT(("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), instr_ready=%b, PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, instr_ready, pc_next));
@@ -811,6 +935,11 @@ module rv32i_core #(
                      $time, ex_mem_csr_op, ex_mem_csr_addr, ex_mem_csr_wdata, csr_rdata));
         end
 
+        if (id_ex_is_exception) begin
+            `DEBUG_PRINT(("Time %0t: EX - Exception: cause=0x%h, pc=0x%h, value=0x%h", 
+                     $time, exception_cause_next, exception_pc_next, exception_value_next));
+        end
+
         // Log memory operations
         if (ex_mem_mem_we) begin
             `DEBUG_PRINT(("Time %0t: MEM - Store: addr=0x%h, data=0x%h", 
@@ -852,6 +981,8 @@ module rv32i_core #(
         end
 
         `DEBUG_PRINT(("--------------------------------"));
+
+        end
     end
 `endif
 

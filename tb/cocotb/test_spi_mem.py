@@ -135,7 +135,7 @@ async def test_spi_hex_file(dut):
 
     def callback(dut, memory):
         nonlocal cycles
-        if dut.soc_inst.cpu_core.instr_data == 0x00000073:
+        if dut.soc_inst.cpu_core.instr_data.value == 0x00000073:
             cycles = 5 * 64;
             print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
             print("Found ECALL instruction")

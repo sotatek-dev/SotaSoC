@@ -42,11 +42,9 @@ module test_rv32i_core_tb;
     // end
 
     // Waveform dump for cocotb
-    `ifdef COCOTB_SIM
     initial begin
         $dumpfile("vcd/test_rv32i_core_tb.vcd");
         $dumpvars(0, test_rv32i_core_tb);
     end
-    `endif
 
 endmodule 

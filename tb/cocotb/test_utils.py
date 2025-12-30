@@ -20,7 +20,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
     """Do test"""
     global mem_addr, mem_wdata, mem_flag
 
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     dut.instr_data.value = memory[0x80000000]
@@ -30,7 +30,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
 
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units="ns")
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
 
     current_pc  = 0
@@ -42,7 +42,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
     # Execute for several cycles
     for _ in range(cycles * MEMORY_CYCLES):
         await FallingEdge(dut.clk)
-        if mem_wait_cycles == 0 and ((dut.mem_we == 1 and current_mem_we == 0) or (dut.mem_re == 1 and current_mem_re == 0)):
+        if mem_wait_cycles == 0 and ((dut.mem_we.value == 1 and current_mem_we == 0) or (dut.mem_re.value == 1 and current_mem_re == 0)):
             dut.mem_ready.value = 0
             mem_wait_cycles = MEMORY_CYCLES
             current_mem_we = dut.mem_we.value
@@ -53,23 +53,23 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
             if mem_wait_cycles == 0:
                 dut.mem_ready.value = 1
                 if (current_mem_we == 1):
-                    mem_addr = dut.mem_addr.value.integer
-                    mem_wdata = dut.mem_wdata.value.integer
-                    mem_flag = dut.mem_flag.value.integer
+                    mem_addr = dut.mem_addr.value.to_unsigned()
+                    mem_wdata = dut.mem_wdata.value.to_unsigned()
+                    mem_flag = dut.mem_flag.value.to_unsigned()
                 # Reset current memory operation flags when memory operation completes
                 current_mem_we = 0
                 current_mem_re = 0
 
-        if instr_wait_cycles == 0 and dut.instr_addr.value.integer != current_pc:
+        if instr_wait_cycles == 0 and dut.instr_addr.value.to_unsigned() != current_pc:
             dut.instr_ready.value = 0
             instr_wait_cycles = MEMORY_CYCLES
-            current_pc = dut.instr_addr.value.integer
+            current_pc = dut.instr_addr.value.to_unsigned()
 
         # Only fetch instruction if memory is not busy
         if mem_wait_cycles == 0 and instr_wait_cycles > 0:
             instr_wait_cycles -= 1
             if instr_wait_cycles == 0:
-                dut.instr_data.value = memory[dut.instr_addr.value.integer]
+                dut.instr_data.value = memory[dut.instr_addr.value.to_unsigned()]
                 dut.instr_ready.value = 1
 
         # print(f"mem_wait_cycles={mem_wait_cycles}, instr_wait_cycles={instr_wait_cycles}")

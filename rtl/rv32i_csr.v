@@ -16,7 +16,18 @@ module rv32i_csr (
 
     // Counter inputs (for cycle, time, instret)
     input wire [31:0] cycle_count,
-    input wire [31:0] instret_count
+    input wire [31:0] instret_count,
+
+    // Exception interface
+    input wire exception_trigger,       // Trigger exception handling
+    input wire [31:0] exception_cause,  // Exception cause code
+    input wire [31:0] exception_pc,     // PC of instruction causing exception
+    input wire [31:0] exception_value,  // Value for mtval
+    output wire [31:0] mtvec_out,       // Output mtvec for PC redirection
+    
+    // MRET interface
+    input wire mret_trigger,            // Trigger MRET handling
+    output wire [31:0] mepc_out         // Output mepc for PC redirection
 );
 
     // CSR register definitions
@@ -37,6 +48,12 @@ module rv32i_csr (
     // Read-only counters (shadow copies for atomicity)
     reg [31:0] cycle;        // 0xc00 - Cycle counter
     reg [31:0] instret;      // 0xc02 - Instructions retired counter
+
+    // Output mtvec for exception handling
+    assign mtvec_out = mtvec;
+    
+    // Output mepc for MRET
+    assign mepc_out = mepc;
 
     // CSR read operation
     always @(*) begin
@@ -106,6 +123,28 @@ module rv32i_csr (
             // Update counters from external inputs
             cycle <= cycle_count;
             instret <= instret_count;
+
+            // Handle exceptions (takes priority over CSR writes)
+            if (exception_trigger) begin
+                // Save current privilege mode and interrupt enable
+                // MPP (bits [12:11]) <- current privilege mode (assume machine mode = 3)
+                // MPIE (bit 7) <- MIE (bit 3)
+                // MIE (bit 3) <- 0 (disable interrupts)
+                mstatus <= {mstatus[31:13], 2'b11, mstatus[10:8], mstatus[3], mstatus[6:4], 1'b0, mstatus[2:0]};
+                mepc <= exception_pc;
+                mcause <= exception_cause;
+                mtval <= exception_value;
+                // `DEBUG_PRINT(("Time %0t: CSR - Exception triggered: cause=0x%h, pc=0x%h, mtval=0x%h, mtvec=0x%h", 
+                //           $time, exception_cause, exception_pc, exception_value, mtvec));
+            end else if (mret_trigger) begin
+                // Handle MRET: restore privilege mode and interrupt enable
+                // MIE (bit 3) <- MPIE (bit 7)
+                // MPIE (bit 7) <- 1
+                // MPP (bits [12:11]) <- 0 (U-mode, or could be restored from saved value)
+                mstatus <= {mstatus[31:13], 2'b00, mstatus[10:8], 1'b1, mstatus[6:4], mstatus[7], mstatus[2:0]};
+                // `DEBUG_PRINT(("Time %0t: CSR - MRET triggered: mepc=0x%h, mstatus=0x%h", 
+                //           $time, mepc, mstatus));
+            end
 
             // Handle CSR writes
             // Note: For CSRRS/CSRRC/CSRRSI/CSRRCI, if rs1 is 0, no write should occur (but read still happens)
@@ -250,8 +289,8 @@ module rv32i_csr (
                     end
                 endcase
 
-                // `DEBUG_PRINT(("Time %0t: CSR - Write: addr=0x%h, op=%b, wdata=0x%h, rdata=0x%h", 
-                //          $time, csr_addr, csr_op, csr_wdata, csr_rdata));
+                `DEBUG_PRINT(("Time %0t: CSR - Write: addr=0x%h, op=%b, wdata=0x%h, rdata=0x%h", 
+                         $time, csr_addr, csr_op, csr_wdata, csr_rdata));
             end
         end
     end

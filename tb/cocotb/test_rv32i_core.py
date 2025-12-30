@@ -7,12 +7,12 @@ from test_utils import do_test, CYCLES_PER_INSTRUCTION, NOP_INSTR
 @cocotb.test()
 async def test_reset(dut):
     """Test that the core resets properly"""
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset the core
     dut.rst_n.value = 0
-    await Timer(20, units="ns")
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
     
     # Check that PC starts at reset address
@@ -22,12 +22,12 @@ async def test_reset(dut):
 @cocotb.test()
 async def test_nop_instruction(dut):
     """Test NOP instruction execution"""
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units="ns")
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
     
     # Provide NOP instruction
@@ -45,7 +45,7 @@ async def test_nop_instruction(dut):
 @cocotb.test()
 async def test_addi_instruction(dut):
     """Test ADDI instruction"""
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
@@ -56,7 +56,7 @@ async def test_addi_instruction(dut):
     dut.mem_data.value = 0x00000000
     dut.instr_ready.value = 1
     
-    await Timer(20, units="ns")
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
     
     # Execute for several cycles to see the pipeline
@@ -72,12 +72,12 @@ async def test_addi_instruction(dut):
 @cocotb.test()
 async def test_add_instruction(dut):
     """Test ADD instruction"""
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units="ns")
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
     
     # First, set up values for x1 and x2 using ADDI
@@ -116,12 +116,12 @@ async def test_add_instruction(dut):
 @cocotb.test()
 async def test_load_instruction(dut):
     """Test load instruction"""
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units="ns")
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
 
     # Set up base address in x1
@@ -157,12 +157,12 @@ async def test_load_instruction(dut):
 @cocotb.test()
 async def test_store_instruction(dut):
     """Test store operations"""
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units="ns")
+    await Timer(20, unit="ns")
     dut.rst_n.value = 1
     
     # Set up base address in x1
@@ -673,10 +673,10 @@ async def test_lw(dut):
         0x80000034: NOP_INSTR,
         0x80000038: NOP_INSTR,
     }
-    await do_test(dut, memory, 14, 0xABCD)
+    await do_test(dut, memory, 16, 0xABCD)
 
     registers = dut.core.register_file.registers
-    assert registers[3].value == 0xABCD, f"Register x2 should be 0xABCD, got 0x{registers[2].value.integer:08x}"
+    assert registers[3].value.to_unsigned() == 0xABCD, f"Register x2 should be 0xABCD, got 0x{registers[2].value.to_unsigned():08x}"
 
 @cocotb.test()
 async def test_lb(dut):

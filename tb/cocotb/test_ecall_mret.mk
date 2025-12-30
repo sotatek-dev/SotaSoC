@@ -1,24 +1,22 @@
-# Makefile
+# Makefile for ECALL and MRET instruction tests
 
 # defaults
 SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 
-PROJECT_ROOT ?= $(PWD)
+VERILOG_SOURCES += $(PWD)/rtl/rv32i_core.sv
+VERILOG_SOURCES += $(PWD)/rtl/rv32i_alu.v
+VERILOG_SOURCES += $(PWD)/rtl/rv32i_register.v
+VERILOG_SOURCES += $(PWD)/rtl/rv32i_csr.v
+VERILOG_SOURCES += $(PWD)/rtl/mem_ctl.v
+VERILOG_SOURCES += $(PWD)/rtl/soc.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/spi/spi_master.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_ctl.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_tx.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_rx.v
+VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv
 
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_core.sv
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_alu.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_register.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_csr.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/mem_ctl.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/soc.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/spi/spi_master.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_ctl.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_tx.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_rx.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/test_soc_tb.sv
-
-COMPILE_ARGS += -g2012 -I$(PROJECT_ROOT)/rtl -DSIMULATION
+COMPILE_ARGS += -g2012 -I$(PWD)/rtl -DSIMULATION
 
 # Pass HEX_FILE parameter to simulation if provided
 ifdef HEX_FILE
@@ -43,13 +41,14 @@ endif
 TOPLEVEL = test_soc_tb
 
 # MODULE is the basename of the Python test file
-MODULE = test_spi_mem
+MODULE = test_ecall_mret
 
 # Set Python path to find the test module
-export PYTHONPATH := $(PROJECT_ROOT)/tb/cocotb:$(PYTHONPATH)
+export PYTHONPATH := $(PWD)/tb/cocotb:$(PYTHONPATH)
 
 # Set a unique build directory for this test
-SIM_BUILD = sim_build_spi_mem
+SIM_BUILD = sim_build_ecall_mret
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+

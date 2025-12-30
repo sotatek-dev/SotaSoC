@@ -6,7 +6,6 @@ Python test for RV32I Register File using cocotb
 import cocotb
 from cocotb.triggers import Timer, RisingEdge, FallingEdge
 from cocotb.clock import Clock
-from cocotb.binary import BinaryValue
 import random
 
 # Register addresses for RV32I (16 registers: x0-x15)
@@ -31,33 +30,33 @@ REG_X15 = 0xF
 async def test_register_reset(dut):
     """Test register file reset functionality"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset the register file
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Check that all registers are zero after reset
     for reg_addr in range(16):
         dut.rs1_addr.value = reg_addr
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
         assert dut.rs1_data.value == 0, f"Register {reg_addr} not zero after reset, got {dut.rs1_data.value}"
 
 @cocotb.test()
 async def test_register_write_read(dut):
     """Test basic write and read operations"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Test writing to registers 1-15
     test_data = [0x12345678, 0x87654321, 0xDEADBEEF, 0xCAFEBABE, 0x12345678,
@@ -74,21 +73,21 @@ async def test_register_write_read(dut):
         
         # Read back and verify
         dut.rs1_addr.value = i
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
         assert dut.rs1_data.value == test_data[i-1], f"Register {i} read/write failed: expected {test_data[i-1]}, got {dut.rs1_data.value}"
 
 @cocotb.test()
 async def test_register_x0_always_zero(dut):
     """Test that register x0 always reads as zero"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Try to write to x0
     dut.rd_addr.value = REG_X0
@@ -99,27 +98,27 @@ async def test_register_x0_always_zero(dut):
     
     # Read from x0 - should still be zero
     dut.rs1_addr.value = REG_X0
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0, f"Register x0 should always be zero, got {dut.rs1_data.value}"
     
     # Test multiple reads from x0
     for _ in range(5):
         dut.rs1_addr.value = REG_X0
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
         assert dut.rs1_data.value == 0, f"Register x0 should always be zero, got {dut.rs1_data.value}"
 
 @cocotb.test()
 async def test_dual_read_ports(dut):
     """Test dual read port functionality"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Write different values to registers
     test_values = {
@@ -140,14 +139,14 @@ async def test_dual_read_ports(dut):
     # Test simultaneous reads from different registers
     dut.rs1_addr.value = 1
     dut.rs2_addr.value = 2
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0x11111111, f"rs1_data expected 0x11111111, got {dut.rs1_data.value}"
     assert dut.rs2_data.value == 0x22222222, f"rs2_data expected 0x22222222, got {dut.rs2_data.value}"
     
     # Test reading from same register on both ports
     dut.rs1_addr.value = 3
     dut.rs2_addr.value = 3
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0x33333333, f"rs1_data expected 0x33333333, got {dut.rs1_data.value}"
     assert dut.rs2_data.value == 0x33333333, f"rs2_data expected 0x33333333, got {dut.rs2_data.value}"
 
@@ -155,14 +154,14 @@ async def test_dual_read_ports(dut):
 async def test_register_update(dut):
     """Test updating existing register values"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Write initial value
     dut.rd_addr.value = 7
@@ -173,7 +172,7 @@ async def test_register_update(dut):
     
     # Verify initial value
     dut.rs1_addr.value = 7
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0x12345678, f"Initial write failed: expected 0x12345678, got {dut.rs1_data.value}"
     
     # Update the register
@@ -185,21 +184,21 @@ async def test_register_update(dut):
     
     # Verify updated value
     dut.rs1_addr.value = 7
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0x87654321, f"Register update failed: expected 0x87654321, got {dut.rs1_data.value}"
 
 @cocotb.test()
 async def test_register_write_disable(dut):
     """Test that writes are ignored when write enable is low"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Write initial value
     dut.rd_addr.value = 10
@@ -210,7 +209,7 @@ async def test_register_write_disable(dut):
     
     # Verify initial value
     dut.rs1_addr.value = 10
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0x12345678, f"Initial write failed: expected 0x12345678, got {dut.rs1_data.value}"
     
     # Try to write with write enable low (should be ignored)
@@ -221,21 +220,21 @@ async def test_register_write_disable(dut):
     
     # Verify value hasn't changed
     dut.rs1_addr.value = 10
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0x12345678, f"Register should not change when write enable is low: expected 0x12345678, got {dut.rs1_data.value}"
 
 @cocotb.test()
 async def test_all_registers(dut):
     """Test all 16 registers"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Write unique values to all registers
     for i in range(16):
@@ -248,7 +247,7 @@ async def test_all_registers(dut):
     # Read back all registers
     for i in range(16):
         dut.rs1_addr.value = i
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
         if i == 0:
             # x0 should always be zero
             assert dut.rs1_data.value == 0, f"Register x0 should always be zero, got {dut.rs1_data.value}"
@@ -261,14 +260,14 @@ async def test_all_registers(dut):
 async def test_random_access(dut):
     """Test random access patterns"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Random seed for reproducible tests
     random.seed(42)
@@ -289,21 +288,21 @@ async def test_random_access(dut):
     # Verify all written values
     for addr, expected_value in written_values.items():
         dut.rs1_addr.value = addr
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
         assert dut.rs1_data.value == expected_value, f"Register {addr} expected {expected_value}, got {dut.rs1_data.value}"
 
 @cocotb.test()
 async def test_edge_cases(dut):
     """Test edge cases and boundary conditions"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Test writing maximum values
     dut.rd_addr.value = 15
@@ -313,7 +312,7 @@ async def test_edge_cases(dut):
     dut.rd_we.value = 0
     
     dut.rs1_addr.value = 15
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0xFFFFFFFF, f"Register 15 expected 0xFFFFFFFF, got {dut.rs1_data.value}"
     
     # Test writing zero
@@ -324,14 +323,14 @@ async def test_edge_cases(dut):
     dut.rd_we.value = 0
     
     dut.rs1_addr.value = 8
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0, f"Register 8 expected 0, got {dut.rs1_data.value}"
     
     # Test reading from x0 multiple times
     for _ in range(10):
         dut.rs1_addr.value = 0
         dut.rs2_addr.value = 0
-        await Timer(1, units='ns')
+        await Timer(1, unit='ns')
         assert dut.rs1_data.value == 0, f"Register x0 should always be zero"
         assert dut.rs2_data.value == 0, f"Register x0 should always be zero"
 
@@ -339,14 +338,14 @@ async def test_edge_cases(dut):
 async def test_concurrent_read_write(dut):
     """Test concurrent read and write operations"""
     # Start clock
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
     # Reset
     dut.rst_n.value = 0
-    await Timer(20, units='ns')
+    await Timer(20, unit='ns')
     dut.rst_n.value = 1
-    await Timer(10, units='ns')
+    await Timer(10, unit='ns')
     
     # Write initial value
     dut.rd_addr.value = 5
@@ -360,7 +359,7 @@ async def test_concurrent_read_write(dut):
     dut.rd_addr.value = 6   # Write to register 6
     dut.rd_data.value = 0x87654321
     dut.rd_we.value = 1
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     
     # Should read the old value (before write)
     assert dut.rs1_data.value == 0x12345678, f"Concurrent read should get old value: expected 0x12345678, got {dut.rs1_data.value}"
@@ -370,5 +369,5 @@ async def test_concurrent_read_write(dut):
     
     # Now read the updated value
     dut.rs1_addr.value = 6
-    await Timer(1, units='ns')
+    await Timer(1, unit='ns')
     assert dut.rs1_data.value == 0x87654321, f"Register 6 should have new value: expected 0x87654321, got {dut.rs1_data.value}" 

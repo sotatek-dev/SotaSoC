@@ -1,4 +1,5 @@
-# Makefile
+# Makefile for RISCOF signature extraction test
+# Based on test_spi_mem.mk
 
 # defaults
 SIM ?= icarus
@@ -43,13 +44,14 @@ endif
 TOPLEVEL = test_soc_tb
 
 # MODULE is the basename of the Python test file
-MODULE = test_spi_mem
+MODULE = test_riscof_signature
 
 # Set Python path to find the test module
-export PYTHONPATH := $(PROJECT_ROOT)/tb/cocotb:$(PYTHONPATH)
+export PYTHONPATH := $(dir $(abspath $(lastword $(MAKEFILE_LIST)))):$(PYTHONPATH)
 
 # Set a unique build directory for this test
-SIM_BUILD = sim_build_spi_mem
+SIM_BUILD = sim_build_riscof_signature
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
+

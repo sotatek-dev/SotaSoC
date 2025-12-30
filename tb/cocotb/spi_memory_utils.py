@@ -88,15 +88,15 @@ def write_byte_to_memory(memory, addr, data):
 async def test_spi_memory(dut, memory, max_cycles, callback):
     """Test the SPI memory"""
 
-    clk_hz = dut.soc_inst.CLK_HZ.value
+    clk_hz = int(dut.soc_inst.CLK_HZ.value)
     clk_cycle_time = 1000000000 / clk_hz
 
-    clock = Clock(dut.clk, clk_cycle_time, units="ns")
+    clock = Clock(dut.clk, clk_cycle_time, unit="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
     dut.rst_n.value = 0
-    await Timer(15, units="ns")
+    await Timer(15, unit="ns")
     dut.rst_n.value = 1
 
     is_instr = False
@@ -129,7 +129,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 data = 0
         else:
             await RisingEdge(dut.clk)
-            await Timer(1, units="ns")
+            await Timer(1, unit="ns")
             if (is_instr == True and dut.soc_inst.flash_cs_n.value == 1) or (is_instr == False and dut.soc_inst.ram_cs_n.value == 1):
                 # print(f"SPI1: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, addr=0x{addr:08x}, data=0x{data:08x}")
                 if not is_instr and command == 0x02:
@@ -151,7 +151,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 if dut.soc_inst.spi_sclk.value == 1:
                     # print(f"SPI1: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_miso={dut.soc_inst.spi_miso.value}, addr=0x{addr:08x}")
                     if dut.soc_inst.spi_sclk.value == 1:
-                        addr = (addr << 1) | dut.soc_inst.spi_mosi.value
+                        addr = (addr << 1) | int(dut.soc_inst.spi_mosi.value)
                         bit_counter += 1
                         if bit_counter == 32:
                             fsm_state = FSM_DATA_TRANSFER
@@ -192,7 +192,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                     if dut.soc_inst.spi_sclk.value == 0:
                         # print(f"SPI3: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_miso={dut.soc_inst.spi_miso.value}, addr=0x{addr:08x}")
                         if fsm_state == FSM_DATA_TRANSFER:
-                            data = (data << 1) | dut.soc_inst.spi_mosi.value
+                            data = (data << 1) | int(dut.soc_inst.spi_mosi.value)
                             bit_counter += 1
                             if bit_counter == 32:
                                 print(f"Write data: addr=0x{addr:08x}, data=0x{data:08x}")

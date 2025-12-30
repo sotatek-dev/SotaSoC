@@ -8,12 +8,12 @@ import random
 async def test_uart_rx(dut):
     """Test the UART RX"""
 
-    clock = Clock(dut.clk, 100, units="ns")
+    clock = Clock(dut.clk, 100, unit="ns")
     cocotb.start_soon(clock.start())
 
     # Reset
     dut.rst_n.value = 0
-    await Timer(15, units="ns")
+    await Timer(15, unit="ns")
     dut.rst_n.value = 1
 
     instr_fetch_delay = dut.soc_inst.mem_ctrl.INSTR_FETCH_DELAY.value + 1
@@ -42,7 +42,7 @@ async def test_uart_rx(dut):
                 dut.soc_inst.uart_rx.value = bits[bit_index];
             # print(f"UART RX: {dut.soc_inst.mem_ctrl.uart_rx_data.value}")
 
-        if dut.soc_inst.cpu_core.instr_data == 0x00000073:
+        if dut.soc_inst.cpu_core.instr_data.value == 0x00000073:
             cycles = 5 * instr_fetch_delay;
             print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
             print("Found ECALL instruction")
