@@ -193,11 +193,9 @@ module mem_ctl #(
                               unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]};
                 instr_ready <= 1'b1;
                 
-                // `ifdef SIM_DEBUG
                 `DEBUG_PRINT(("Time %0t: TEST_MEM - Instruction fetch: addr=0x%h, data=0x%h", 
                          $time, instr_addr, {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
                                             unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]}));
-                // `endif
             end // is_prog_addr || is_data_addr
         end // rst_n
     end
@@ -244,7 +242,6 @@ module mem_ctl #(
                     
                     mem_ready <= 1'b1;
                     
-                    // `ifdef SIM_DEBUG
                     case (mem_flag)
                         3'b000: `DEBUG_PRINT(("Time %0t: TEST_MEM - SB (Store Byte): addr=0x%h, data=0x%02h, mem_flag=0x%h", 
                                         $time, mem_addr, mem_wdata[7:0], mem_flag));
@@ -255,18 +252,15 @@ module mem_ctl #(
                         default: `DEBUG_PRINT(("Time %0t: TEST_MEM - Unknown store type: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
                                          $time, mem_flag, mem_addr, mem_wdata));
                     endcase
-                    // `endif
                 end else if (mem_re) begin
                     // Read operation - 32-bit word read from byte memory
                     mem_rdata <= {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
                                   unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]};
                     mem_ready <= 1'b1;
                     
-                    // `ifdef SIM_DEBUG
                     `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read: addr=0x%h, data=0x%h", 
                              $time, mem_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
                                                unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]}));
-                    // `endif
                 end // mem_re
             end // is_data_addr
         end // rst_n
@@ -359,10 +353,8 @@ module mem_ctl #(
                         access_state <= ACCESS_ACTIVE;
                         access_delay_counter <= INSTR_FETCH_DELAY - 1;
                         
-                        // `ifdef SIM_DEBUG
                         `DEBUG_PRINT(("Time %0t: TEST_MEM - Starting instruction fetch: addr=0x%h, delay=%0d cycles", 
                                  $time, instr_addr, INSTR_FETCH_DELAY));
-                        // `endif
                     end
                 end
                 
@@ -375,11 +367,9 @@ module mem_ctl #(
                                           unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]};
                             instr_ready <= 1'b1;
                             
-                            // `ifdef SIM_DEBUG
                             `DEBUG_PRINT(("Time %0t: TEST_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
                                      $time, current_addr, {unified_mem[instr_addr + 3], unified_mem[instr_addr + 2], 
                                                           unified_mem[instr_addr + 1], unified_mem[instr_addr + 0]}));
-                            // `endif
                         end else begin
                             // Data access complete
                             if (current_we) begin
@@ -396,7 +386,6 @@ module mem_ctl #(
                                 if (current_flag == 3'b010) 
                                     unified_mem[mem_addr + 3] <= current_wdata[31:24];
                                 
-                                // `ifdef SIM_DEBUG
                                 case (current_flag)
                                     3'b000: `DEBUG_PRINT(("Time %0t: TEST_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
                                                     $time, current_addr, current_wdata[7:0]));
@@ -407,17 +396,14 @@ module mem_ctl #(
                                     default: `DEBUG_PRINT(("Time %0t: TEST_MEM - Unknown store complete: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
                                                     $time, current_flag, current_addr, current_wdata));
                                 endcase
-                                // `endif
                             end else begin
                                 // Read operation - 32-bit word read from byte memory
                                 mem_rdata <= {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
                                             unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]};
                                 
-                                // `ifdef SIM_DEBUG
                                 `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
                                         $time, current_addr, {unified_mem[mem_addr + 3], unified_mem[mem_addr + 2], 
                                                             unified_mem[mem_addr + 1], unified_mem[mem_addr + 0]}));
-                                // `endif
                             end
                             mem_ready <= 1'b1;
                         end
@@ -435,7 +421,6 @@ module mem_ctl #(
     `endif // USE_MEMORY_DELAY
 
     // Debug output for memory contents
-    `ifdef SIM_DEBUG
     initial begin
         `DEBUG_PRINT(("Test Memory Controller Debug Info:"));
         `DEBUG_PRINT(("Unified Memory Size: %0d bytes", TOTAL_MEM_SIZE));
@@ -454,6 +439,5 @@ module mem_ctl #(
         `DEBUG_PRINT(("  - write_flag=3'b001 → SH (Store Halfword): Writes 2 bytes"));
         `DEBUG_PRINT(("  - write_flag=3'b010 → SW (Store Word): Writes 4 bytes"));
     end
-    `endif
 
 endmodule 

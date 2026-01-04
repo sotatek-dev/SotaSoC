@@ -96,6 +96,10 @@ module rv32i_core #(
     wire [31:0] if_id_imm, imm_i, imm_s, imm_b, imm_u, imm_j;
     wire [31:0] if_id_pc_branch_taken, if_id_pc_branch_not_taken;
 
+    // Writeback result selection
+    wire [31:0] wb_result;
+    wire [31:0] mem_value;
+
     // Use to check data hazard
     wire [6:0] id_opcode;
     wire [4:0] id_rs1, id_rs2;
@@ -116,11 +120,16 @@ module rv32i_core #(
     // ALU operand selection
     wire [31:0] id_ex_alu_a, id_ex_alu_b;
 
+    wire [31:0] id_ex_rs1_final_data_forwarded;
+    wire [31:0] id_ex_rs2_final_data_forwarded;
+
     // CSR signals
     wire if_id_is_csr;
     wire [11:0] if_id_csr_addr;
     wire [2:0] if_id_csr_op;
     wire [31:0] if_id_csr_wdata;
+    wire ex_mem_is_csr;
+    wire [31:0] ex_mem_csr_wdata;
     wire [31:0] csr_rdata;
     wire csr_illegal;
     reg [31:0] cycle_counter;
@@ -129,12 +138,17 @@ module rv32i_core #(
     // Exception handling signals
     wire if_id_is_ecall, if_id_is_ebreak, if_id_is_mret;
     reg id_ex_is_ecall, id_ex_is_ebreak, id_ex_is_mret;
-    reg ex_mem_is_ecall, ex_mem_is_ebreak, ex_mem_is_mret;
     wire [31:0] mtvec, mepc;
     reg exception_trigger, mret_trigger;
     reg [31:0] exception_cause;
     reg [31:0] exception_pc;
     reg [31:0] exception_value;
+
+    wire id_ex_is_exception;
+    wire [31:0] exception_cause_next;
+    wire [31:0] exception_pc_next;
+    wire [31:0] exception_value_next;
+    wire mret_trigger_next;
 
     // Instruction decoding
     assign if_id_opcode = if_id_instr[6:0];
@@ -306,10 +320,6 @@ module rv32i_core #(
     // Only access memory when instruction is ready
     assign mem_we = instr_ready && ex_mem_mem_we;
     assign mem_re = instr_ready && ex_mem_mem_re;
-
-    // Writeback result selection
-    wire [31:0] wb_result;
-    wire [31:0] mem_value;
     
     assign mem_value = (ex_mem_instr[14:12] == 3'b000) ? {{24{mem_data[7]}}, mem_data[7:0]} :   // LB
                        (ex_mem_instr[14:12] == 3'b001) ? {{16{mem_data[15]}}, mem_data[15:0]} : // LH
@@ -320,8 +330,6 @@ module rv32i_core #(
 
     // CSR write data selection (rs1 for register-based, immediate for immediate-based)
     // Note: For CSR instructions, rs1 is in bits [19:15], and for immediate versions, this is the immediate value
-    wire ex_mem_is_csr;
-    wire [31:0] ex_mem_csr_wdata;
     assign ex_mem_is_csr = (ex_mem_instr[6:0] == 7'b1110011) && (ex_mem_instr[14:12] != 3'b000);
     assign ex_mem_csr_wdata = (ex_mem_csr_op[2]) ? {27'd0, ex_mem_instr[19:15]} :  // Immediate versions (CSRRWI, CSRRSI, CSRRCI)
                               ex_mem_rs1_data;  // Register versions (CSRRW, CSRRS, CSRRC) - uses rs1, not rs2
@@ -413,8 +421,6 @@ module rv32i_core #(
             ex_mem_mem_we <= 1'b0;
             ex_mem_mem_re <= 1'b0;
             ex_mem_reg_we <= 1'b0;
-            ex_mem_is_ecall <= 1'b0;
-            ex_mem_is_ebreak <= 1'b0;
             mem_stall <= 1'b0;
             mem_wb_result <= 32'd0;
             mem_wb_rd_addr <= 5'd0;
@@ -579,9 +585,6 @@ module rv32i_core #(
                 ex_mem_mem_re <= id_ex_mem_re && !id_ex_is_exception;
                 // Disable register write when exception occurs
                 ex_mem_reg_we <= id_ex_reg_we && !id_ex_is_exception;
-                ex_mem_is_ecall <= id_ex_is_ecall;
-                ex_mem_is_ebreak <= id_ex_is_ebreak;
-                ex_mem_is_mret <= id_ex_is_mret;
 
                 // CSR signals pass through
                 ex_mem_csr_addr <= id_ex_csr_addr;
@@ -615,11 +618,10 @@ module rv32i_core #(
     end // always block
 
 
-
     // Select forwarded data
-    wire [31:0] id_ex_rs1_final_data_forwarded = id_ex_rs1_forward_ex ? wb_result :
+    assign id_ex_rs1_final_data_forwarded = id_ex_rs1_forward_ex ? wb_result :
                                 id_ex_rs1_data_forwarded;
-    wire [31:0] id_ex_rs2_final_data_forwarded = id_ex_rs2_forward_ex ? wb_result :
+    assign id_ex_rs2_final_data_forwarded = id_ex_rs2_forward_ex ? wb_result :
                                 id_ex_rs2_data_forwarded;
 
     wire        id_ex_sign_rs1 = id_ex_rs1_final_data_forwarded[31];
@@ -650,12 +652,6 @@ module rv32i_core #(
 
     // Exception handling logic
     // Priority: misaligned address > ECALL > MRET
-
-    wire id_ex_is_exception;
-    wire [31:0] exception_cause_next;
-    wire [31:0] exception_pc_next;
-    wire [31:0] exception_value_next;
-    wire mret_trigger_next;
 
     // Check for instruction address misalignment
     // Instruction addresses must be aligned (divisible by 4, i.e., bits [1:0] must be 00)

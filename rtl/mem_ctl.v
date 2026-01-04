@@ -243,10 +243,8 @@ module mem_ctl #(
                         spi_is_instr <= 1'b1;
                         access_state <= ACCESS_ACTIVE;
                         
-                        // `ifdef SIM_DEBUG
                         `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting instruction fetch: addr=0x%h", 
                                  $time, instr_addr));
-                        // `endif
                     end
                 end
                 
@@ -258,14 +256,11 @@ module mem_ctl #(
                             instr_data <= {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
                             instr_ready <= 1'b1;
                             
-                            // `ifdef SIM_DEBUG
                             `DEBUG_PRINT(("Time %0t: SPI_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
                                      $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
-                            // `endif
                         end else begin
                             // Data access complete
                             if (spi_write_enable) begin
-                                // `ifdef SIM_DEBUG
                                 case (spi_data_len)
                                     6'h08: `DEBUG_PRINT(("Time %0t: SPI_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
                                                     $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[7:0]));
@@ -276,7 +271,6 @@ module mem_ctl #(
                                     default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Unknown store complete: spi_data_len=0x%h, addr=0x%h, data=0x%08h", 
                                                     $time, spi_data_len, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
                                 endcase
-                                // `endif
                             end else begin
                                 // Read operation - 32-bit word read from byte memory
                                 mem_rdata <= (mem_flag == 3'b000) ? {24'h0, spi_data_out[7:0]} :
@@ -286,10 +280,8 @@ module mem_ctl #(
                                             (mem_flag == 3'b101) ? {16'h0, spi_data_out[7:0], spi_data_out[15:8]} :
                                             {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
                                 
-                                // `ifdef SIM_DEBUG
                                 `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
                                         $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
-                                // `endif
                             end
                             mem_ready <= 1'b1;
                         end

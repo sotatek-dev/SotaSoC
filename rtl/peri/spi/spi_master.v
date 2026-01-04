@@ -41,8 +41,8 @@ module spi_master (
 
     reg write_mosi;
 
-    reg initialized = 1'b0;
-    reg [11:0] init_cnt = 12'b0;
+    reg initialized;
+    reg [11:0] init_cnt;
     
     // Clock generation for SPI
     // always @(posedge clk or negedge rst_n) begin
@@ -145,6 +145,9 @@ module spi_master (
             is_write_op <= 1'b0;
 
             write_mosi <= 1'b0;
+
+            initialized <= 1'b0;
+            init_cnt <= 12'b0;
         end else begin
             // `DEBUG_PRINT(("Time %0t: SPI_MASTER - fsm_state=%d, bit_counter=%d, spi_clk=%b, spi_mosi=%b, spi_miso=%b", $time, fsm_state, bit_counter, spi_clk, spi_mosi, spi_miso));
             case (fsm_state)
