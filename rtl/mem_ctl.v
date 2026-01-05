@@ -170,128 +170,135 @@ module mem_ctl #(
         end else begin
             spi_start <= 1'b0;
 
-            case (access_state)
-                ACCESS_IDLE: begin
-                    instr_ready <= 1'b0;
-                    mem_ready <= 1'b0;
-                    
-                    // Priority 1: Data memory access (higher priority)
-                    if (start_data_access) begin
-                        spi_start <= 1'b1;
-                        if (mem_we) begin
-                            spi_cmd_addr <= {8'h02, mem_addr[23:0]};
-                        end else begin
-                            spi_cmd_addr <= {8'h03, mem_addr[23:0]};
-                        end
-                        spi_data_in <= (mem_flag == 3'b000) ? {mem_wdata[7:0], 24'h0} :
-                                        (mem_flag == 3'b001) ? {mem_wdata[7:0], mem_wdata[15:8], 16'h0} :
-                                        (mem_flag == 3'b010) ? {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]} :
-                                        {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]};
-                        spi_data_len <= (mem_flag == 3'b000) ? 6'h08 :
-                                        (mem_flag == 3'b001) ? 6'h10 :
-                                        (mem_flag == 3'b010) ? 6'h20 :
-                                        (mem_flag == 3'b100) ? 6'h08 :
-                                        (mem_flag == 3'b101) ? 6'h10 :
-                                        6'h00;
-                        spi_write_enable <= mem_we;
-                        spi_is_instr <= 1'b0;
-                        access_state <= ACCESS_ACTIVE;
-
-                        if (uart_request) begin
-                            // UART requests are handled by uart_ctl module
-                            // Just forward the response
-                            mem_rdata <= uart_mem_rdata;
-                            spi_start <= 1'b0;
-                            mem_ready <= 1'b1;
-                            access_state <= ACCESS_IDLE;
-                        end
-
-                        if (gpio_request) begin
+            // If we need to access memory but mem ctl is reading instruction => stop reading instruction
+            if (start_data_access && access_state == ACCESS_ACTIVE && spi_is_instr == 1'b1) begin
+                spi_start <= 1'b0;
+                access_state <= ACCESS_IDLE;
+                `DEBUG_PRINT(("Time %0t: SPI_MEM - Stopping instruction fetch: addr=0x%h", $time, instr_addr));
+            end else begin // normal access
+                case (access_state)
+                    ACCESS_IDLE: begin
+                        instr_ready <= 1'b0;
+                        mem_ready <= 1'b0;
+                        
+                        // Priority 1: Data memory access (higher priority)
+                        if (start_data_access) begin
+                            spi_start <= 1'b1;
                             if (mem_we) begin
-                                gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
+                                spi_cmd_addr <= {8'h02, mem_addr[23:0]};
                             end else begin
-                                mem_rdata <= {27'b0, gpio_reg};
+                                spi_cmd_addr <= {8'h03, mem_addr[23:0]};
                             end
-                            spi_start <= 1'b0;
-                            mem_ready <= 1'b1;
-                            access_state <= ACCESS_IDLE;
-                        end
-                        
-                        if (mem_we) begin
-                            case (mem_flag)
-                                3'b000: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h", 
-                                                $time, mem_addr, mem_wdata[7:0]));
-                                3'b001: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SH (Store Halfword): addr=0x%h, data=0x%04h", 
-                                                $time, mem_addr, mem_wdata[15:0]));
-                                3'b010: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SW (Store Word): addr=0x%h, data=0x%08h", 
-                                                $time, mem_addr, mem_wdata));
-                                default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting unknown store: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
-                                                 $time, mem_flag, mem_addr, mem_wdata));
-                            endcase
-                        end else begin
-                            `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting data read: addr=0x%h", 
-                                     $time, mem_addr));
-                        end
-                    end
-                    // Priority 2: Instruction fetch (lower priority)
-                    else if (start_instr_access) begin
-                        spi_start <= 1'b1;
-                        spi_cmd_addr <= {8'h03, instr_addr[23:0]};
-                        spi_data_in <= 32'h0;
-                        spi_data_len <= 6'h20;
-                        spi_write_enable <= 1'b0;
-                        spi_is_instr <= 1'b1;
-                        access_state <= ACCESS_ACTIVE;
-                        
-                        `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting instruction fetch: addr=0x%h", 
-                                 $time, instr_addr));
-                    end
-                end
-                
-                ACCESS_ACTIVE: begin
-                    if (spi_done == 1'b1) begin
-                        // Access complete
-                        if (spi_is_instr) begin
-                            // Instruction fetch complete
-                            instr_data <= {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
-                            instr_ready <= 1'b1;
+                            spi_data_in <= (mem_flag == 3'b000) ? {mem_wdata[7:0], 24'h0} :
+                                            (mem_flag == 3'b001) ? {mem_wdata[7:0], mem_wdata[15:8], 16'h0} :
+                                            (mem_flag == 3'b010) ? {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]} :
+                                            {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]};
+                            spi_data_len <= (mem_flag == 3'b000) ? 6'h08 :
+                                            (mem_flag == 3'b001) ? 6'h10 :
+                                            (mem_flag == 3'b010) ? 6'h20 :
+                                            (mem_flag == 3'b100) ? 6'h08 :
+                                            (mem_flag == 3'b101) ? 6'h10 :
+                                            6'h00;
+                            spi_write_enable <= mem_we;
+                            spi_is_instr <= 1'b0;
+                            access_state <= ACCESS_ACTIVE;
+
+                            if (uart_request) begin
+                                // UART requests are handled by uart_ctl module
+                                // Just forward the response
+                                mem_rdata <= uart_mem_rdata;
+                                spi_start <= 1'b0;
+                                mem_ready <= 1'b1;
+                                access_state <= ACCESS_IDLE;
+                            end
+
+                            if (gpio_request) begin
+                                if (mem_we) begin
+                                    gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
+                                end else begin
+                                    mem_rdata <= {27'b0, gpio_reg};
+                                end
+                                spi_start <= 1'b0;
+                                mem_ready <= 1'b1;
+                                access_state <= ACCESS_IDLE;
+                            end
                             
-                            `DEBUG_PRINT(("Time %0t: SPI_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
-                                     $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
-                        end else begin
-                            // Data access complete
-                            if (spi_write_enable) begin
-                                case (spi_data_len)
-                                    6'h08: `DEBUG_PRINT(("Time %0t: SPI_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
-                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[7:0]));
-                                    6'h10: `DEBUG_PRINT(("Time %0t: SPI_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
-                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[15:0]));
-                                    6'h20: `DEBUG_PRINT(("Time %0t: SPI_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
-                                                    $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
-                                    default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Unknown store complete: spi_data_len=0x%h, addr=0x%h, data=0x%08h", 
-                                                    $time, spi_data_len, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
+                            if (mem_we) begin
+                                case (mem_flag)
+                                    3'b000: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h", 
+                                                    $time, mem_addr, mem_wdata[7:0]));
+                                    3'b001: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SH (Store Halfword): addr=0x%h, data=0x%04h", 
+                                                    $time, mem_addr, mem_wdata[15:0]));
+                                    3'b010: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SW (Store Word): addr=0x%h, data=0x%08h", 
+                                                    $time, mem_addr, mem_wdata));
+                                    default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting unknown store: mem_flag=0x%h, addr=0x%h, data=0x%08h", 
+                                                    $time, mem_flag, mem_addr, mem_wdata));
                                 endcase
                             end else begin
-                                // Read operation - 32-bit word read from byte memory
-                                mem_rdata <= (mem_flag == 3'b000) ? {24'h0, spi_data_out[7:0]} :
-                                            (mem_flag == 3'b001) ? {16'h0, spi_data_out[7:0], spi_data_out[15:8]} :
-                                            (mem_flag == 3'b010) ? {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]} :
-                                            (mem_flag == 3'b100) ? {24'h0, spi_data_out[7:0]} :
-                                            (mem_flag == 3'b101) ? {16'h0, spi_data_out[7:0], spi_data_out[15:8]} :
-                                            {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
-                                
-                                `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
-                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
+                                `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting data read: addr=0x%h", 
+                                        $time, mem_addr));
                             end
-                            mem_ready <= 1'b1;
                         end
-                        
-                        access_state <= ACCESS_IDLE;
+                        // Priority 2: Instruction fetch (lower priority)
+                        else if (start_instr_access) begin
+                            spi_start <= 1'b1;
+                            spi_cmd_addr <= {8'h03, instr_addr[23:0]};
+                            spi_data_in <= 32'h0;
+                            spi_data_len <= 6'h20;
+                            spi_write_enable <= 1'b0;
+                            spi_is_instr <= 1'b1;
+                            access_state <= ACCESS_ACTIVE;
+                            
+                            `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting instruction fetch: addr=0x%h", 
+                                    $time, instr_addr));
+                        end
                     end
-                end
-                
-                default: access_state <= ACCESS_IDLE;
-            endcase
+                    
+                    ACCESS_ACTIVE: begin
+                        if (spi_done == 1'b1) begin
+                            // Access complete
+                            if (spi_is_instr) begin
+                                // Instruction fetch complete
+                                instr_data <= {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
+                                instr_ready <= 1'b1;
+                                
+                                `DEBUG_PRINT(("Time %0t: SPI_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
+                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
+                            end else begin
+                                // Data access complete
+                                if (spi_write_enable) begin
+                                    case (spi_data_len)
+                                        6'h08: `DEBUG_PRINT(("Time %0t: SPI_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
+                                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[7:0]));
+                                        6'h10: `DEBUG_PRINT(("Time %0t: SPI_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
+                                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[15:0]));
+                                        6'h20: `DEBUG_PRINT(("Time %0t: SPI_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
+                                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
+                                        default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Unknown store complete: spi_data_len=0x%h, addr=0x%h, data=0x%08h", 
+                                                        $time, spi_data_len, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
+                                    endcase
+                                end else begin
+                                    // Read operation - 32-bit word read from byte memory
+                                    mem_rdata <= (mem_flag == 3'b000) ? {24'h0, spi_data_out[7:0]} :
+                                                (mem_flag == 3'b001) ? {16'h0, spi_data_out[7:0], spi_data_out[15:8]} :
+                                                (mem_flag == 3'b010) ? {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]} :
+                                                (mem_flag == 3'b100) ? {24'h0, spi_data_out[7:0]} :
+                                                (mem_flag == 3'b101) ? {16'h0, spi_data_out[7:0], spi_data_out[15:8]} :
+                                                {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
+                                    
+                                    `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
+                                            $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
+                                end
+                                mem_ready <= 1'b1;
+                            end
+                            
+                            access_state <= ACCESS_IDLE;
+                        end
+                    end
+                    
+                    default: access_state <= ACCESS_IDLE;
+                endcase
+            end // end normal access
         end
     end
 endmodule 
