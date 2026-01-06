@@ -254,6 +254,8 @@ module mem_ctl #(
                                 mem_rdata <= uart_mem_rdata;
                                 spi_start <= 1'b0;
                                 mem_ready <= 1'b1;
+                                spi_write_enable <= 1'b0;
+                                spi_read_enable <= 1'b0;
                                 access_state <= ACCESS_IDLE;
                             end
 
@@ -265,6 +267,8 @@ module mem_ctl #(
                                 end
                                 spi_start <= 1'b0;
                                 mem_ready <= 1'b1;
+                                spi_write_enable <= 1'b0;
+                                spi_read_enable <= 1'b0;
                                 access_state <= ACCESS_IDLE;
                             end
                             
