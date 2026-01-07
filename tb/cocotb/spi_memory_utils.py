@@ -7,9 +7,8 @@ from test_utils import NOP_INSTR
 FSM_IDLE = 0
 FSM_SEND_CMD_ADDR = 1
 FSM_DATA_TRANSFER = 2
-FSM_INSTR_DONE = 3
-FSM_PAUSE = 4
-FSM_DONE = 5
+FSM_PAUSE = 3
+FSM_DONE = 4
 
 def convert_hex_memory_to_byte_memory(hex_memory):
     """Convert hex memory to byte memory"""
@@ -190,18 +189,12 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                                 dut.soc_inst.spi_miso.value = ((data & 0xFFFFFFFF) >> (31 - bit_counter)) & 1
                                 bit_counter += 1
                                 if bit_counter == 32:
-                                    if is_instr:
-                                        fsm_state = FSM_INSTR_DONE
-                                    else:
-                                        fsm_state = FSM_DONE
-                        elif fsm_state == FSM_INSTR_DONE:
-                            dut.soc_inst.spi_miso.value = 0
-                            bit_counter = 0
-                            addr = addr + 4
-                            print(f"Reading from instr memory: addr=0x{addr:08x}")
-                            data = read_word_from_memory(memory, addr & 0x00FFFFFF)
-                            print(f"data: 0x{data:08x}")
-                            fsm_state = FSM_DATA_TRANSFER
+                                    bit_counter = 0
+                                    addr = addr + 4
+                                    print(f"Reading next instr from instr memory: addr=0x{addr:08x}")
+                                    data = read_word_from_memory(memory, addr & 0x00FFFFFF)
+                                    print(f"data: 0x{data:08x}")
+
                         elif fsm_state == FSM_DONE:
                             fsm_state = FSM_IDLE
                             # if is_instr:
