@@ -46,43 +46,6 @@ module spi_master (
 
     reg initialized;
     reg [11:0] init_cnt;
-    
-    // Clock generation for SPI
-    // always @(posedge clk or negedge rst_n) begin
-    //     if (!rst_n) begin
-    //         clk_counter <= 8'b0;
-    //         spi_clk <= 1'b0;
-    //     end else if (spi_clk_en) begin
-    //         if (clk_counter == (CLK_DIV/2 - 1)) begin
-    //             clk_counter <= 8'b0;
-    //             spi_clk <= ~spi_clk;
-    //         end else begin
-    //             clk_counter <= clk_counter + 1;
-    //         end
-    //     end else begin
-    //         clk_counter <= 8'b0;
-    //         spi_clk <= 1'b0;
-    //     end
-    // end
-
-    // assign spi_clk = (spi_clk_en) ? clk : 1'b0;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            spi_clk <= 1'b0;
-        end else begin
-            if (spi_clk_en) begin
-                spi_clk <= ~spi_clk;
-            end else begin
-                spi_clk <= 1'b0;
-            end
-
-            // Start spi clock immediately when cont flag is set to save 1 clock cycle
-            if (cont) begin
-                spi_clk <= 1'b1;
-            end
-        end
-    end
 
     // State machine
     always @(posedge clk or negedge rst_n) begin
@@ -119,14 +82,14 @@ module spi_master (
             end
 
             FSM_SEND_CMD_ADDR: begin
-                if (bit_counter == 32/* && spi_clk == 1'b0*/)
+                if (bit_counter == 32)
                     fsm_next_state = FSM_DATA_TRANSFER;
                 else
                     fsm_next_state = FSM_SEND_CMD_ADDR;
             end
 
             FSM_DATA_TRANSFER: begin
-                if (bit_counter == data_len/* && spi_clk == 1'b0*/)
+                if (bit_counter == data_len)
                     if (is_instr) begin
                         fsm_next_state = FSM_PAUSE;
                     end else begin
@@ -159,6 +122,8 @@ module spi_master (
     // Control signals and data handling
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
+            spi_clk <= 1'b0;
+
             done <= 1'b0;
             spi_cs_n <= 1'b1;
             spi_mosi <= 1'b0;
@@ -174,6 +139,13 @@ module spi_master (
             initialized <= 1'b0;
             init_cnt <= 12'b0;
         end else begin
+
+            if (spi_clk_en) begin
+                spi_clk <= ~spi_clk;
+            end else begin
+                spi_clk <= 1'b0;
+            end
+
             // `DEBUG_PRINT(("Time %0t: SPI_MASTER - fsm_state=%d, bit_counter=%d, spi_clk=%b, spi_mosi=%b, spi_miso=%b", $time, fsm_state, bit_counter, spi_clk, spi_mosi, spi_miso));
             case (fsm_state)
                 FSM_IDLE: begin
@@ -272,7 +244,6 @@ module spi_master (
                     shift_reg_in <= 32'b0;
                     shift_reg_out <= 32'b0;
                     is_write_op <= 1'b0;
-                    // write_mosi <= 1'b1;
                     if (cont) begin
                         spi_clk_en <= 1'b1;
                         // Read data immediately when cont flag is set to save 1 clock cycle
