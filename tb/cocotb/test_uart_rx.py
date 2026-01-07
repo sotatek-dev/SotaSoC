@@ -1,22 +1,24 @@
 import cocotb
-from cocotb.triggers import Timer, RisingEdge, FallingEdge
-from cocotb.clock import Clock
-from cocotb.binary import BinaryValue
+import os
+from test_utils import NOP_INSTR
+from spi_memory_utils import (
+    test_spi_memory,
+    convert_hex_memory_to_byte_memory,
+    read_word_from_memory,
+    load_hex_file,
+)
 import random
 
 @cocotb.test()
 async def test_uart_rx(dut):
     """Test the UART RX"""
 
-    clock = Clock(dut.clk, 100, unit="ns")
-    cocotb.start_soon(clock.start())
+    hex_file_path = os.environ.get('HEX_FILE', None)
 
-    # Reset
-    dut.rst_n.value = 0
-    await Timer(15, unit="ns")
-    dut.rst_n.value = 1
+    # Load memory from hex file
+    memory = load_hex_file(hex_file_path)
 
-    instr_fetch_delay = dut.soc_inst.mem_ctrl.INSTR_FETCH_DELAY.value + 1
+    instr_fetch_delay = 32
 
     max_cycles = 10000;
     cycles = 0;
@@ -25,9 +27,11 @@ async def test_uart_rx(dut):
     bit_index = 0;
     bits = [0, 1, 1, 0, 0, 0, 0, 1, 0, 1]; # start bit, C (0x43), stop bit
 
-    for _ in range(max_cycles):
-        await RisingEdge(dut.clk)
-        
+    def callback(dut, memory):
+        nonlocal cycles
+        nonlocal uart_cycles
+        nonlocal bit_index
+
         if uart_cycles >= 0:
             if uart_cycles % 87 == 0:
                 bit_index += 1;
@@ -35,7 +39,7 @@ async def test_uart_rx(dut):
                     dut.soc_inst.uart_rx.value = bits[bit_index];
             uart_cycles -= 1;
 
-        if dut.soc_inst.mem_ctrl.uart_rx_en == 1:
+        if dut.soc_inst.mem_ctrl.uart_rx_en.value == 1:
             if uart_cycles < 0:
                 uart_cycles = 87 * 20 - 1;
                 bit_index = 0;
@@ -53,6 +57,7 @@ async def test_uart_rx(dut):
                 registers = dut.soc_inst.cpu_core.register_file.registers
                 assert registers[10].value == 0, f"Register x10 should be 0, got 0x{registers[10].value.integer:08x}"
                 assert registers[7].value == 0x43, f"Register x7 should be 0x43, got 0x{registers[7].value.integer:08x}"
-                return;
+                return True;
+        return False
 
-    assert False, "Didn't find ECALL instruction"
+    await test_spi_memory(dut, memory, max_cycles, callback)

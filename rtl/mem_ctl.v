@@ -99,6 +99,7 @@ module mem_ctl #(
     wire [31:0] uart_mem_rdata;
 
     assign gpio_out = gpio_reg;
+    wire [31:0] gpio_mem_rdata = {{(32 - GPIO_SIZE){1'b0}}, gpio_reg};
 
     // SPI Master instance
     spi_master spi_master_inst (
@@ -128,6 +129,8 @@ module mem_ctl #(
     uart_ctl uart_ctl_inst (
         .clk(clk),
         .rst_n(rst_n),
+
+        .uart_request(uart_request),
         
         // Memory-mapped interface
         .mem_addr(mem_addr),
@@ -211,6 +214,32 @@ module mem_ctl #(
 
             // `DEBUG_PRINT(("Time %0t: SPI_MEM - access_state: %d, start_data_access: %d, mem_we %d", $time, access_state, start_data_access, mem_we));
 
+            // Mem ctl logic:
+            // 1. data accesses are sequential, a data access cannot be started when another data access is ongoing
+            //     So if start_data_access is true, we are sure that current state must be ACCESS_IDLE or fetching instruction
+            // 2. If there is data access and it is uart or gpio access, we return data immediately and do not change any state.
+            //    It lets current instruction fetch (if any) continue.
+            // 3. If there is data access and it is not uart or gpio access,
+            //      if there is a ongoing instruction fetch, we stop it and start data access.
+            //      otherwise, we start data access as normal.
+            // 4. If there is instruction fetch, we start instruction fetch or getch next instruction as normal.
+            if (start_data_access && (uart_request || gpio_request)) begin
+                if (uart_request) begin
+                    // UART requests are handled by uart_ctl module
+                    // Just forward the response
+                    mem_rdata <= uart_mem_rdata;
+                    mem_ready <= 1'b1;
+                end
+
+                if (gpio_request) begin
+                    if (mem_we) begin
+                        gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
+                    end else begin
+                        mem_rdata <= gpio_mem_rdata;
+                    end
+                    mem_ready <= 1'b1;
+                end
+            end else
             // If we need to access memory but mem ctl is reading instruction => stop reading instruction
             if (start_data_access && (access_state == ACCESS_ACTIVE || ACCESS_PAUSE) && spi_is_instr == 1'b1) begin
                 spi_stop <= 1'b1;
@@ -248,30 +277,6 @@ module mem_ctl #(
                             spi_is_instr <= 1'b0;
                             access_state <= ACCESS_ACTIVE;
 
-                            if (uart_request) begin
-                                // UART requests are handled by uart_ctl module
-                                // Just forward the response
-                                mem_rdata <= uart_mem_rdata;
-                                spi_start <= 1'b0;
-                                mem_ready <= 1'b1;
-                                spi_write_enable <= 1'b0;
-                                spi_read_enable <= 1'b0;
-                                access_state <= ACCESS_IDLE;
-                            end
-
-                            if (gpio_request) begin
-                                if (mem_we) begin
-                                    gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
-                                end else begin
-                                    mem_rdata <= {27'b0, gpio_reg};
-                                end
-                                spi_start <= 1'b0;
-                                mem_ready <= 1'b1;
-                                spi_write_enable <= 1'b0;
-                                spi_read_enable <= 1'b0;
-                                access_state <= ACCESS_IDLE;
-                            end
-                            
                             if (mem_we) begin
                                 case (mem_flag)
                                     3'b000: `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SB (Store Byte): addr=0x%h, data=0x%02h", 

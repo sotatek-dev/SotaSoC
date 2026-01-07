@@ -44,6 +44,6 @@ run_uart_test() {
 }
 
 run_uart_test "tb/cocotb/test_uart_rx.mk" "tb/uart-tests/hex/uart_rx.hex"
-run_uart_test "tb/cocotb/test_soc.mk" "tb/uart-tests/hex/uart_tx.hex"
-# run_uart_test "tb/cocotb/test_soc.mk" "tb/uart-tests/hex/uart_tx_loop.hex"
+run_uart_test "tb/cocotb/test_spi_mem.mk" "tb/uart-tests/hex/uart_tx.hex"
+# run_uart_test "tb/cocotb/test_spi_mem.mk" "tb/uart-tests/hex/uart_tx_loop.hex"
 # run_uart_test "tb/cocotb/test_uart_rx.mk" "tb/uart-tests/hex/uart_rx_loop.hex"
