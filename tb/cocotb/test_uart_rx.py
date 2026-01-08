@@ -1,7 +1,7 @@
 import cocotb
 import os
 from test_utils import NOP_INSTR
-from spi_memory_utils import (
+from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
     read_word_from_memory,

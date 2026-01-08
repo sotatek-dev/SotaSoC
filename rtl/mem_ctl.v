@@ -54,8 +54,9 @@ module mem_ctl #(
     output wire flash_cs_n,
     output wire ram_cs_n,
     output wire spi_sclk,
-    output wire spi_mosi,
-    input wire spi_miso
+    input wire [3:0] spi_io_in,
+    output wire [3:0] spi_io_out,
+    output wire [3:0] spi_io_oe
 );
     localparam ACCESS_IDLE = 3'b000;
     localparam ACCESS_ACTIVE = 3'b001;
@@ -121,8 +122,9 @@ module mem_ctl #(
         // SPI interface
         .spi_clk(spi_sclk),
         .spi_cs_n(spi_cs_n),
-        .spi_mosi(spi_mosi),
-        .spi_miso(spi_miso)
+        .spi_io_in(spi_io_in),
+        .spi_io_out(spi_io_out),
+        .spi_io_oe(spi_io_oe)
     );
 
     // UART Controller instance

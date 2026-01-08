@@ -5,10 +5,12 @@ from cocotb.clock import Clock
 from test_utils import NOP_INSTR
 
 FSM_IDLE = 0
-FSM_SEND_CMD_ADDR = 1
-FSM_DATA_TRANSFER = 2
-FSM_PAUSE = 3
-FSM_DONE = 4
+FSM_SEND_CMD = 1
+FSM_SEND_ADDR = 2
+FSM_DUMMY = 3
+FSM_DATA_TRANSFER = 4
+FSM_PAUSE = 5
+FSM_DONE = 6
 
 def get_packed_bit(handle, bit_index):
     """Get a single bit from a packed array/struct handle"""
@@ -113,7 +115,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
     command = 0x00
     fsm_state = FSM_IDLE
     bit_counter = 0
-    addr = 0x00000000
+    addr = 0x000000
     data = 0x00000000
 
     cycles = 0
@@ -127,17 +129,19 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
             await FallingEdge(dut.clk)
             if dut.soc_inst.flash_cs_n.value == 0:
                 is_instr = True
-                fsm_state = FSM_SEND_CMD_ADDR
+                fsm_state = FSM_SEND_CMD
                 bit_counter = 0
                 dut.soc_inst.spi_io_in.value = 0;
+                command = 0
                 addr = 0
                 data = 0
                 # print(f"SPI_IDLE: start flash access")
             if dut.soc_inst.ram_cs_n.value == 0:
                 is_instr = False
-                fsm_state = FSM_SEND_CMD_ADDR
+                fsm_state = FSM_SEND_CMD
                 bit_counter = 0
                 dut.soc_inst.spi_io_in.value = 0;
+                command = 0
                 addr = 0
                 data = 0
                 # print(f"SPI_IDLE: start ram access")
@@ -148,7 +152,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 spi_clk_high = True
 
             if (is_instr == True and dut.soc_inst.flash_cs_n.value == 1) or (is_instr == False and dut.soc_inst.ram_cs_n.value == 1):
-                # print(f"SPI_: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, addr=0x{addr:08x}, data=0x{data:08x}")
+                # print(f"SPI_: is_instr={is_instr} fsm_state={fsm_state}, command={command}, bit_counter={bit_counter}, addr=0x{addr:08x}, data=0x{data:08x}")
                 if not is_instr and command == 0x02:
                     if bit_counter > 0:
                         print(f"Writing {bit_counter} bits to memory: addr=0x{addr:08x}, data=0x{data:08x})")
@@ -163,40 +167,61 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 # assert False, "SPI CSN is not active"
                 fsm_state = FSM_IDLE
                 
-            if fsm_state == FSM_SEND_CMD_ADDR:
+            if fsm_state == FSM_SEND_CMD:
                 # await RisingEdge(dut.soc_inst.spi_sclk)
                 if dut.soc_inst.spi_sclk.value == 1:
-                    # print(f"SPI1: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in[1]={dut.soc_inst.spi_io_in[1].value}, addr=0x{addr:08x}")
+                    # print(f"SPI1: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
                     if dut.soc_inst.spi_sclk.value == 1:
-                        addr = (addr << 1) | get_packed_bit(dut.soc_inst.spi_io_out, 0)
+                        command = (command << 1) | get_packed_bit(dut.soc_inst.spi_io_out, 0)
                         bit_counter += 1
-                        if bit_counter == 32:
-                            fsm_state = FSM_DATA_TRANSFER
+                        if bit_counter == 8:
+                            fsm_state = FSM_SEND_ADDR
+                            bit_counter = 0
+            elif fsm_state == FSM_SEND_ADDR:
+                # await RisingEdge(dut.soc_inst.spi_sclk)
+                if dut.soc_inst.spi_sclk.value == 1:
+                    # print(f"SPI2: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
+                    if dut.soc_inst.spi_sclk.value == 1:
+                        addr = (addr << 4) | int(dut.soc_inst.spi_io_out.value)
+                        bit_counter += 4
+                        if bit_counter == 24:
                             bit_counter = 0
                             if is_instr:
+                                fsm_state = FSM_DUMMY
                                 print(f"Reading from instr memory: addr=0x{addr:08x}")
                                 data = read_word_from_memory(memory, addr & 0x00FFFFFF)
                                 print(f"data: 0x{data:08x}")
                             else:
-                                command = (addr >> 24) & 0xFF
                                 if command == 0x03:
+                                    fsm_state = FSM_DUMMY
                                     print(f"Reading from data memory: addr=0x{addr:08x}")
                                     data = read_word_from_memory(memory, addr & 0x00FFFFFF)
                                     print(f"data: 0x{data:08x}")
                                 else:
+                                    fsm_state = FSM_DATA_TRANSFER
                                     print(f"Writing to data memory: addr=0x{addr:08x}")
                                     data = 0
+            elif fsm_state == FSM_DUMMY:
+                # await RisingEdge(dut.soc_inst.spi_sclk)
+                if dut.soc_inst.spi_sclk.value == 1:
+                    # print(f"SPI3: is_instr={is_instr} fsm_state=DUMMY, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
+                    if dut.soc_inst.spi_sclk.value == 1:
+                        bit_counter += 1
+                        if bit_counter == 6:
+                            fsm_state = FSM_DATA_TRANSFER
+                            bit_counter = 0
+                            print(f"End dummy phase")
             else:
                 if is_instr or (not is_instr and command == 0x03):
                     # await FallingEdge(dut.soc_inst.spi_sclk)
                     if dut.soc_inst.spi_sclk.value == 0 and spi_clk_high == True:
                         spi_clk_high = False
-                        # print(f"SPI2: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in[1]={dut.soc_inst.spi_io_in[1].value}, addr=0x{addr:08x}")
+                        # print(f"SPI4: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
                         if fsm_state == FSM_DATA_TRANSFER:
                             if dut.soc_inst.spi_sclk.value == 0:
                                 # print(f"SPI MISO: bit_counter={bit_counter}, spi_io_in[1]={data & 1}, instr_data=0x{data:08x}")
-                                set_packed_bit(dut.soc_inst.spi_io_in, 1, ((data & 0xFFFFFFFF) >> (31 - bit_counter)) & 1)
-                                bit_counter += 1
+                                dut.soc_inst.spi_io_in.value = ((data & 0xFFFFFFFF) >> (28 - bit_counter)) & 0xF
+                                bit_counter += 4
                                 if bit_counter == 32:
                                     bit_counter = 0
                                     addr = addr + 4
@@ -213,10 +238,10 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 else:
                     # await RisingEdge(dut.soc_inst.spi_sclk)
                     if dut.soc_inst.spi_sclk.value == 0:
-                        # print(f"SPI3: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in[1]={dut.soc_inst.spi_io_in[1].value}, addr=0x{addr:08x}")
+                        # print(f"SPI5: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
                         if fsm_state == FSM_DATA_TRANSFER:
-                            data = (data << 1) | get_packed_bit(dut.soc_inst.spi_io_out, 0)
-                            bit_counter += 1
+                            data = (data << 4) | int(dut.soc_inst.spi_io_out.value)
+                            bit_counter += 4
                             if bit_counter == 32:
                                 print(f"Write data: addr=0x{addr:08x}, data=0x{data:08x}")
                                 write_word_to_memory(memory, addr & 0x00FFFFFF, data)

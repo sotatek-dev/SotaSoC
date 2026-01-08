@@ -26,8 +26,9 @@ module soc #(
     output wire flash_cs_n,
     output wire ram_cs_n,
     output wire spi_sclk,
-    output wire spi_mosi,
-    input wire spi_miso,
+    input wire [3:0] spi_io_in,
+    output wire [3:0] spi_io_out,
+    output wire [3:0] spi_io_oe,
     
     // UART interface
     output wire uart_tx,
@@ -138,8 +139,9 @@ module soc #(
         .flash_cs_n(flash_cs_n),
         .ram_cs_n(ram_cs_n),
         .spi_sclk(spi_sclk),
-        .spi_mosi(spi_mosi),
-        .spi_miso(spi_miso)
+        .spi_io_in(spi_io_in),
+        .spi_io_out(spi_io_out),
+        .spi_io_oe(spi_io_oe)
     );
     
     // UART TX module instantiation

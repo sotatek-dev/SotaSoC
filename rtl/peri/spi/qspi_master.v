@@ -3,43 +3,44 @@ module spi_master (
     input wire rst_n,
     
     // CPU interface
-    input wire start,                    // Start SPI transaction
-    input wire stop,                     // Stop SPI transaction
+    input wire start,                    // Start QSPI transaction
+    input wire stop,                     // Stop QSPI transaction
     input wire cont,                     // Continue sequential read without sending command+address
     input wire write_enable,             // 1 = write operation, 0 = read operation
     input wire is_instr,                 // 1 = instruction, 0 = data
     input wire [31:0] cmd_addr,          // 32-bit input: [31:24] command, [23:0] address
-    input wire [5:0] data_len,           // 5-bit input: data length (0-31)
+    input wire [5:0] data_len,           // 6-bit input: data length in bits (0-63)
     input wire [31:0] data_in,           // 32-bit data input for write operations
     output reg [31:0] data_out,          // 32-bit data output
     output reg done,                     // Transaction complete
     
-    // SPI interface
-    output reg spi_clk,                  // SPI clock
-    output reg spi_cs_n,                 // SPI chip select (active low)
+    // QSPI interface (4-bit mode only)
+    output reg spi_clk,                  // QSPI clock
+    output reg spi_cs_n,                 // QSPI chip select (active low)
     input wire [3:0] spi_io_in,          // QSPI IO input (IO0, IO1, IO2, IO3)
     output reg [3:0] spi_io_out,         // QSPI IO output (IO0, IO1, IO2, IO3)
     output reg [3:0] spi_io_oe           // Output enable for each IO line (1=output, 0=input)
 );
 
     // Parameters
-    parameter CLK_DIV = 4;               // Clock divider for SPI clock (system_clk / CLK_DIV)
+    parameter CLK_DIV = 4;               // Clock divider for QSPI clock (system_clk / CLK_DIV)
     parameter FSM_IDLE = 3'b000;
     parameter FSM_INIT = 3'b001;
-    parameter FSM_SEND_CMD_ADDR = 3'b010;
-    parameter FSM_DATA_TRANSFER = 3'b011;
-    parameter FSM_PAUSE = 3'b100;
-    parameter FSM_DONE = 3'b101;
+    parameter FSM_SEND_CMD = 3'b010;
+    parameter FSM_SEND_ADDR = 3'b011;
+    parameter FSM_DUMMY = 3'b100;
+    parameter FSM_DATA_TRANSFER = 3'b101;
+    parameter FSM_PAUSE = 3'b110;
+    parameter FSM_DONE = 3'b111;
 
     localparam INIT_CYCLES = 12'd4095;
 
     // Internal signals
     reg [2:0] fsm_state;
     reg [2:0] fsm_next_state;
-    reg [7:0] bit_counter;
+    reg [7:0] bit_counter;               // Counts bits transferred
     reg [31:0] shift_reg_out;
     reg [31:0] shift_reg_in;
-    reg [7:0] clk_counter;
     reg spi_clk_en;
     reg is_write_op;
 
@@ -57,17 +58,17 @@ module spi_master (
         end
     end
 
-    // Next fsm_state logic
+    // Next state logic
     always @(*) begin
         case (fsm_state)
             FSM_IDLE: begin
                 if (start) begin
                     if (initialized) begin
-                        fsm_next_state = FSM_SEND_CMD_ADDR;
+                        fsm_next_state = FSM_SEND_CMD;
                         `DEBUG_PRINT(("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
                     end else begin
                         fsm_next_state = FSM_INIT;
-                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Initializing SPI", $time));
+                        `DEBUG_PRINT(("Time %0t: QSPI_MASTER - Initializing QSPI", $time));
                     end
                 end else begin
                     fsm_next_state = FSM_IDLE;
@@ -76,17 +77,35 @@ module spi_master (
 
             FSM_INIT: begin
                 if (initialized) begin
-                    fsm_next_state = FSM_SEND_CMD_ADDR;
+                    fsm_next_state = FSM_SEND_CMD;
                 end else begin
                     fsm_next_state = FSM_INIT;
                 end
             end
 
-            FSM_SEND_CMD_ADDR: begin
-                if (bit_counter == 32)
+            FSM_SEND_CMD: begin
+                if (bit_counter == 8)
+                    fsm_next_state = FSM_SEND_ADDR;
+                else
+                    fsm_next_state = FSM_SEND_CMD;
+            end
+
+            FSM_SEND_ADDR: begin
+                if (bit_counter == 24)
+                    if (write_enable) begin
+                        fsm_next_state = FSM_DATA_TRANSFER;
+                    end else begin
+                        fsm_next_state = FSM_DUMMY;
+                    end
+                else
+                    fsm_next_state = FSM_SEND_ADDR;
+            end
+
+            FSM_DUMMY: begin
+                if (bit_counter == 6)
                     fsm_next_state = FSM_DATA_TRANSFER;
                 else
-                    fsm_next_state = FSM_SEND_CMD_ADDR;
+                    fsm_next_state = FSM_DUMMY;
             end
 
             FSM_DATA_TRANSFER: begin
@@ -115,7 +134,7 @@ module spi_master (
             default: fsm_next_state = FSM_IDLE;
         endcase
 
-        if (stop) begin // force stop SPI transaction no matter what state we are in
+        if (stop) begin // force stop QSPI transaction no matter what state we are in
             fsm_next_state = FSM_IDLE;
         end
     end
@@ -127,8 +146,8 @@ module spi_master (
 
             done <= 1'b0;
             spi_cs_n <= 1'b1;
+            spi_io_oe <= 4'b0000;
             spi_io_out <= 4'b0000;
-            spi_io_oe <= 4'b0001;
             spi_clk_en <= 1'b0;
             bit_counter <= 8'b0;
             shift_reg_out <= 32'b0;
@@ -148,12 +167,12 @@ module spi_master (
                 spi_clk <= 1'b0;
             end
 
-            // `DEBUG_PRINT(("Time %0t: SPI_MASTER - fsm_state=%d, bit_counter=%d, spi_clk=%b, spi_io_out[0]=%b, spi_io_in[1]=%b", $time, fsm_state, bit_counter, spi_clk, spi_io_out[0], spi_io_in[1]));
             case (fsm_state)
                 FSM_IDLE: begin
                     done <= 1'b0;
                     spi_cs_n <= 1'b1;
-                    spi_io_out[0] <= 1'b0;
+                    spi_io_oe <= 4'b0000;
+                    spi_io_out <= 4'b0000;
                     spi_clk_en <= 1'b0;
                     bit_counter <= 8'b0;
                     write_mosi <= 1'b0;
@@ -161,7 +180,8 @@ module spi_master (
                     if (start) begin
                         if (initialized) begin
                             spi_cs_n <= 1'b0;
-                            shift_reg_out <= cmd_addr;  // Load command and address
+                            spi_io_oe <= 4'b1111;       // All IOs are outputs for command/address
+                            shift_reg_out <= cmd_addr;   // Load command and address
                             shift_reg_in <= 32'b0;
                             is_write_op <= write_enable; // Store operation type
 
@@ -176,7 +196,8 @@ module spi_master (
                     if (init_cnt == INIT_CYCLES) begin
                         initialized <= 1'b1;
                         spi_cs_n <= 1'b0;
-                        shift_reg_out <= cmd_addr;  // Load command and address
+                        spi_io_oe <= 4'b1111;       // All IOs are outputs for command/address
+                        shift_reg_out <= cmd_addr;   // Load command and address
                         shift_reg_in <= 32'b0;
                         is_write_op <= write_enable; // Store operation type
 
@@ -184,23 +205,53 @@ module spi_master (
                     end
                 end
                 
-                FSM_SEND_CMD_ADDR: begin
+                FSM_SEND_CMD: begin
                     spi_clk_en <= 1'b1;
                     spi_cs_n <= 1'b0;
                     if (write_mosi == 1'b1) begin  // Falling edge of SPI clock
-                        spi_io_out[0] <= shift_reg_out[31];
+                        spi_io_out <= {3'b0, shift_reg_out[31]};
                         shift_reg_out <= {shift_reg_out[30:0], 1'b0};
                         bit_counter <= bit_counter + 1;
+                    end
+
+                    if (bit_counter == 8) begin
+                        bit_counter <= 8'b0;  // Reset counter for data phase
+                    end
+
+                    write_mosi <= ~write_mosi;
+                end
+
+                FSM_SEND_ADDR: begin
+                    spi_clk_en <= 1'b1;
+                    spi_cs_n <= 1'b0;
+                    if (write_mosi == 1'b1) begin  // Falling edge of SPI clock
+                        spi_io_out <= shift_reg_out[31:28];
+                        shift_reg_out <= {shift_reg_out[27:0], 4'b0000};
+                        bit_counter <= bit_counter + 4;
                         
                     end
-                    // When command+address phase is done, prepare for data phase
-                    if (bit_counter == 32) begin
+                    // When address phase is done, prepare for data phase
+                    if (bit_counter == 24) begin
                         if (is_write_op) begin
+                            spi_io_oe <= 4'b1111;      // IOs remain outputs for write
                             shift_reg_out <= data_in;  // Load write data for next phase
                         end else begin
-                            shift_reg_out <= 32'b0;   // Clear for read phase
+                            spi_io_oe <= 4'b0000;      // IOs become inputs for read
+                            shift_reg_out <= 32'b0;    // Clear for read phase
                         end
                         bit_counter <= 8'b0;  // Reset counter for data phase
+                    end
+
+                    write_mosi <= ~write_mosi;
+                end
+
+                FSM_DUMMY: begin
+                    if (write_mosi == 1'b1) begin
+                        bit_counter <= bit_counter + 1;
+                    end
+
+                    if (bit_counter == 6) begin
+                        bit_counter <= 8'b0;
                     end
 
                     write_mosi <= ~write_mosi;
@@ -211,18 +262,20 @@ module spi_master (
                     spi_cs_n <= 1'b0;
                     if (is_write_op) begin
                         // Write operation: send data
+                        spi_io_oe <= 4'b1111;       // All IOs are outputs
                         if (write_mosi == 1'b1) begin  // Falling edge of SPI clock
-                            spi_io_out[0] <= shift_reg_out[31];
-                            shift_reg_out <= {shift_reg_out[30:0], 1'b0};
-                            bit_counter <= bit_counter + 1;
+                            spi_io_out <= shift_reg_out[31:28];
+                            shift_reg_out <= {shift_reg_out[27:0], 4'b0000};
+                            bit_counter <= bit_counter + 4;
                         end
                     end else begin
                         // Read operation: receive data
-                        spi_io_out[0] <= 1'b0;  // Don't drive MOSI during read
+                        spi_io_oe <= 4'b0000;       // All IOs are inputs
+                        spi_io_out <= 4'b0000;      // Don't drive outputs
                         
-                        if (spi_clk == 1'b0) begin  // Rising edge - sample MISO
-                            shift_reg_in <= {shift_reg_in[30:0], spi_io_in[1]};
-                            bit_counter <= bit_counter + 1;
+                        if (spi_clk == 1'b0) begin  // Rising edge - sample input
+                            shift_reg_in <= {shift_reg_in[27:0], spi_io_in};  // Shift in 4 bits
+                            bit_counter <= bit_counter + 4;
                         end
                     end
 
@@ -239,20 +292,20 @@ module spi_master (
 
                 FSM_PAUSE: begin
                     done <= 1'b0;
-                    spi_io_out[0] <= 1'b0;
+                    spi_io_oe <= 4'b0000;
+                    spi_io_out <= 4'b0000;
                     spi_clk_en <= 1'b0;
                     bit_counter <= 8'b0;
-                    write_mosi <= 1'b0;
                     shift_reg_in <= 32'b0;
                     shift_reg_out <= 32'b0;
                     is_write_op <= 1'b0;
-
+                    
                     if (cont) begin
                         spi_clk_en <= 1'b1;
                         // Read data immediately when cont flag is set to save 1 clock cycle
-                        if (spi_clk == 1'b0) begin  // Rising edge - sample MISO
-                            shift_reg_in <= {shift_reg_in[30:0], spi_io_in[1]};
-                            bit_counter <= bit_counter + 1;
+                        if (spi_clk == 1'b0) begin  // Rising edge - sample input
+                            shift_reg_in <= {shift_reg_in[27:0], spi_io_in};
+                            bit_counter <= bit_counter + 4;
                         end
                         spi_clk <= 1'b1;
                         write_mosi <= 1'b1;
@@ -264,7 +317,8 @@ module spi_master (
                     spi_cs_n <= 1'b1;
                     spi_clk_en <= 1'b0;
                     bit_counter <= 8'b0;
-                    spi_io_out[0] <= 1'b0;
+                    spi_io_oe <= 4'b0000;
+                    spi_io_out <= 4'b0000;
                     
                     // For read operations, output the received data
                     // For write operations, data_out can be used for status/acknowledgment
@@ -276,10 +330,12 @@ module spi_master (
                 end
             endcase
 
-            if (stop) begin // force stop SPI transaction no matter what state we are in
+            if (stop) begin // force stop QSPI transaction no matter what state we are in
                 spi_cs_n <= 1'b1;
+                spi_io_oe <= 4'b0000;
             end
         end
     end
 
 endmodule
+

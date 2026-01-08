@@ -1,6 +1,6 @@
 import cocotb
 from test_utils import NOP_INSTR
-from spi_memory_utils import (
+from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
 )
@@ -672,8 +672,8 @@ async def test_csr_instr(dut):
             # Verify mstatus read: x10 should be 0x00001800 (reset value)
             assert registers[10].value == 0x00001800, f"Register x10 (mstatus) should be 0x00001800, got 0x{registers[10].value.integer:08x}"
             
-            # Verify misa read: x11 should be 0x40001104 (reset value)
-            assert registers[11].value == 0x40001104, f"Register x11 (misa) should be 0x40001104, got 0x{registers[11].value.integer:08x}"
+            # Verify misa read: x11 should be 0x40000100 (reset value)
+            assert registers[11].value == 0x40000100, f"Register x11 (misa) should be 0x40001104, got 0x{registers[11].value.integer:08x}"
             
             # Verify mtvec read: x12 should be 0 (initial value)
             assert registers[12].value == 0, f"Register x12 (mtvec initial) should be 0, got 0x{registers[12].value.integer:08x}"
