@@ -52,11 +52,17 @@ module soc #(
     wire [2:0] core_mem_flag;
     wire core_mem_we;
     wire core_mem_re;
-    
+
+    wire [47:0] mtime;
+
     // Memory controller ready signals
     wire mem_instr_ready;
     wire mem_data_ready;
-    
+
+    // Timer connections
+    wire timer_interrupt;
+    wire [31:0] timer_mem_rdata;
+
     // UART TX connections
     wire uart_tx_en;
     wire uart_tx_busy;
@@ -95,6 +101,11 @@ module soc #(
         .mem_re(core_mem_re),
         .mem_data(core_mem_rdata),
         .mem_ready(mem_data_ready),
+
+        .mtime(mtime),
+
+        // Timer interrupt
+        .timer_interrupt(timer_interrupt),
 
         // Error flag
         .error_flag(error_flag)
@@ -138,6 +149,9 @@ module soc #(
         
         // GPIO interface
         .gpio_out(gpio_out),
+
+        // Timer interface
+        .timer_mem_rdata(timer_mem_rdata),
         
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),
@@ -176,6 +190,24 @@ module soc #(
         .uart_rx_break(uart_rx_break),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_data(uart_rx_data)
+    );
+
+    // Timer module
+    mtime_timer #(
+        .TIMER_BASE_ADDR(32'h40002000)
+    ) timer_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(timer_mem_rdata),
+
+        .mtime(mtime),
+
+        .timer_interrupt(timer_interrupt)
     );
 
 endmodule

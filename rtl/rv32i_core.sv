@@ -29,6 +29,11 @@ module rv32i_core #(
     output wire mem_we,              // Memory write enable
     output wire mem_re,              // Memory read enable
 
+    output wire [47:0] mtime,
+
+    // Interrupt interface
+    input wire timer_interrupt,       // Machine timer interrupt (MTIP)
+
     output wire error_flag            // Error flag
 );
 
@@ -132,8 +137,7 @@ module rv32i_core #(
     wire [31:0] ex_mem_csr_wdata;
     wire [31:0] csr_rdata;
     wire csr_illegal;
-    reg [31:0] cycle_counter;
-    reg [31:0] instret_counter;
+    reg [47:0] mtime_counter;
 
     // Exception handling signals
     wire if_id_is_ecall, if_id_is_ebreak, if_id_is_mret;
@@ -149,6 +153,13 @@ module rv32i_core #(
     wire [31:0] exception_pc_next;
     wire [31:0] exception_value_next;
     wire mret_trigger_next;
+
+    // Interrupt handling signals
+    wire int_pending;
+    wire int_enabled;
+    wire int_is_interrupt;  // Interrupt detected in IF/ID stage
+    wire [31:0] int_cause_next;
+    wire [31:0] int_pc_next;
 
     // Instruction decoding
     assign if_id_opcode = if_id_instr[6:0];
@@ -181,6 +192,7 @@ module rv32i_core #(
 
     // Instruction address
     assign instr_addr = pc;
+    assign mtime = mtime_counter;
 
     // Register file instantiation
     rv32i_register register_file (
@@ -216,16 +228,49 @@ module rv32i_core #(
         .csr_op(ex_mem_csr_op),
         .csr_rdata(csr_rdata),
         .csr_illegal(csr_illegal),
-        .cycle_count(cycle_counter),
-        .instret_count(instret_counter),
+        .mtime(mtime_counter),
         .exception_trigger(exception_trigger),
         .exception_cause(exception_cause),
         .exception_pc(exception_pc),
         .exception_value(exception_value),
         .mtvec_out(mtvec),
         .mret_trigger(mret_trigger),
-        .mepc_out(mepc)
+        .mepc_out(mepc),
+        .timer_interrupt(timer_interrupt),
+        .mip_out(csr_mip),
+        .mie_out(csr_mie),
+        .mstatus_out(csr_mstatus)
     );
+    
+    // Interrupt detection signals from CSR
+    wire [31:0] csr_mip, csr_mie, csr_mstatus;
+    
+    // Interrupt detection logic
+    // Interrupts are taken when:
+    // 1. MIE (bit 3 of mstatus) is set (global interrupt enable)
+    // 2. The specific interrupt is enabled in mie (MTIE = bit 7 for timer)
+    // 3. The interrupt is pending in mip (MTIP = bit 7 for timer)
+    // 4. No exception is being handled
+    // 5. We're not in the middle of handling an exception or interrupt
+    
+    // Check for timer interrupt (MTIP = bit 7 of mip, MTIE = bit 7 of mie)
+    wire int_timer_pending = csr_mip[7] && csr_mie[7] && csr_mstatus[3];  // MIE bit
+    
+    // Interrupt is pending if any enabled interrupt is pending
+    assign int_pending = int_timer_pending;
+    assign int_enabled = csr_mstatus[3];  // MIE bit
+    
+    // Interrupt cause: bit 31 = 1 (interrupt), bits [3:0] = interrupt ID
+    // Timer interrupt ID = 7 (MTIP)
+    assign int_cause_next = {1'b1, 30'd0, 1'b0, 3'd7};  // 0x80000007
+    assign int_pc_next = if_id_pc;  // PC of instruction that would execute next
+    
+    // Interrupt should be taken in IF/ID stage (before instruction executes)
+    // Check if interrupt is pending and enabled, and we're not already handling an exception/interrupt
+    // Also check that we're not in a memory stall or waiting for instruction
+    assign int_is_interrupt = int_pending && int_enabled
+                                && !mem_stall && instr_ready
+                                && !exception_trigger &&!id_ex_is_exception;
 
     assign is_valid_opcode = (id_opcode == 7'b0110011)  // R-type
                             || (id_opcode == 7'b0010011)  // I-type ALU
@@ -446,12 +491,11 @@ module rv32i_core #(
             csr_should_update <= 1'b0;
             
             // Counters
-            cycle_counter <= 32'd0;
-            instret_counter <= 32'd0;
+            mtime_counter <= 48'd0;
             
             `DEBUG_PRINT(("=== RV32I Core Reset ==="));
         end else begin
-            cycle_counter <= cycle_counter + 1;
+            mtime_counter <= mtime_counter + 1;
 
             csr_should_update <= 1'b0;
             if (csr_should_update == 1'b1) begin
@@ -532,15 +576,15 @@ module rv32i_core #(
                 pc_branch_not_taken <= if_id_pc_branch_not_taken;
                 pc_id_ex_funct3 <= funct3;
 
-                // If branch_hazard, exception, or mret is detected, flush IF/ID stage with NOP
-                if (branch_hazard || id_ex_is_exception || id_ex_is_mret) begin
+                // If branch_hazard, exception, interrupt, or mret is detected, flush IF/ID stage with NOP
+                if (branch_hazard || id_ex_is_exception || int_is_interrupt || id_ex_is_mret) begin
                     `DEBUG_PRINT(("Time %0t: IF/ID - Flushing with NOP", $time));
                     if_id_instr <= 32'h00000013; // NOP instruction
                     if_id_pc <= 32'h00000000;    // Invalid PC
                     
                 end
-                // If load_use_hazard, branch_hazard, exception, or mret is detected, flush ID/EX stage with NOP
-                if (branch_hazard == 1'b1 || load_use_hazard == 1'b1 || id_ex_is_exception == 1'b1 || id_ex_is_mret == 1'b1) begin
+                // If load_use_hazard, branch_hazard, exception, interrupt, or mret is detected, flush ID/EX stage with NOP
+                if (branch_hazard == 1'b1 || load_use_hazard == 1'b1 || id_ex_is_exception == 1'b1 || int_is_interrupt == 1'b1 || id_ex_is_mret == 1'b1) begin
                     id_ex_instr <= 32'h00000013;
                     id_ex_pc <= 32'h00000000;
                     id_ex_rs1_addr <= 5'd0;
@@ -592,10 +636,10 @@ module rv32i_core #(
                 ex_mem_csr_we <= id_ex_csr_we;
 
                 // Exception handling - assign combinational logic results
-                exception_trigger <= id_ex_is_exception;
-                exception_cause <= exception_cause_next;
-                exception_pc <= exception_pc_next;
-                exception_value <= exception_value_next;
+                exception_trigger <= id_ex_is_exception || int_is_interrupt;
+                exception_cause <= id_ex_is_exception ? exception_cause_next : int_cause_next;
+                exception_pc <= id_ex_is_exception ? exception_pc_next : int_pc_next;
+                exception_value <= id_ex_is_exception ? exception_value_next : 32'd0;
                 mret_trigger <= mret_trigger_next;
 
                 // Only set mem_stall if memory access is needed and no exception occurred
@@ -607,9 +651,6 @@ module rv32i_core #(
                 mem_wb_result <= wb_result;
                 mem_wb_rd_addr <= ex_mem_rd_addr;
                 mem_wb_reg_we <= ex_mem_reg_we;
-
-                // For now, this counter includes bubble instructions, it should be fixed in the future
-                instret_counter <= instret_counter + 1;
 
                 // Pipeline stage 5: Writeback
                 // nothing for now
@@ -702,8 +743,8 @@ module rv32i_core #(
 
     // Exception handling takes priority - redirect to mtvec when exception occurs
     // MRET takes priority - redirect to mepc when mret occurs
-    assign pc_next = (id_ex_is_mret) ? mepc :        // MRET: jump to mepc
-                     (id_ex_is_exception) ? mtvec :  // jump to exception handler
+    assign pc_next = (id_ex_is_mret) ? mepc :                            // MRET: jump to mepc
+                     (id_ex_is_exception || int_is_interrupt) ? mtvec :  // jump to exception handler
                      pc_target;
 
 `ifdef SIMULATION

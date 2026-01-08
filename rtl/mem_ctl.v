@@ -17,7 +17,8 @@ module mem_ctl #(
     parameter PSRAM_BASE_ADDR,
     parameter UART_BASE_ADDR,
     parameter GPIO_BASE_ADDR,
-    parameter GPIO_SIZE
+    parameter GPIO_SIZE,
+    parameter TIMER_BASE_ADDR
 ) (
     input wire clk,
     input wire rst_n,
@@ -48,6 +49,9 @@ module mem_ctl #(
 
     // GPIO interface
     output wire [GPIO_SIZE-1:0] gpio_out,
+
+    // Timer interface
+    input wire [31:0] timer_mem_rdata,
 
     // Shared SPI interface
     output wire flash_cs_n,
@@ -177,7 +181,8 @@ module mem_ctl #(
     wire instr_request = instr_addr_changed || !instr_ready_reg;
     wire uart_request = data_request && mem_addr[31:8] == UART_BASE_ADDR[31:8];
     wire gpio_request = data_request && mem_addr[31:8] == GPIO_BASE_ADDR[31:8];
-    
+    wire timer_request = data_request && mem_addr[31:8] == TIMER_BASE_ADDR[31:8];
+
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE || ACCESS_PAUSE);
     wire start_instr_access = instr_request && (access_state == ACCESS_IDLE) && !data_request;
@@ -238,6 +243,13 @@ module mem_ctl #(
                     end else begin
                         mem_rdata <= gpio_mem_rdata;
                     end
+                    mem_ready <= 1'b1;
+                end
+
+                if (timer_request) begin
+                    // Timer requests are handled by mtime_timer module
+                    // Just forward the response
+                    mem_rdata <= timer_mem_rdata;
                     mem_ready <= 1'b1;
                 end
             end else
