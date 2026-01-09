@@ -84,7 +84,7 @@ module mem_ctl #(
     reg spi_cont;
     reg spi_write_enable;
     reg spi_read_enable;
-    reg [31:0] spi_cmd_addr;
+    reg [23:0] spi_addr;
     reg [31:0] spi_data_in;
     wire [31:0] spi_data_out;
     wire spi_done;
@@ -113,7 +113,7 @@ module mem_ctl #(
         .cont(spi_cont),
         .write_enable(spi_write_enable),
         .is_instr(spi_is_instr),
-        .cmd_addr(spi_cmd_addr),
+        .addr(spi_addr),
         .data_len(spi_data_len),
         .data_in(spi_data_in),
         .data_out(spi_data_out),
@@ -153,7 +153,7 @@ module mem_ctl #(
         .uart_rx_data(uart_rx_data)
     );
 
-    wire instr_addr_not_changed = instr_addr[23:0] == spi_cmd_addr[23:0];
+    wire instr_addr_not_changed = instr_addr[23:0] == spi_addr[23:0];
     wire instr_addr_changed = !instr_addr_not_changed;
 
     assign instr_ready = instr_ready_reg && instr_addr_not_changed;
@@ -183,7 +183,7 @@ module mem_ctl #(
     wire start_data_access = data_request && (access_state == ACCESS_IDLE || ACCESS_PAUSE);
     wire start_instr_access = instr_request && (access_state == ACCESS_IDLE) && !data_request;
 
-    wire [23:0] next_instr_addr = spi_cmd_addr[23:0] + 4;
+    wire [23:0] next_instr_addr = spi_addr[23:0] + 4;
 
     // SPI access handling
     always @(posedge clk or negedge rst_n) begin
@@ -204,7 +204,7 @@ module mem_ctl #(
             spi_cont <= 1'b0;
             spi_write_enable <= 1'b0;
             spi_read_enable <= 1'b0;
-            spi_cmd_addr <= 32'h0;
+            spi_addr <= 24'h0;
             spi_data_in <= 32'h0;
 
             spi_data_len <= 6'b0;
@@ -259,11 +259,7 @@ module mem_ctl #(
                         if (start_data_access) begin
                             instr_ready_reg <= 1'b0;
                             spi_start <= 1'b1;
-                            if (mem_write_request) begin
-                                spi_cmd_addr <= {8'h02, mem_addr[23:0]};
-                            end else begin
-                                spi_cmd_addr <= {8'h03, mem_addr[23:0]};
-                            end
+                            spi_addr <= mem_addr[23:0];
                             spi_data_in <= (mem_flag == 3'b000) ? {mem_wdata[7:0], 24'h0} :
                                             (mem_flag == 3'b001) ? {mem_wdata[7:0], mem_wdata[15:8], 16'h0} :
                                             (mem_flag == 3'b010) ? {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]} :
@@ -301,7 +297,7 @@ module mem_ctl #(
                             next_instr_data <= 32'h00000000;
                             next_instr_ready_reg <= 1'b0;
                             spi_start <= 1'b1;
-                            spi_cmd_addr <= {8'h03, instr_addr[23:0]};
+                            spi_addr <= instr_addr[23:0];
                             spi_data_in <= 32'h0;
                             spi_data_len <= 6'h20;
                             spi_write_enable <= 1'b0;
@@ -320,7 +316,7 @@ module mem_ctl #(
                         mem_ready <= 1'b0;
                         spi_start <= 1'b0;
                         spi_cont <= 1'b0;
-                        spi_cmd_addr <= 32'h0;
+                        spi_addr <= 32'h0;
                         spi_data_in <= 32'h0;
                         spi_data_len <= 6'b0;
                         spi_is_instr <= 1'b0;
@@ -344,19 +340,19 @@ module mem_ctl #(
                                 // access_state <= ACCESS_PAUSE;
                                 
                                 `DEBUG_PRINT(("Time %0t: SPI_MEM - Instruction fetch complete: addr=0x%h, data=0x%h", 
-                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
+                                        $time, {8'b0, spi_addr[23:0]}, spi_data_out));
                             end else begin
                                 // Data access complete
                                 if (spi_write_enable) begin
                                     case (spi_data_len)
                                         6'h08: `DEBUG_PRINT(("Time %0t: SPI_MEM - SB (Store Byte) complete: addr=0x%h, data=0x%02h", 
-                                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[7:0]));
+                                                        $time, {8'b0, spi_addr[23:0]}, spi_data_in[7:0]));
                                         6'h10: `DEBUG_PRINT(("Time %0t: SPI_MEM - SH (Store Halfword) complete: addr=0x%h, data=0x%04h", 
-                                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in[15:0]));
+                                                        $time, {8'b0, spi_addr[23:0]}, spi_data_in[15:0]));
                                         6'h20: `DEBUG_PRINT(("Time %0t: SPI_MEM - SW (Store Word) complete: addr=0x%h, data=0x%08h", 
-                                                        $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
+                                                        $time, {8'b0, spi_addr[23:0]}, spi_data_in));
                                         default: `DEBUG_PRINT(("Time %0t: SPI_MEM - Unknown store complete: spi_data_len=0x%h, addr=0x%h, data=0x%08h", 
-                                                        $time, spi_data_len, {8'b0, spi_cmd_addr[23:0]}, spi_data_in));
+                                                        $time, spi_data_len, {8'b0, spi_addr[23:0]}, spi_data_in));
                                     endcase
                                 end else begin
                                     // Read operation - 32-bit word read from byte memory
@@ -368,7 +364,7 @@ module mem_ctl #(
                                                 {spi_data_out[7:0], spi_data_out[15:8], spi_data_out[23:16], spi_data_out[31:24]};
                                     
                                     `DEBUG_PRINT(("Time %0t: TEST_MEM - Data read complete: addr=0x%h, data=0x%h", 
-                                            $time, {8'b0, spi_cmd_addr[23:0]}, spi_data_out));
+                                            $time, {8'b0, spi_addr[23:0]}, spi_data_out));
                                 end
                                 mem_ready <= 1'b1;
                                 spi_write_enable <= 1'b0;
@@ -407,7 +403,7 @@ module mem_ctl #(
                             if (next_instr_ready_reg) begin
                                 instr_data <= next_instr_data;
                                 instr_ready_reg <= 1'b1;
-                                spi_cmd_addr <= {8'h03, instr_addr[23:0]};
+                                spi_addr <= instr_addr[23:0];
 
                                 next_instr_ready_reg <= 1'b0;
                                 spi_cont <= 1'b1;
