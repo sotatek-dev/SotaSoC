@@ -8,7 +8,7 @@ module spi_master (
     input wire cont,                     // Continue sequential read without sending command+address
     input wire write_enable,             // 1 = write operation, 0 = read operation
     input wire is_instr,                 // 1 = instruction, 0 = data
-    input wire [31:0] cmd_addr,          // 32-bit input: [31:24] command, [23:0] address
+    input wire [23:0] addr,              // 24-bit input: address
     input wire [5:0] data_len,           // 5-bit input: data length (0-31)
     input wire [31:0] data_in,           // 32-bit data input for write operations
     output reg [31:0] data_out,          // 32-bit data output
@@ -47,6 +47,9 @@ module spi_master (
 
     reg initialized;
     reg [11:0] init_cnt;
+
+    wire [7:0] cmd = write_enable ? 8'h02 : 8'h03;
+    wire [31:0] cmd_addr = {cmd, addr};
 
     // State machine
     always @(posedge clk or negedge rst_n) begin

@@ -153,7 +153,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
 
             if (is_instr == True and dut.soc_inst.flash_cs_n.value == 1) or (is_instr == False and dut.soc_inst.ram_cs_n.value == 1):
                 # print(f"SPI_: is_instr={is_instr} fsm_state={fsm_state}, command={command}, bit_counter={bit_counter}, addr=0x{addr:08x}, data=0x{data:08x}")
-                if not is_instr and command == 0x02:
+                if not is_instr and command == 0x38:
                     if bit_counter > 0:
                         print(f"Writing {bit_counter} bits to memory: addr=0x{addr:08x}, data=0x{data:08x})")
                         if (bit_counter == 32):
@@ -192,7 +192,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                                 data = read_word_from_memory(memory, addr & 0x00FFFFFF)
                                 print(f"data: 0x{data:08x}")
                             else:
-                                if command == 0x03:
+                                if command == 0xEB:
                                     fsm_state = FSM_DUMMY
                                     print(f"Reading from data memory: addr=0x{addr:08x}")
                                     data = read_word_from_memory(memory, addr & 0x00FFFFFF)
@@ -212,7 +212,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             bit_counter = 0
                             print(f"End dummy phase")
             else:
-                if is_instr or (not is_instr and command == 0x03):
+                if is_instr or (not is_instr and command == 0xEB):
                     # await FallingEdge(dut.soc_inst.spi_sclk)
                     if dut.soc_inst.spi_sclk.value == 0 and spi_clk_high == True:
                         spi_clk_high = False

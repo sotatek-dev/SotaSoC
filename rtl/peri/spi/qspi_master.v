@@ -8,7 +8,7 @@ module spi_master (
     input wire cont,                     // Continue sequential read without sending command+address
     input wire write_enable,             // 1 = write operation, 0 = read operation
     input wire is_instr,                 // 1 = instruction, 0 = data
-    input wire [31:0] cmd_addr,          // 32-bit input: [31:24] command, [23:0] address
+    input wire [23:0] addr,              // 24-bit input: address
     input wire [5:0] data_len,           // 6-bit input: data length in bits (0-63)
     input wire [31:0] data_in,           // 32-bit data input for write operations
     output reg [31:0] data_out,          // 32-bit data output
@@ -48,6 +48,9 @@ module spi_master (
 
     reg initialized;
     reg [11:0] init_cnt;
+
+    wire [7:0] cmd = write_enable ? 8'h38 : 8'hEB;
+    wire [31:0] cmd_addr = {cmd, addr};
 
     // State machine
     always @(posedge clk or negedge rst_n) begin
@@ -233,10 +236,8 @@ module spi_master (
                     // When address phase is done, prepare for data phase
                     if (bit_counter == 24) begin
                         if (is_write_op) begin
-                            spi_io_oe <= 4'b1111;      // IOs remain outputs for write
                             shift_reg_out <= data_in;  // Load write data for next phase
                         end else begin
-                            spi_io_oe <= 4'b0000;      // IOs become inputs for read
                             shift_reg_out <= 32'b0;    // Clear for read phase
                         end
                         bit_counter <= 8'b0;  // Reset counter for data phase
@@ -247,6 +248,14 @@ module spi_master (
 
                 FSM_DUMMY: begin
                     if (write_mosi == 1'b1) begin
+                        if (bit_counter == 0) begin
+                            spi_io_oe <= 4'b1111;      // IOs become outputs for write M7-M0
+                            spi_io_out <= 4'hF;        // 4 first bits are 1 for M7-M0
+                        end else begin
+                            spi_io_oe <= 4'b0000;      // IOs become inputs for read
+                            spi_io_out <= 4'h0;        // Clear for read phase
+                        end
+
                         bit_counter <= bit_counter + 1;
                     end
 
