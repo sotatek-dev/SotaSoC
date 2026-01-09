@@ -49,7 +49,7 @@ module spi_master (
     reg initialized;
     reg [11:0] init_cnt;
 
-    wire [7:0] cmd = write_enable ? 8'h38 : 8'hEB;
+    wire [7:0] cmd = write_enable ? 8'h38 : 8'hBB;
     wire [31:0] cmd_addr = {cmd, addr};
 
     // State machine
@@ -105,7 +105,7 @@ module spi_master (
             end
 
             FSM_DUMMY: begin
-                if (bit_counter == 6)
+                if (bit_counter == 4)
                     fsm_next_state = FSM_DATA_TRANSFER;
                 else
                     fsm_next_state = FSM_DUMMY;
@@ -228,9 +228,9 @@ module spi_master (
                     spi_clk_en <= 1'b1;
                     spi_cs_n <= 1'b0;
                     if (write_mosi == 1'b1) begin  // Falling edge of SPI clock
-                        spi_io_out <= shift_reg_out[31:28];
-                        shift_reg_out <= {shift_reg_out[27:0], 4'b0000};
-                        bit_counter <= bit_counter + 4;
+                        spi_io_out[1:0] <= shift_reg_out[31:30];
+                        shift_reg_out <= {shift_reg_out[29:0], 2'b00};
+                        bit_counter <= bit_counter + 2;
                         
                     end
                     // When address phase is done, prepare for data phase
@@ -248,18 +248,18 @@ module spi_master (
 
                 FSM_DUMMY: begin
                     if (write_mosi == 1'b1) begin
-                        if (bit_counter == 0) begin
-                            spi_io_oe <= 4'b1111;      // IOs become outputs for write M7-M0
-                            spi_io_out <= 4'hF;        // 4 first bits are 1 for M7-M0
-                        end else begin
-                            spi_io_oe <= 4'b0000;      // IOs become inputs for read
-                            spi_io_out <= 4'h0;        // Clear for read phase
-                        end
+                        // if (bit_counter == 0) begin
+                        //     spi_io_oe <= 4'b1111;      // IOs become outputs for write M7-M0
+                        //     spi_io_out <= 4'hF;        // 4 first bits are 1 for M7-M0
+                        // end else begin
+                        //     spi_io_oe <= 4'b0000;      // IOs become inputs for read
+                        //     spi_io_out <= 4'h0;        // Clear for read phase
+                        // end
 
                         bit_counter <= bit_counter + 1;
                     end
 
-                    if (bit_counter == 6) begin
+                    if (bit_counter == 4) begin
                         bit_counter <= 8'b0;
                     end
 
@@ -273,9 +273,9 @@ module spi_master (
                         // Write operation: send data
                         spi_io_oe <= 4'b1111;       // All IOs are outputs
                         if (write_mosi == 1'b1) begin  // Falling edge of SPI clock
-                            spi_io_out <= shift_reg_out[31:28];
-                            shift_reg_out <= {shift_reg_out[27:0], 4'b0000};
-                            bit_counter <= bit_counter + 4;
+                            spi_io_out[1:0] <= shift_reg_out[31:30];
+                            shift_reg_out <= {shift_reg_out[29:0], 2'b00};
+                            bit_counter <= bit_counter + 2;
                         end
                     end else begin
                         // Read operation: receive data
@@ -283,8 +283,8 @@ module spi_master (
                         spi_io_out <= 4'b0000;      // Don't drive outputs
                         
                         if (spi_clk == 1'b0) begin  // Rising edge - sample input
-                            shift_reg_in <= {shift_reg_in[27:0], spi_io_in};  // Shift in 4 bits
-                            bit_counter <= bit_counter + 4;
+                            shift_reg_in <= {shift_reg_in[29:0], spi_io_in[1:0]};  // Shift in 4 bits
+                            bit_counter <= bit_counter + 2;
                         end
                     end
 
@@ -313,8 +313,8 @@ module spi_master (
                         spi_clk_en <= 1'b1;
                         // Read data immediately when cont flag is set to save 1 clock cycle
                         if (spi_clk == 1'b0) begin  // Rising edge - sample input
-                            shift_reg_in <= {shift_reg_in[27:0], spi_io_in};
-                            bit_counter <= bit_counter + 4;
+                            shift_reg_in <= {shift_reg_in[29:0], spi_io_in[1:0]};
+                            bit_counter <= bit_counter + 2;
                         end
                         spi_clk <= 1'b1;
                         write_mosi <= 1'b1;
