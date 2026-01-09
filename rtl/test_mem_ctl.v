@@ -113,7 +113,7 @@ module mem_ctl #(
 
     // Memory initialization - load program from file
     integer i;
-    reg [8*256:1] hex_file;  // String to hold filename
+    reg [8*256:1] bin_file;  // String to hold filename
     initial begin
         
         // Initialize memory to zero
@@ -122,13 +122,13 @@ module mem_ctl #(
         end
         
         // Load program binary if file exists
-        if ($value$plusargs("HEX_FILE=%s", hex_file)) begin
-            // Load entire hex file into temporary combined memory
-            $readmemh(hex_file, combined_mem);
-            `DEBUG_PRINT(("Test Memory Controller: Loaded combined hex file %s", hex_file));
+        if ($value$plusargs("BIN_FILE=%s", bin_file)) begin
+            // Load entire bin file into temporary combined memory
+            $readmemh(bin_file, combined_mem);
+            `DEBUG_PRINT(("Test Memory Controller: Loaded combined bin file %s", bin_file));
         end else begin
             // Load default test program
-            $readmemh("program.hex", combined_mem);
+            $readmemh("program.bin", combined_mem);
             `DEBUG_PRINT(("Test Memory Controller: Loaded default test program"));
         end
 

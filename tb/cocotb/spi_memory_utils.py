@@ -4,6 +4,9 @@ from cocotb.triggers import Timer, RisingEdge, FallingEdge
 from cocotb.clock import Clock
 from test_utils import NOP_INSTR
 
+FLASH_BASE_ADDR = 0x00000000
+PSRAM_BASE_ADDR = 0x01000000
+
 FSM_IDLE = 0
 FSM_SEND_CMD_ADDR = 1
 FSM_DATA_TRANSFER = 2
@@ -21,7 +24,7 @@ def set_packed_bit(handle, bit_index, value):
 
 def convert_hex_memory_to_byte_memory(hex_memory):
     """Convert hex memory to byte memory"""
-    byte_memory = bytearray(16 * 1024 * 1024)
+    byte_memory = bytearray(32 * 1024 * 1024)
     for addr, value in hex_memory.items():
         byte_memory[addr] = value & 0xFF
         byte_memory[addr + 1] = (value >> 8) & 0xFF
@@ -29,31 +32,19 @@ def convert_hex_memory_to_byte_memory(hex_memory):
         byte_memory[addr + 3] = (value >> 24) & 0xFF
     return byte_memory
 
-def load_hex_file(hex_file_path):
-    """Load hex file and return byte-addressed memory array"""
+def load_bin_file(bin_file_path):
+    """Load bin file and return byte-addressed memory array"""
     # Create byte-addressed memory (like RTL unified_mem)
-    memory = bytearray(16 * 1024 * 1024)  # 16MB memory space
+    memory = bytearray(32 * 1024 * 1024)  # 16MB memory space
     
-    if hex_file_path and os.path.exists(hex_file_path):
-        with open(hex_file_path, 'r') as f:
-            addr = 0x00000000
-            for line in f:
-                line = line.strip()
-                if line:  # Skip empty lines
-                    try:
-                        instr = int(line, 16)
-                        # Store as little-endian bytes (matching RTL behavior)
-                        memory[addr] = instr & 0xFF
-                        memory[addr + 1] = (instr >> 8) & 0xFF
-                        memory[addr + 2] = (instr >> 16) & 0xFF
-                        memory[addr + 3] = (instr >> 24) & 0xFF
-                        addr += 4
-                    except ValueError:
-                        print(f"Warning: Invalid hex line: {line}")
-                        continue
-        print(f"Loaded {(addr)//4} instructions from {hex_file_path}")
+    if bin_file_path and os.path.exists(bin_file_path):
+        with open(bin_file_path, 'rb') as f:
+            binary_data = f.read()
+            # Copy binary data directly into memory starting at address 0x00000000
+            memory[0:len(binary_data)] = binary_data
+        print(f"Loaded {len(binary_data)} bytes from {bin_file_path}")
     else:
-        print(f"Warning: Hex file not found or not specified: {hex_file_path}")
+        print(f"Warning: Bin file not found or not specified: {bin_file_path}")
         # Fill with default NOP instructions
         for i in range(0, 16, 4):
             nop = NOP_INSTR
@@ -153,11 +144,11 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                     if bit_counter > 0:
                         print(f"Writing {bit_counter} bits to memory: addr=0x{addr:08x}, data=0x{data:08x})")
                         if (bit_counter == 32):
-                            write_word_to_memory(memory, addr & 0x00FFFFFF, data)
+                            write_word_to_memory(memory, addr, data)
                         elif (bit_counter == 16):
-                            write_halfword_to_memory(memory, addr & 0x00FFFFFF, data)
+                            write_halfword_to_memory(memory, addr, data)
                         elif (bit_counter == 8):
-                            write_byte_to_memory(memory, addr & 0x00FFFFFF, data)
+                            write_byte_to_memory(memory, addr, data)
                         else:
                             assert False, f"Invalid bit_counter: {bit_counter}"
                 # assert False, "SPI CSN is not active"
@@ -174,14 +165,16 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             fsm_state = FSM_DATA_TRANSFER
                             bit_counter = 0
                             if is_instr:
+                                addr = (addr & 0x00FFFFFF) + FLASH_BASE_ADDR
                                 print(f"Reading from instr memory: addr=0x{addr:08x}")
-                                data = read_word_from_memory(memory, addr & 0x00FFFFFF)
+                                data = read_word_from_memory(memory, addr)
                                 print(f"data: 0x{data:08x}")
                             else:
                                 command = (addr >> 24) & 0xFF
+                                addr = (addr & 0x00FFFFFF) + PSRAM_BASE_ADDR
                                 if command == 0x03:
                                     print(f"Reading from data memory: addr=0x{addr:08x}")
-                                    data = read_word_from_memory(memory, addr & 0x00FFFFFF)
+                                    data = read_word_from_memory(memory, addr )
                                     print(f"data: 0x{data:08x}")
                                 else:
                                     print(f"Writing to data memory: addr=0x{addr:08x}")
@@ -201,7 +194,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                                     bit_counter = 0
                                     addr = addr + 4
                                     print(f"Reading next instr from instr memory: addr=0x{addr:08x}")
-                                    data = read_word_from_memory(memory, addr & 0x00FFFFFF)
+                                    data = read_word_from_memory(memory, addr)
                                     print(f"data: 0x{data:08x}")
 
                         elif fsm_state == FSM_DONE:
@@ -219,7 +212,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             bit_counter += 1
                             if bit_counter == 32:
                                 print(f"Write data: addr=0x{addr:08x}, data=0x{data:08x}")
-                                write_word_to_memory(memory, addr & 0x00FFFFFF, data)
+                                write_word_to_memory(memory, addr, data)
                                 fsm_state = FSM_DONE
                         elif fsm_state == FSM_DONE:
                             fsm_state = FSM_IDLE

@@ -1,5 +1,5 @@
 
-/home/thanhtran/fpga/RV32E/tb/riscv-tests/rv32ui/bltu.S.v2:     file format elf32-littleriscv
+/home/thanhtran/fpga/rv32e/tb/riscv-tests/rv32ui/bltu.S.v2:     file format elf32-littleriscv
 
 
 Disassembly of section .text:
@@ -26,8 +26,8 @@ Disassembly of section .text:
   38:	5391e193          	ori	gp,gp,1337
 
 0000003c <write_tohost>:
-  3c:	00002f17          	auipc	t5,0x2
-  40:	fc3f2223          	sw	gp,-60(t5) # 2000 <__DATA_BEGIN__>
+  3c:	01000f17          	auipc	t5,0x1000
+  40:	fc3f2223          	sw	gp,-60(t5) # 1000000 <__DATA_BEGIN__>
   44:	ff9ff06f          	j	3c <write_tohost>
 
 00000048 <reset_vector>:
@@ -72,7 +72,7 @@ Disassembly of section .text:
   e0:	02028293          	addi	t0,t0,32 # fc <reset_vector+0xb4>
   e4:	30529073          	csrw	mtvec,t0
   e8:	800002b7          	lui	t0,0x80000
-  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
   f0:	3b029073          	csrw	pmpaddr0,t0
   f4:	01f00293          	li	t0,31
   f8:	3a029073          	csrw	pmpcfg0,t0
@@ -98,7 +98,7 @@ Disassembly of section .text:
  148:	00028a63          	beqz	t0,15c <reset_vector+0x114>
  14c:	10529073          	csrw	stvec,t0
  150:	0000b2b7          	lui	t0,0xb
- 154:	10928293          	addi	t0,t0,265 # b109 <__global_pointer$+0x8909>
+ 154:	10928293          	addi	t0,t0,265 # b109 <pass+0xac85>
  158:	30229073          	csrw	medeleg,t0
  15c:	30005073          	csrwi	mstatus,0
  160:	00000297          	auipc	t0,0x0
@@ -168,7 +168,7 @@ Disassembly of section .text:
  228:	00800193          	li	gp,8
  22c:	800000b7          	lui	ra,0x80000
  230:	80000137          	lui	sp,0x80000
- 234:	fff10113          	addi	sp,sp,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 234:	fff10113          	addi	sp,sp,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  238:	0020e463          	bltu	ra,sp,240 <test_8+0x18>
  23c:	00301463          	bne	zero,gp,244 <test_8+0x1c>
  240:	22301463          	bne	zero,gp,468 <fail>
@@ -179,7 +179,7 @@ Disassembly of section .text:
  24c:	00000213          	li	tp,0
  250:	f00000b7          	lui	ra,0xf0000
  254:	f0000137          	lui	sp,0xf0000
- 258:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 258:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  25c:	2020e663          	bltu	ra,sp,468 <fail>
  260:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
  264:	00200293          	li	t0,2
@@ -190,7 +190,7 @@ Disassembly of section .text:
  270:	00000213          	li	tp,0
  274:	f00000b7          	lui	ra,0xf0000
  278:	f0000137          	lui	sp,0xf0000
- 27c:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 27c:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  280:	00000013          	nop
  284:	1e20e263          	bltu	ra,sp,468 <fail>
  288:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
@@ -202,7 +202,7 @@ Disassembly of section .text:
  298:	00000213          	li	tp,0
  29c:	f00000b7          	lui	ra,0xf0000
  2a0:	f0000137          	lui	sp,0xf0000
- 2a4:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 2a4:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  2a8:	00000013          	nop
  2ac:	00000013          	nop
  2b0:	1a20ec63          	bltu	ra,sp,468 <fail>
@@ -216,7 +216,7 @@ Disassembly of section .text:
  2c8:	f00000b7          	lui	ra,0xf0000
  2cc:	00000013          	nop
  2d0:	f0000137          	lui	sp,0xf0000
- 2d4:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 2d4:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  2d8:	1820e863          	bltu	ra,sp,468 <fail>
  2dc:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
  2e0:	00200293          	li	t0,2
@@ -228,7 +228,7 @@ Disassembly of section .text:
  2f0:	f00000b7          	lui	ra,0xf0000
  2f4:	00000013          	nop
  2f8:	f0000137          	lui	sp,0xf0000
- 2fc:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 2fc:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  300:	00000013          	nop
  304:	1620e263          	bltu	ra,sp,468 <fail>
  308:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
@@ -242,7 +242,7 @@ Disassembly of section .text:
  320:	00000013          	nop
  324:	00000013          	nop
  328:	f0000137          	lui	sp,0xf0000
- 32c:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 32c:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  330:	1220ec63          	bltu	ra,sp,468 <fail>
  334:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
  338:	00200293          	li	t0,2
@@ -253,7 +253,7 @@ Disassembly of section .text:
  344:	00000213          	li	tp,0
  348:	f00000b7          	lui	ra,0xf0000
  34c:	f0000137          	lui	sp,0xf0000
- 350:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 350:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  354:	1020ea63          	bltu	ra,sp,468 <fail>
  358:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
  35c:	00200293          	li	t0,2
@@ -264,7 +264,7 @@ Disassembly of section .text:
  368:	00000213          	li	tp,0
  36c:	f00000b7          	lui	ra,0xf0000
  370:	f0000137          	lui	sp,0xf0000
- 374:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 374:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  378:	00000013          	nop
  37c:	0e20e663          	bltu	ra,sp,468 <fail>
  380:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
@@ -276,7 +276,7 @@ Disassembly of section .text:
  390:	00000213          	li	tp,0
  394:	f00000b7          	lui	ra,0xf0000
  398:	f0000137          	lui	sp,0xf0000
- 39c:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 39c:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  3a0:	00000013          	nop
  3a4:	00000013          	nop
  3a8:	0c20e063          	bltu	ra,sp,468 <fail>
@@ -290,7 +290,7 @@ Disassembly of section .text:
  3c0:	f00000b7          	lui	ra,0xf0000
  3c4:	00000013          	nop
  3c8:	f0000137          	lui	sp,0xf0000
- 3cc:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 3cc:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  3d0:	0820ec63          	bltu	ra,sp,468 <fail>
  3d4:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
  3d8:	00200293          	li	t0,2
@@ -302,7 +302,7 @@ Disassembly of section .text:
  3e8:	f00000b7          	lui	ra,0xf0000
  3ec:	00000013          	nop
  3f0:	f0000137          	lui	sp,0xf0000
- 3f4:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 3f4:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  3f8:	00000013          	nop
  3fc:	0620e663          	bltu	ra,sp,468 <fail>
  400:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
@@ -316,7 +316,7 @@ Disassembly of section .text:
  418:	00000013          	nop
  41c:	00000013          	nop
  420:	f0000137          	lui	sp,0xf0000
- 424:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xefffd7ff>
+ 424:	fff10113          	addi	sp,sp,-1 # efffffff <__global_pointer$+0xeefff7ff>
  428:	0420e063          	bltu	ra,sp,468 <fail>
  42c:	00120213          	addi	tp,tp,1 # 1 <_start+0x1>
  430:	00200293          	li	t0,2
@@ -326,7 +326,7 @@ Disassembly of section .text:
  438:	01500193          	li	gp,21
  43c:	00100093          	li	ra,1
  440:	00106a63          	bltu	zero,ra,454 <test_21+0x1c>
- 444:	00108093          	addi	ra,ra,1 # f0000001 <__global_pointer$+0xefffd801>
+ 444:	00108093          	addi	ra,ra,1 # f0000001 <__global_pointer$+0xeefff801>
  448:	00108093          	addi	ra,ra,1
  44c:	00108093          	addi	ra,ra,1
  450:	00108093          	addi	ra,ra,1

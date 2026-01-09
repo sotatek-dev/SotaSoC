@@ -17,9 +17,9 @@ VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 -I$(PWD)/rtl -DSIMULATION
 
-# Pass HEX_FILE parameter to simulation if provided
-ifdef HEX_FILE
-    PLUSARGS += +HEX_FILE=$(HEX_FILE)
+# Pass BIN_FILE parameter to simulation if provided
+ifdef BIN_FILE
+    PLUSARGS += +BIN_FILE=$(BIN_FILE)
 endif
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file

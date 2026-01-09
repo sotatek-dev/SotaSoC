@@ -21,23 +21,23 @@ VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 -I$(PROJECT_ROOT)/rtl -DSIMULATION
 
-# Pass HEX_FILE parameter to simulation if provided
-ifdef HEX_FILE
-    export HEX_FILE
+# Pass BIN_FILE parameter to simulation if provided
+ifdef BIN_FILE
+    export BIN_FILE
 endif
 
 ifdef CLK_HZ
     COMPILE_ARGS += -DCLK_HZ=$(CLK_HZ)
 endif
 
-ifdef FLASH_SIZE
-    FLASH_SIZE_DEC := $(shell printf "%d" $(FLASH_SIZE))
-    COMPILE_ARGS += -DFLASH_SIZE=$(FLASH_SIZE_DEC)
+ifdef FLASH_BASE_ADDR
+    FLASH_BASE_ADDR_DEC := $(shell printf "%d" $(FLASH_BASE_ADDR))
+    COMPILE_ARGS += -DFLASH_BASE_ADDR=$(FLASH_BASE_ADDR_DEC)
 endif
 
-ifdef PSRAM_SIZE
-    PSRAM_SIZE_DEC := $(shell printf "%d" $(PSRAM_SIZE))
-    COMPILE_ARGS += -DPSRAM_SIZE=$(PSRAM_SIZE_DEC)
+ifdef PSRAM_BASE_ADDR
+    PSRAM_BASE_ADDR_DEC := $(shell printf "%d" $(PSRAM_BASE_ADDR))
+    COMPILE_ARGS += -DPSRAM_BASE_ADDR=$(PSRAM_BASE_ADDR_DEC)
 endif
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file

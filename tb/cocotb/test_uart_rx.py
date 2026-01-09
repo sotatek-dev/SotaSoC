@@ -5,7 +5,7 @@ from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
     read_word_from_memory,
-    load_hex_file,
+    load_bin_file,
 )
 import random
 
@@ -13,10 +13,10 @@ import random
 async def test_uart_rx(dut):
     """Test the UART RX"""
 
-    hex_file_path = os.environ.get('HEX_FILE', None)
+    bin_file_path = os.environ.get('BIN_FILE', None)
 
-    # Load memory from hex file
-    memory = load_hex_file(hex_file_path)
+    # Load memory from bin file
+    memory = load_bin_file(bin_file_path)
 
     instr_fetch_delay = 32
 

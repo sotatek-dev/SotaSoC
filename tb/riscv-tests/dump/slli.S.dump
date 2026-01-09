@@ -1,5 +1,5 @@
 
-/home/thanhtran/fpga/RV32E/tb/riscv-tests/rv32ui/slli.S.v2:     file format elf32-littleriscv
+/home/thanhtran/fpga/rv32e/tb/riscv-tests/rv32ui/slli.S.v2:     file format elf32-littleriscv
 
 
 Disassembly of section .text:
@@ -26,8 +26,8 @@ Disassembly of section .text:
   38:	5391e193          	ori	gp,gp,1337
 
 0000003c <write_tohost>:
-  3c:	00002f17          	auipc	t5,0x2
-  40:	fc3f2223          	sw	gp,-60(t5) # 2000 <__DATA_BEGIN__>
+  3c:	01000f17          	auipc	t5,0x1000
+  40:	fc3f2223          	sw	gp,-60(t5) # 1000000 <__DATA_BEGIN__>
   44:	ff9ff06f          	j	3c <write_tohost>
 
 00000048 <reset_vector>:
@@ -72,7 +72,7 @@ Disassembly of section .text:
   e0:	02028293          	addi	t0,t0,32 # fc <reset_vector+0xb4>
   e4:	30529073          	csrw	mtvec,t0
   e8:	800002b7          	lui	t0,0x80000
-  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
   f0:	3b029073          	csrw	pmpaddr0,t0
   f4:	01f00293          	li	t0,31
   f8:	3a029073          	csrw	pmpcfg0,t0
@@ -98,7 +98,7 @@ Disassembly of section .text:
  148:	00028a63          	beqz	t0,15c <reset_vector+0x114>
  14c:	10529073          	csrw	stvec,t0
  150:	0000b2b7          	lui	t0,0xb
- 154:	10928293          	addi	t0,t0,265 # b109 <__global_pointer$+0x8909>
+ 154:	10928293          	addi	t0,t0,265 # b109 <pass+0xacf5>
  158:	30229073          	csrw	medeleg,t0
  15c:	30005073          	csrwi	mstatus,0
  160:	00000297          	auipc	t0,0x0
@@ -180,34 +180,34 @@ Disassembly of section .text:
 0000023c <test_12>:
  23c:	00c00193          	li	gp,12
  240:	212126b7          	lui	a3,0x21212
- 244:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x2120f921>
+ 244:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x20211921>
  248:	00069713          	slli	a4,a3,0x0
  24c:	212123b7          	lui	t2,0x21212
- 250:	12138393          	addi	t2,t2,289 # 21212121 <__global_pointer$+0x2120f921>
+ 250:	12138393          	addi	t2,t2,289 # 21212121 <__global_pointer$+0x20211921>
  254:	1a771263          	bne	a4,t2,3f8 <fail>
 
 00000258 <test_13>:
  258:	00d00193          	li	gp,13
  25c:	212126b7          	lui	a3,0x21212
- 260:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x2120f921>
+ 260:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x20211921>
  264:	00169713          	slli	a4,a3,0x1
  268:	424243b7          	lui	t2,0x42424
- 26c:	24238393          	addi	t2,t2,578 # 42424242 <__global_pointer$+0x42421a42>
+ 26c:	24238393          	addi	t2,t2,578 # 42424242 <__global_pointer$+0x41423a42>
  270:	18771463          	bne	a4,t2,3f8 <fail>
 
 00000274 <test_14>:
  274:	00e00193          	li	gp,14
  278:	212126b7          	lui	a3,0x21212
- 27c:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x2120f921>
+ 27c:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x20211921>
  280:	00769713          	slli	a4,a3,0x7
  284:	909093b7          	lui	t2,0x90909
- 288:	08038393          	addi	t2,t2,128 # 90909080 <__global_pointer$+0x90906880>
+ 288:	08038393          	addi	t2,t2,128 # 90909080 <__global_pointer$+0x8f908880>
  28c:	16771663          	bne	a4,t2,3f8 <fail>
 
 00000290 <test_15>:
  290:	00f00193          	li	gp,15
  294:	212126b7          	lui	a3,0x21212
- 298:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x2120f921>
+ 298:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x20211921>
  29c:	00e69713          	slli	a4,a3,0xe
  2a0:	484843b7          	lui	t2,0x48484
  2a4:	14771a63          	bne	a4,t2,3f8 <fail>
@@ -215,7 +215,7 @@ Disassembly of section .text:
 000002a8 <test_16>:
  2a8:	01000193          	li	gp,16
  2ac:	212126b7          	lui	a3,0x21212
- 2b0:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x2120f921>
+ 2b0:	12168693          	addi	a3,a3,289 # 21212121 <__global_pointer$+0x20211921>
  2b4:	01f69713          	slli	a4,a3,0x1f
  2b8:	800003b7          	lui	t2,0x80000
  2bc:	12771e63          	bne	a4,t2,3f8 <fail>

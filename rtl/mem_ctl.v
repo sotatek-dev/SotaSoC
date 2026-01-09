@@ -13,12 +13,11 @@
 `include "debug_defines.vh"
 
 module mem_ctl #(
-    parameter FLASH_SIZE = 32'h00002000,
-    parameter PSRAM_SIZE = 32'h00002000,
-    parameter UART_BASE_ADDR = 32'h40000000,
-    parameter UART_SIZE = 16,
-    parameter GPIO_BASE_ADDR = 32'h40001000,
-    parameter GPIO_SIZE = 5
+    parameter FLASH_BASE_ADDR,
+    parameter PSRAM_BASE_ADDR,
+    parameter UART_BASE_ADDR,
+    parameter GPIO_BASE_ADDR,
+    parameter GPIO_SIZE
 ) (
     input wire clk,
     input wire rst_n,
@@ -159,8 +158,8 @@ module mem_ctl #(
     assign instr_ready = instr_ready_reg && instr_addr_not_changed;
 
     // we can access data in flash memory, like const data
-    assign flash_cs_n = (spi_is_instr == 1'b1 || (spi_is_instr == 1'b0 && mem_addr < FLASH_SIZE)) && spi_stop == 1'b0 ? spi_cs_n : 1'b1;
-    assign ram_cs_n = (spi_is_instr == 1'b0 && mem_addr >= FLASH_SIZE) && spi_stop == 1'b0 ? spi_cs_n : 1'b1;
+    assign flash_cs_n = (spi_is_instr == 1'b1 || (spi_is_instr == 1'b0 && mem_addr[31:24] == FLASH_BASE_ADDR[31:24])) && spi_stop == 1'b0 ? spi_cs_n : 1'b1;
+    assign ram_cs_n = (spi_is_instr == 1'b0 && mem_addr[31:24] == PSRAM_BASE_ADDR[31:24]) && spi_stop == 1'b0 ? spi_cs_n : 1'b1;
 
     // There are 2 cases of memory access:
     // 1. The mem_ctl is at ACCESS_IDLE state and the core is requesting memory access
@@ -176,8 +175,8 @@ module mem_ctl #(
     // Request signals
     wire data_request = mem_write_request || mem_read_request;
     wire instr_request = instr_addr_changed || !instr_ready_reg;
-    wire uart_request = data_request && (mem_addr >= UART_BASE_ADDR) && (mem_addr < UART_BASE_ADDR + UART_SIZE);
-    wire gpio_request = data_request && (mem_addr == GPIO_BASE_ADDR);
+    wire uart_request = data_request && mem_addr[31:8] == UART_BASE_ADDR[31:8];
+    wire gpio_request = data_request && mem_addr[31:8] == GPIO_BASE_ADDR[31:8];
     
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE || ACCESS_PAUSE);

@@ -1,5 +1,5 @@
 
-/home/thanhtran/fpga/RV32E/tb/riscv-tests/rv32ui/srai.S.v2:     file format elf32-littleriscv
+/home/thanhtran/fpga/rv32e/tb/riscv-tests/rv32ui/srai.S.v2:     file format elf32-littleriscv
 
 
 Disassembly of section .text:
@@ -26,8 +26,8 @@ Disassembly of section .text:
   38:	5391e193          	ori	gp,gp,1337
 
 0000003c <write_tohost>:
-  3c:	00002f17          	auipc	t5,0x2
-  40:	fc3f2223          	sw	gp,-60(t5) # 2000 <__DATA_BEGIN__>
+  3c:	01000f17          	auipc	t5,0x1000
+  40:	fc3f2223          	sw	gp,-60(t5) # 1000000 <__DATA_BEGIN__>
   44:	ff9ff06f          	j	3c <write_tohost>
 
 00000048 <reset_vector>:
@@ -72,7 +72,7 @@ Disassembly of section .text:
   e0:	02028293          	addi	t0,t0,32 # fc <reset_vector+0xb4>
   e4:	30529073          	csrw	mtvec,t0
   e8:	800002b7          	lui	t0,0x80000
-  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
   f0:	3b029073          	csrw	pmpaddr0,t0
   f4:	01f00293          	li	t0,31
   f8:	3a029073          	csrw	pmpcfg0,t0
@@ -98,7 +98,7 @@ Disassembly of section .text:
  148:	00028a63          	beqz	t0,15c <reset_vector+0x114>
  14c:	10529073          	csrw	stvec,t0
  150:	0000b2b7          	lui	t0,0xb
- 154:	10928293          	addi	t0,t0,265 # b109 <__global_pointer$+0x8909>
+ 154:	10928293          	addi	t0,t0,265 # b109 <pass+0xacc1>
  158:	30229073          	csrw	medeleg,t0
  15c:	30005073          	csrwi	mstatus,0
  160:	00000297          	auipc	t0,0x0
@@ -138,7 +138,7 @@ Disassembly of section .text:
 000001c4 <test_6>:
  1c4:	00600193          	li	gp,6
  1c8:	800006b7          	lui	a3,0x80000
- 1cc:	00168693          	addi	a3,a3,1 # 80000001 <__global_pointer$+0x7fffd801>
+ 1cc:	00168693          	addi	a3,a3,1 # 80000001 <__global_pointer$+0x7efff801>
  1d0:	41f6d713          	srai	a4,a3,0x1f
  1d4:	fff00393          	li	t2,-1
  1d8:	24771a63          	bne	a4,t2,42c <fail>
@@ -146,43 +146,43 @@ Disassembly of section .text:
 000001dc <test_7>:
  1dc:	00700193          	li	gp,7
  1e0:	800006b7          	lui	a3,0x80000
- 1e4:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 1e4:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  1e8:	4006d713          	srai	a4,a3,0x0
  1ec:	800003b7          	lui	t2,0x80000
- 1f0:	fff38393          	addi	t2,t2,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 1f0:	fff38393          	addi	t2,t2,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  1f4:	22771c63          	bne	a4,t2,42c <fail>
 
 000001f8 <test_8>:
  1f8:	00800193          	li	gp,8
  1fc:	800006b7          	lui	a3,0x80000
- 200:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 200:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  204:	4016d713          	srai	a4,a3,0x1
  208:	400003b7          	lui	t2,0x40000
- 20c:	fff38393          	addi	t2,t2,-1 # 3fffffff <__global_pointer$+0x3fffd7ff>
+ 20c:	fff38393          	addi	t2,t2,-1 # 3fffffff <__global_pointer$+0x3efff7ff>
  210:	20771e63          	bne	a4,t2,42c <fail>
 
 00000214 <test_9>:
  214:	00900193          	li	gp,9
  218:	800006b7          	lui	a3,0x80000
- 21c:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 21c:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  220:	4076d713          	srai	a4,a3,0x7
  224:	010003b7          	lui	t2,0x1000
- 228:	fff38393          	addi	t2,t2,-1 # ffffff <__global_pointer$+0xffd7ff>
+ 228:	fff38393          	addi	t2,t2,-1 # ffffff <pass+0xfffbb7>
  22c:	20771063          	bne	a4,t2,42c <fail>
 
 00000230 <test_10>:
  230:	00a00193          	li	gp,10
  234:	800006b7          	lui	a3,0x80000
- 238:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 238:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  23c:	40e6d713          	srai	a4,a3,0xe
  240:	000203b7          	lui	t2,0x20
- 244:	fff38393          	addi	t2,t2,-1 # 1ffff <__global_pointer$+0x1d7ff>
+ 244:	fff38393          	addi	t2,t2,-1 # 1ffff <pass+0x1fbb7>
  248:	1e771263          	bne	a4,t2,42c <fail>
 
 0000024c <test_11>:
  24c:	00b00193          	li	gp,11
  250:	800006b7          	lui	a3,0x80000
- 254:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 254:	fff68693          	addi	a3,a3,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  258:	41f6d713          	srai	a4,a3,0x1f
  25c:	00000393          	li	t2,0
  260:	1c771663          	bne	a4,t2,42c <fail>
@@ -190,43 +190,43 @@ Disassembly of section .text:
 00000264 <test_12>:
  264:	00c00193          	li	gp,12
  268:	818186b7          	lui	a3,0x81818
- 26c:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x81815981>
+ 26c:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x80817981>
  270:	4006d713          	srai	a4,a3,0x0
  274:	818183b7          	lui	t2,0x81818
- 278:	18138393          	addi	t2,t2,385 # 81818181 <__global_pointer$+0x81815981>
+ 278:	18138393          	addi	t2,t2,385 # 81818181 <__global_pointer$+0x80817981>
  27c:	1a771863          	bne	a4,t2,42c <fail>
 
 00000280 <test_13>:
  280:	00d00193          	li	gp,13
  284:	818186b7          	lui	a3,0x81818
- 288:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x81815981>
+ 288:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x80817981>
  28c:	4016d713          	srai	a4,a3,0x1
  290:	c0c0c3b7          	lui	t2,0xc0c0c
- 294:	0c038393          	addi	t2,t2,192 # c0c0c0c0 <__global_pointer$+0xc0c098c0>
+ 294:	0c038393          	addi	t2,t2,192 # c0c0c0c0 <__global_pointer$+0xbfc0b8c0>
  298:	18771a63          	bne	a4,t2,42c <fail>
 
 0000029c <test_14>:
  29c:	00e00193          	li	gp,14
  2a0:	818186b7          	lui	a3,0x81818
- 2a4:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x81815981>
+ 2a4:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x80817981>
  2a8:	4076d713          	srai	a4,a3,0x7
  2ac:	ff0303b7          	lui	t2,0xff030
- 2b0:	30338393          	addi	t2,t2,771 # ff030303 <__global_pointer$+0xff02db03>
+ 2b0:	30338393          	addi	t2,t2,771 # ff030303 <__global_pointer$+0xfe02fb03>
  2b4:	16771c63          	bne	a4,t2,42c <fail>
 
 000002b8 <test_15>:
  2b8:	00f00193          	li	gp,15
  2bc:	818186b7          	lui	a3,0x81818
- 2c0:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x81815981>
+ 2c0:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x80817981>
  2c4:	40e6d713          	srai	a4,a3,0xe
  2c8:	fffe03b7          	lui	t2,0xfffe0
- 2cc:	60638393          	addi	t2,t2,1542 # fffe0606 <__global_pointer$+0xfffdde06>
+ 2cc:	60638393          	addi	t2,t2,1542 # fffe0606 <__global_pointer$+0xfefdfe06>
  2d0:	14771e63          	bne	a4,t2,42c <fail>
 
 000002d4 <test_16>:
  2d4:	01000193          	li	gp,16
  2d8:	818186b7          	lui	a3,0x81818
- 2dc:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x81815981>
+ 2dc:	18168693          	addi	a3,a3,385 # 81818181 <__global_pointer$+0x80817981>
  2e0:	41f6d713          	srai	a4,a3,0x1f
  2e4:	fff00393          	li	t2,-1
  2e8:	14771263          	bne	a4,t2,42c <fail>
@@ -267,7 +267,7 @@ Disassembly of section .text:
  354:	01400193          	li	gp,20
  358:	00000213          	li	tp,0
  35c:	800000b7          	lui	ra,0x80000
- 360:	00108093          	addi	ra,ra,1 # 80000001 <__global_pointer$+0x7fffd801>
+ 360:	00108093          	addi	ra,ra,1 # 80000001 <__global_pointer$+0x7efff801>
  364:	41f0d713          	srai	a4,ra,0x1f
  368:	00000013          	nop
  36c:	00000013          	nop
@@ -305,7 +305,7 @@ Disassembly of section .text:
  3d4:	01700193          	li	gp,23
  3d8:	00000213          	li	tp,0
  3dc:	800000b7          	lui	ra,0x80000
- 3e0:	00108093          	addi	ra,ra,1 # 80000001 <__global_pointer$+0x7fffd801>
+ 3e0:	00108093          	addi	ra,ra,1 # 80000001 <__global_pointer$+0x7efff801>
  3e4:	00000013          	nop
  3e8:	00000013          	nop
  3ec:	41f0d713          	srai	a4,ra,0x1f

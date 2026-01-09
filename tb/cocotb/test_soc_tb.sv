@@ -18,20 +18,20 @@ module test_soc_tb;
     `define CLK_HZ 10000000
     `endif
     
-    `ifndef FLASH_SIZE  
-    `define FLASH_SIZE 32'h00000080
+    `ifndef FLASH_BASE_ADDR  
+    `define FLASH_BASE_ADDR 32'h00000000
     `endif
     
-    `ifndef PSRAM_SIZE
-    `define PSRAM_SIZE 32'h00000080
+    `ifndef PSRAM_BASE_ADDR
+    `define PSRAM_BASE_ADDR 32'h01000000
     `endif
     
     // Instantiate the SoC
     soc#(
         .CLK_HZ(`CLK_HZ),
         .RESET_ADDR(32'h00000000),
-        .FLASH_SIZE(`FLASH_SIZE),
-        .PSRAM_SIZE(`PSRAM_SIZE)
+        .FLASH_BASE_ADDR(`FLASH_BASE_ADDR),
+        .PSRAM_BASE_ADDR(`PSRAM_BASE_ADDR)
     ) soc_inst (
         .clk(clk),
         .rst_n(rst_n),

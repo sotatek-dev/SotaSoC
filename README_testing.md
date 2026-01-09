@@ -1,11 +1,11 @@
 # RISC-V SoC Test Scripts
 
-This directory contains bash scripts to automate testing of multiple hex files with the SoC testbench.
+This directory contains bash scripts to automate testing of multiple bin files with the SoC testbench.
 
 ## Overview
 
 The SoC testbench (`tb/cocotb/test_soc.py`) tests RISC-V programs by:
-1. Loading a hex file into the processor memory
+1. Loading a bin file into the processor memory
 2. Running the processor simulation
 3. Looking for an ECALL instruction (`0x00000073`)
 4. Checking if register `x10` equals 0 after the ECALL
@@ -13,7 +13,7 @@ The SoC testbench (`tb/cocotb/test_soc.py`) tests RISC-V programs by:
 
 ## Available Scripts
 ### 1. `test_all_hex.sh` - Complete Test Script
-Tests all hex files in the `tb/riscv-tests/hex/` directory.
+Tests all bin files in the `tb/riscv-tests/bin/` directory.
 
 **Usage:**
 ```bash
@@ -23,10 +23,10 @@ chmod +x test_all_hex.sh
 
 ## How the Scripts Work
 
-1. **Find hex files**: Scans `tb/riscv-tests/hex/` for `*.hex` files
-2. **Run tests**: For each hex file, runs:
+1. **Find bin files**: Scans `tb/riscv-tests/bin/` for `*.bin` files
+2. **Run tests**: For each bin file, runs:
    ```bash
-   make -f tb/cocotb/test_soc.mk HEX_FILE=<path_to_hex_file>
+   make -f tb/cocotb/test_soc.mk BIN_FILE=<path_to_bin_file>
    ```
 3. **Determine pass/fail**: Checks the output for:
    - `"test_soc passed"` → **PASS**
@@ -45,9 +45,9 @@ The scripts provide colored output:
 Example output:
 ```
 ==========================================
-Running tests for all hex files...
+Running tests for all bin files...
 ==========================================
-Found 42 hex files to test
+Found 42 bin files to test
 
 Testing add.S... PASS
 Testing and.S... FAIL
@@ -78,7 +78,7 @@ All test outputs are saved in the `test_logs/` directory:
 
 You can still test individual files manually:
 ```bash
-make -f tb/cocotb/test_soc.mk HEX_FILE=tb/riscv-tests/hex/add.S.hex
+make -f tb/cocotb/test_soc.mk BIN_FILE=tb/riscv-tests/bin/add.S.bin
 ```
 
 ## Requirements
@@ -95,9 +95,9 @@ make -f tb/cocotb/test_soc.mk HEX_FILE=tb/riscv-tests/hex/add.S.hex
 chmod +x test_all_hex.sh  # Make sure script is executable
 ```
 
-### No hex files found
-- Check that `tb/riscv-tests/hex/` directory exists
-- Verify hex files are present with `.hex` extension
+### No bin files found
+- Check that `tb/riscv-tests/bin/` directory exists
+- Verify bin files are present with `.bin` extension
 
 ### Make command fails
 - Check that cocotb is installed: `pip install cocotb`

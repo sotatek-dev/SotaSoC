@@ -1,5 +1,5 @@
 
-/home/thanhtran/fpga/RV32E/tb/riscv-tests/rv32ui/slt.S.v2:     file format elf32-littleriscv
+/home/thanhtran/fpga/rv32e/tb/riscv-tests/rv32ui/slt.S.v2:     file format elf32-littleriscv
 
 
 Disassembly of section .text:
@@ -26,8 +26,8 @@ Disassembly of section .text:
   38:	5391e193          	ori	gp,gp,1337
 
 0000003c <write_tohost>:
-  3c:	00002f17          	auipc	t5,0x2
-  40:	fc3f2223          	sw	gp,-60(t5) # 2000 <__DATA_BEGIN__>
+  3c:	01000f17          	auipc	t5,0x1000
+  40:	fc3f2223          	sw	gp,-60(t5) # 1000000 <__DATA_BEGIN__>
   44:	ff9ff06f          	j	3c <write_tohost>
 
 00000048 <reset_vector>:
@@ -72,7 +72,7 @@ Disassembly of section .text:
   e0:	02028293          	addi	t0,t0,32 # fc <reset_vector+0xb4>
   e4:	30529073          	csrw	mtvec,t0
   e8:	800002b7          	lui	t0,0x80000
-  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+  ec:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
   f0:	3b029073          	csrw	pmpaddr0,t0
   f4:	01f00293          	li	t0,31
   f8:	3a029073          	csrw	pmpcfg0,t0
@@ -98,7 +98,7 @@ Disassembly of section .text:
  148:	00028a63          	beqz	t0,15c <reset_vector+0x114>
  14c:	10529073          	csrw	stvec,t0
  150:	0000b2b7          	lui	t0,0xb
- 154:	10928293          	addi	t0,t0,265 # b109 <__global_pointer$+0x8909>
+ 154:	10928293          	addi	t0,t0,265 # b109 <pass+0xaab1>
  158:	30229073          	csrw	medeleg,t0
  15c:	30005073          	csrwi	mstatus,0
  160:	00000297          	auipc	t0,0x0
@@ -167,7 +167,7 @@ Disassembly of section .text:
  21c:	00900193          	li	gp,9
  220:	00000593          	li	a1,0
  224:	00008637          	lui	a2,0x8
- 228:	fff60613          	addi	a2,a2,-1 # 7fff <__global_pointer$+0x57ff>
+ 228:	fff60613          	addi	a2,a2,-1 # 7fff <pass+0x79a7>
  22c:	00c5a733          	slt	a4,a1,a2
  230:	00100393          	li	t2,1
  234:	40771463          	bne	a4,t2,63c <fail>
@@ -175,7 +175,7 @@ Disassembly of section .text:
 00000238 <test_10>:
  238:	00a00193          	li	gp,10
  23c:	800005b7          	lui	a1,0x80000
- 240:	fff58593          	addi	a1,a1,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 240:	fff58593          	addi	a1,a1,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  244:	00000613          	li	a2,0
  248:	00c5a733          	slt	a4,a1,a2
  24c:	00000393          	li	t2,0
@@ -184,9 +184,9 @@ Disassembly of section .text:
 00000254 <test_11>:
  254:	00b00193          	li	gp,11
  258:	800005b7          	lui	a1,0x80000
- 25c:	fff58593          	addi	a1,a1,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 25c:	fff58593          	addi	a1,a1,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  260:	00008637          	lui	a2,0x8
- 264:	fff60613          	addi	a2,a2,-1 # 7fff <__global_pointer$+0x57ff>
+ 264:	fff60613          	addi	a2,a2,-1 # 7fff <pass+0x79a7>
  268:	00c5a733          	slt	a4,a1,a2
  26c:	00000393          	li	t2,0
  270:	3c771663          	bne	a4,t2,63c <fail>
@@ -195,7 +195,7 @@ Disassembly of section .text:
  274:	00c00193          	li	gp,12
  278:	800005b7          	lui	a1,0x80000
  27c:	00008637          	lui	a2,0x8
- 280:	fff60613          	addi	a2,a2,-1 # 7fff <__global_pointer$+0x57ff>
+ 280:	fff60613          	addi	a2,a2,-1 # 7fff <pass+0x79a7>
  284:	00c5a733          	slt	a4,a1,a2
  288:	00100393          	li	t2,1
  28c:	3a771863          	bne	a4,t2,63c <fail>
@@ -203,7 +203,7 @@ Disassembly of section .text:
 00000290 <test_13>:
  290:	00d00193          	li	gp,13
  294:	800005b7          	lui	a1,0x80000
- 298:	fff58593          	addi	a1,a1,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+ 298:	fff58593          	addi	a1,a1,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
  29c:	ffff8637          	lui	a2,0xffff8
  2a0:	00c5a733          	slt	a4,a1,a2
  2a4:	00000393          	li	t2,0

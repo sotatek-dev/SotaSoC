@@ -3,7 +3,7 @@
 Script to extract signature from RISCOF test simulation.
 This script:
 1. Gets begin_signature and end_signature addresses from ELF
-2. Runs cocotb simulation with the hex file
+2. Runs cocotb simulation with the bin file
 3. Extracts signature from memory dump
 4. Writes signature file in RISCOF format
 """
@@ -95,28 +95,28 @@ def extract_signature_from_memory(memory, begin_addr, end_addr):
     
     return signature
 
-def run_simulation_and_extract(elf_file, hex_file, sig_file, project_root):
+def run_simulation_and_extract(elf_file, bin_file, sig_file, project_root):
     """Run cocotb simulation and extract signature
     
     Args:
         elf_file: Path to ELF file
-        hex_file: Path to HEX file
+        bin_file: Path to BIN file
         sig_file: Path to output signature file
         project_root: Project root directory
     """
     
     # Extract test name from path for logging
-    # Path structure: riscof_work/src/test.S/dut/my.hex
-    test_name = os.path.basename(os.path.dirname(os.path.dirname(hex_file)))
+    # Path structure: riscof_work/src/test.S/dut/my.bin
+    test_name = os.path.basename(os.path.dirname(os.path.dirname(bin_file)))
     if test_name.endswith('.S') or test_name.endswith('.s'):
         test_display = test_name
     else:
-        test_display = os.path.basename(hex_file)
+        test_display = os.path.basename(bin_file)
     
     # Log at the beginning to show which test is running
     log_message(f"[{time.strftime('%H:%M:%S')}] [TEST: {test_display}] Starting...\n")
     log_message(f"[{time.strftime('%H:%M:%S')}] [TEST: {test_display}] ELF: {elf_file}\n")
-    log_message(f"[{time.strftime('%H:%M:%S')}] [TEST: {test_display}] HEX: {hex_file}\n")
+    log_message(f"[{time.strftime('%H:%M:%S')}] [TEST: {test_display}] BIN: {bin_file}\n")
     log_message(f"[{time.strftime('%H:%M:%S')}] [TEST: {test_display}] Signature: {sig_file}\n")
    
     # Get signature addresses from ELF
@@ -141,15 +141,15 @@ def run_simulation_and_extract(elf_file, hex_file, sig_file, project_root):
     
     # Convert to byte addresses for memory access (SPI memory uses 24-bit addresses)
     # The SPI memory controller uses lower 24 bits of address
-    begin_byte_addr = begin_addr & 0x00FFFFFF
-    end_byte_addr = end_addr & 0x00FFFFFF
-    tohost_byte_addr = (tohost_addr & 0x00FFFFFF) if tohost_addr is not None else None
+    begin_byte_addr = begin_addr
+    end_byte_addr = end_addr
+    tohost_byte_addr = tohost_addr if tohost_addr is not None else None
     
     # Format tohost_byte_addr for Python code generation
     tohost_byte_addr_str = f"0x{tohost_byte_addr:08x}" if tohost_byte_addr is not None else "None"
     
     # Get test directory and template directory
-    test_dir = os.path.dirname(hex_file)
+    test_dir = os.path.dirname(bin_file)
     template_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Copy template files to test directory
@@ -176,7 +176,7 @@ def run_simulation_and_extract(elf_file, hex_file, sig_file, project_root):
     # Replace placeholders with actual values (format addresses as hex)
     test_content = template_content.format(
         PROJECT_ROOT=project_root,
-        HEX_FILE=hex_file,
+        BIN_FILE=bin_file,
         BEGIN_ADDR=f"0x{begin_addr:08x}",
         END_ADDR=f"0x{end_addr:08x}",
         BEGIN_BYTE_ADDR=f"0x{begin_byte_addr:08x}",
@@ -196,12 +196,12 @@ def run_simulation_and_extract(elf_file, hex_file, sig_file, project_root):
     
     # Run cocotb simulation using the copied makefile in test directory
     env = os.environ.copy()
-    env['HEX_FILE'] = hex_file
+    env['BIN_FILE'] = bin_file
     env['PYTHONPATH'] = os.path.join(project_root, 'tb', 'cocotb') + ':' + env.get('PYTHONPATH', '')
     
     # Change to test directory and run make using the copied makefile
     # Pass PROJECT_ROOT to makefile so it can find RTL files even when run from test_dir
-    cmd = ['make', '-f', test_makefile, 'MODULE=test_riscof_signature', f'HEX_FILE={hex_file}', f'PROJECT_ROOT={project_root}']
+    cmd = ['make', '-f', test_makefile, 'MODULE=test_riscof_signature', f'BIN_FILE={bin_file}', f'PROJECT_ROOT={project_root}']
     
     log_message(f"[{time.strftime('%H:%M:%S')}] [TEST: {test_display}] Running simulation...\n")
     log_message(f"[{time.strftime('%H:%M:%S')}] [TEST: {test_display}] Command: {' '.join(cmd)}\n")
@@ -245,7 +245,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Extract signature from RISCOF test')
     parser.add_argument('--elf', required=True, help='ELF file path')
-    parser.add_argument('--hex', required=True, help='HEX file path')
+    parser.add_argument('--bin', required=True, help='BIN file path')
     parser.add_argument('--signature', required=True, help='Output signature file path')
     parser.add_argument('--project-root', required=True, help='Project root directory')
     
@@ -254,7 +254,7 @@ def main():
     log_message(f"[{time.strftime('%H:%M:%S')}] Arguments parsed successfully\n")
 
     success = run_simulation_and_extract(
-        args.elf, args.hex, args.signature, args.project_root
+        args.elf, args.bin, args.signature, args.project_root
     )
     
     log_message(f"[{time.strftime('%H:%M:%S')}] Script finished: {'SUCCESS' if success else 'FAILED'}\n")

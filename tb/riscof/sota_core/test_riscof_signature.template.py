@@ -6,9 +6,9 @@ import os
 
 # Add project cocotb directory to path
 sys.path.insert(0, os.path.join(r"{PROJECT_ROOT}", "tb", "cocotb"))
-from qspi_memory_utils import load_hex_file, read_word_from_memory, test_spi_memory
+from qspi_memory_utils import load_bin_file, read_word_from_memory, test_spi_memory
 
-hex_file = r"{HEX_FILE}"
+bin_file = r"{BIN_FILE}"
 begin_addr = {BEGIN_ADDR}
 end_addr = {END_ADDR}
 begin_byte_addr = {BEGIN_BYTE_ADDR}
@@ -20,8 +20,8 @@ sig_file = r"{SIG_FILE}"
 async def test_riscof_signature(dut):
     """RISCOF test to extract signature from memory"""
     
-    # Load hex file into memory
-    memory = load_hex_file(hex_file)
+    # Load bin file into memory
+    memory = load_bin_file(bin_file)
     
     max_cycles = 2000000
     cycles_after_completion = 0

@@ -125,7 +125,7 @@ class sota_core(pluginTemplate):
 
           # name of the elf file after compilation of the test
           elf = os.path.join(test_dir, 'my.elf')
-          hex_file = os.path.join(test_dir, 'my.hex')
+          bin_file = os.path.join(test_dir, 'my.bin')
           dump_file = os.path.join(test_dir, 'my.dump')
 
           # name of the signature file as per requirement of RISCOF. RISCOF expects the signature to
@@ -142,10 +142,7 @@ class sota_core(pluginTemplate):
           # function
           cmd = self.compile_cmd.format(testentry['isa'].lower(), self.xlen, test, elf, compile_macros)
 
-          # Convert ELF to HEX format (simple format: one word per line)
-          # Use helper script to convert ELF to hex
-          elf_to_hex_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'elf_to_hex.py')
-          objcopy_cmd = 'python3 {0} {1} {2}'.format(elf_to_hex_script, elf, hex_file)
+          objcopy_cmd = 'riscv{0}-unknown-elf-objcopy -O binary {1} {2}'.format(self.xlen, elf, bin_file)
 
           # Generate disassembly dump file for debugging
           objdump_cmd = 'riscv{0}-unknown-elf-objdump -d {1} > {2}'.format(self.xlen, elf, dump_file)
@@ -157,11 +154,11 @@ class sota_core(pluginTemplate):
           # the "else" clause is executed below assigning the sim command to simple no action
           # echo statement.
           if self.target_run:
-            # Run cocotb simulation with hex file and extract signature
+            # Run cocotb simulation with bin file and extract signature
             # The signature extraction script will copy template files from sota_core folder
             # and generate test files in the test directory
-            simcmd = 'python3 {0} --elf {1} --hex {2} --signature {3} --project-root {4}'.format(
-                self.sig_extract_script, elf, hex_file, sig_file, self.project_root)
+            simcmd = 'python3 {0} --elf {1} --bin {2} --signature {3} --project-root {4}'.format(
+                self.sig_extract_script, elf, bin_file, sig_file, self.project_root)
           else:
             simcmd = 'echo "NO RUN"'
 

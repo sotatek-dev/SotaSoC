@@ -14,9 +14,11 @@
 module soc #(
     parameter CLK_HZ = 10000000,
     parameter RESET_ADDR = 32'h00000000 ,
-    parameter FLASH_SIZE = 32'h00002000,
-    parameter PSRAM_SIZE = 32'h00002000,
+    parameter FLASH_BASE_ADDR = 32'h00000000,
+    parameter PSRAM_BASE_ADDR = 32'h01000000,
+    parameter UART_BASE_ADDR = 32'h40000000,
     parameter UART_BIT_RATE = 115200,
+    parameter GPIO_BASE_ADDR = 32'h40001000,
     parameter GPIO_SIZE = 5
 ) (
     input wire clk,
@@ -100,8 +102,10 @@ module soc #(
     
     // Memory Controller instantiation
     mem_ctl #(
-        .FLASH_SIZE(FLASH_SIZE),
-        .PSRAM_SIZE(PSRAM_SIZE),
+        .FLASH_BASE_ADDR(FLASH_BASE_ADDR),
+        .PSRAM_BASE_ADDR(PSRAM_BASE_ADDR),
+        .UART_BASE_ADDR(UART_BASE_ADDR),
+        .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
         .GPIO_SIZE(GPIO_SIZE)
     ) mem_ctrl (
         .clk(clk),

@@ -1,5 +1,5 @@
 
-/home/thanhtran/fpga/RV32E/tb/riscv-tests/rv32ui/lbu.S.v2:     file format elf32-littleriscv
+/home/thanhtran/fpga/rv32e/tb/riscv-tests/rv32ui/lbu.S.v2:     file format elf32-littleriscv
 
 
 Disassembly of section .text:
@@ -26,7 +26,7 @@ Disassembly of section .text:
   38:	5391e193          	ori	gp,gp,1337
 
 0000003c <write_tohost>:
-  3c:	8431a023          	sw	gp,-1984(gp) # 2040 <tohost>
+  3c:	8431a023          	sw	gp,-1984(gp) # 1000040 <tohost>
   40:	ffdff06f          	j	3c <write_tohost>
 
 00000044 <reset_vector>:
@@ -71,7 +71,7 @@ Disassembly of section .text:
   dc:	02028293          	addi	t0,t0,32 # f8 <reset_vector+0xb4>
   e0:	30529073          	csrw	mtvec,t0
   e4:	800002b7          	lui	t0,0x80000
-  e8:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7fffd7ff>
+  e8:	fff28293          	addi	t0,t0,-1 # 7fffffff <__global_pointer$+0x7efff7ff>
   ec:	3b029073          	csrw	pmpaddr0,t0
   f0:	01f00293          	li	t0,31
   f4:	3a029073          	csrw	pmpcfg0,t0
@@ -97,7 +97,7 @@ Disassembly of section .text:
  144:	00028a63          	beqz	t0,158 <reset_vector+0x114>
  148:	10529073          	csrw	stvec,t0
  14c:	0000b2b7          	lui	t0,0xb
- 150:	10928293          	addi	t0,t0,265 # b109 <__global_pointer$+0x8909>
+ 150:	10928293          	addi	t0,t0,265 # b109 <pass+0xad11>
  154:	30229073          	csrw	medeleg,t0
  158:	30005073          	csrwi	mstatus,0
  15c:	00000297          	auipc	t0,0x0
@@ -109,8 +109,8 @@ Disassembly of section .text:
 00000170 <test_2>:
  170:	00200193          	li	gp,2
  174:	0ff00793          	li	a5,255
- 178:	00002117          	auipc	sp,0x2
- 17c:	e8810113          	addi	sp,sp,-376 # 2000 <__DATA_BEGIN__>
+ 178:	01000117          	auipc	sp,0x1000
+ 17c:	e8810113          	addi	sp,sp,-376 # 1000000 <__DATA_BEGIN__>
  180:	00014703          	lbu	a4,0(sp)
  184:	0ff00393          	li	t2,255
  188:	24771a63          	bne	a4,t2,3dc <fail>
@@ -118,8 +118,8 @@ Disassembly of section .text:
 0000018c <test_3>:
  18c:	00300193          	li	gp,3
  190:	00000793          	li	a5,0
- 194:	00002117          	auipc	sp,0x2
- 198:	e6c10113          	addi	sp,sp,-404 # 2000 <__DATA_BEGIN__>
+ 194:	01000117          	auipc	sp,0x1000
+ 198:	e6c10113          	addi	sp,sp,-404 # 1000000 <__DATA_BEGIN__>
  19c:	00114703          	lbu	a4,1(sp)
  1a0:	00000393          	li	t2,0
  1a4:	22771c63          	bne	a4,t2,3dc <fail>
@@ -127,8 +127,8 @@ Disassembly of section .text:
 000001a8 <test_4>:
  1a8:	00400193          	li	gp,4
  1ac:	0f000793          	li	a5,240
- 1b0:	00002117          	auipc	sp,0x2
- 1b4:	e5010113          	addi	sp,sp,-432 # 2000 <__DATA_BEGIN__>
+ 1b0:	01000117          	auipc	sp,0x1000
+ 1b4:	e5010113          	addi	sp,sp,-432 # 1000000 <__DATA_BEGIN__>
  1b8:	00214703          	lbu	a4,2(sp)
  1bc:	0f000393          	li	t2,240
  1c0:	20771e63          	bne	a4,t2,3dc <fail>
@@ -136,8 +136,8 @@ Disassembly of section .text:
 000001c4 <test_5>:
  1c4:	00500193          	li	gp,5
  1c8:	00f00793          	li	a5,15
- 1cc:	00002117          	auipc	sp,0x2
- 1d0:	e3410113          	addi	sp,sp,-460 # 2000 <__DATA_BEGIN__>
+ 1cc:	01000117          	auipc	sp,0x1000
+ 1d0:	e3410113          	addi	sp,sp,-460 # 1000000 <__DATA_BEGIN__>
  1d4:	00314703          	lbu	a4,3(sp)
  1d8:	00f00393          	li	t2,15
  1dc:	20771063          	bne	a4,t2,3dc <fail>
@@ -145,8 +145,8 @@ Disassembly of section .text:
 000001e0 <test_6>:
  1e0:	00600193          	li	gp,6
  1e4:	0ff00793          	li	a5,255
- 1e8:	00002117          	auipc	sp,0x2
- 1ec:	e1b10113          	addi	sp,sp,-485 # 2003 <tdat4>
+ 1e8:	01000117          	auipc	sp,0x1000
+ 1ec:	e1b10113          	addi	sp,sp,-485 # 1000003 <tdat4>
  1f0:	ffd14703          	lbu	a4,-3(sp)
  1f4:	0ff00393          	li	t2,255
  1f8:	1e771263          	bne	a4,t2,3dc <fail>
@@ -154,8 +154,8 @@ Disassembly of section .text:
 000001fc <test_7>:
  1fc:	00700193          	li	gp,7
  200:	00000793          	li	a5,0
- 204:	00002117          	auipc	sp,0x2
- 208:	dff10113          	addi	sp,sp,-513 # 2003 <tdat4>
+ 204:	01000117          	auipc	sp,0x1000
+ 208:	dff10113          	addi	sp,sp,-513 # 1000003 <tdat4>
  20c:	ffe14703          	lbu	a4,-2(sp)
  210:	00000393          	li	t2,0
  214:	1c771463          	bne	a4,t2,3dc <fail>
@@ -163,8 +163,8 @@ Disassembly of section .text:
 00000218 <test_8>:
  218:	00800193          	li	gp,8
  21c:	0f000793          	li	a5,240
- 220:	00002117          	auipc	sp,0x2
- 224:	de310113          	addi	sp,sp,-541 # 2003 <tdat4>
+ 220:	01000117          	auipc	sp,0x1000
+ 224:	de310113          	addi	sp,sp,-541 # 1000003 <tdat4>
  228:	fff14703          	lbu	a4,-1(sp)
  22c:	0f000393          	li	t2,240
  230:	1a771663          	bne	a4,t2,3dc <fail>
@@ -172,16 +172,16 @@ Disassembly of section .text:
 00000234 <test_9>:
  234:	00900193          	li	gp,9
  238:	00f00793          	li	a5,15
- 23c:	00002117          	auipc	sp,0x2
- 240:	dc710113          	addi	sp,sp,-569 # 2003 <tdat4>
+ 23c:	01000117          	auipc	sp,0x1000
+ 240:	dc710113          	addi	sp,sp,-569 # 1000003 <tdat4>
  244:	00014703          	lbu	a4,0(sp)
  248:	00f00393          	li	t2,15
  24c:	18771863          	bne	a4,t2,3dc <fail>
 
 00000250 <test_10>:
  250:	00a00193          	li	gp,10
- 254:	00002097          	auipc	ra,0x2
- 258:	dac08093          	addi	ra,ra,-596 # 2000 <__DATA_BEGIN__>
+ 254:	01000097          	auipc	ra,0x1000
+ 258:	dac08093          	addi	ra,ra,-596 # 1000000 <__DATA_BEGIN__>
  25c:	fe008093          	addi	ra,ra,-32
  260:	0200c283          	lbu	t0,32(ra)
  264:	0ff00393          	li	t2,255
@@ -189,8 +189,8 @@ Disassembly of section .text:
 
 0000026c <test_11>:
  26c:	00b00193          	li	gp,11
- 270:	00002097          	auipc	ra,0x2
- 274:	d9008093          	addi	ra,ra,-624 # 2000 <__DATA_BEGIN__>
+ 270:	01000097          	auipc	ra,0x1000
+ 274:	d9008093          	addi	ra,ra,-624 # 1000000 <__DATA_BEGIN__>
  278:	ffa08093          	addi	ra,ra,-6
  27c:	0070c283          	lbu	t0,7(ra)
  280:	00000393          	li	t2,0
@@ -199,8 +199,8 @@ Disassembly of section .text:
 00000288 <test_12>:
  288:	00c00193          	li	gp,12
  28c:	00000213          	li	tp,0
- 290:	00002697          	auipc	a3,0x2
- 294:	d7168693          	addi	a3,a3,-655 # 2001 <tdat2>
+ 290:	01000697          	auipc	a3,0x1000
+ 294:	d7168693          	addi	a3,a3,-655 # 1000001 <tdat2>
  298:	0016c703          	lbu	a4,1(a3)
  29c:	00070313          	mv	t1,a4
  2a0:	0f000393          	li	t2,240
@@ -212,8 +212,8 @@ Disassembly of section .text:
 000002b4 <test_13>:
  2b4:	00d00193          	li	gp,13
  2b8:	00000213          	li	tp,0
- 2bc:	00002697          	auipc	a3,0x2
- 2c0:	d4668693          	addi	a3,a3,-698 # 2002 <tdat3>
+ 2bc:	01000697          	auipc	a3,0x1000
+ 2c0:	d4668693          	addi	a3,a3,-698 # 1000002 <tdat3>
  2c4:	0016c703          	lbu	a4,1(a3)
  2c8:	00000013          	nop
  2cc:	00070313          	mv	t1,a4
@@ -226,8 +226,8 @@ Disassembly of section .text:
 000002e4 <test_14>:
  2e4:	00e00193          	li	gp,14
  2e8:	00000213          	li	tp,0
- 2ec:	00002697          	auipc	a3,0x2
- 2f0:	d1468693          	addi	a3,a3,-748 # 2000 <__DATA_BEGIN__>
+ 2ec:	01000697          	auipc	a3,0x1000
+ 2f0:	d1468693          	addi	a3,a3,-748 # 1000000 <__DATA_BEGIN__>
  2f4:	0016c703          	lbu	a4,1(a3)
  2f8:	00000013          	nop
  2fc:	00000013          	nop
@@ -241,8 +241,8 @@ Disassembly of section .text:
 00000318 <test_15>:
  318:	00f00193          	li	gp,15
  31c:	00000213          	li	tp,0
- 320:	00002697          	auipc	a3,0x2
- 324:	ce168693          	addi	a3,a3,-799 # 2001 <tdat2>
+ 320:	01000697          	auipc	a3,0x1000
+ 324:	ce168693          	addi	a3,a3,-799 # 1000001 <tdat2>
  328:	0016c703          	lbu	a4,1(a3)
  32c:	0f000393          	li	t2,240
  330:	0a771663          	bne	a4,t2,3dc <fail>
@@ -253,8 +253,8 @@ Disassembly of section .text:
 00000340 <test_16>:
  340:	01000193          	li	gp,16
  344:	00000213          	li	tp,0
- 348:	00002697          	auipc	a3,0x2
- 34c:	cba68693          	addi	a3,a3,-838 # 2002 <tdat3>
+ 348:	01000697          	auipc	a3,0x1000
+ 34c:	cba68693          	addi	a3,a3,-838 # 1000002 <tdat3>
  350:	00000013          	nop
  354:	0016c703          	lbu	a4,1(a3)
  358:	00f00393          	li	t2,15
@@ -266,8 +266,8 @@ Disassembly of section .text:
 0000036c <test_17>:
  36c:	01100193          	li	gp,17
  370:	00000213          	li	tp,0
- 374:	00002697          	auipc	a3,0x2
- 378:	c8c68693          	addi	a3,a3,-884 # 2000 <__DATA_BEGIN__>
+ 374:	01000697          	auipc	a3,0x1000
+ 378:	c8c68693          	addi	a3,a3,-884 # 1000000 <__DATA_BEGIN__>
  37c:	00000013          	nop
  380:	00000013          	nop
  384:	0016c703          	lbu	a4,1(a3)
@@ -279,8 +279,8 @@ Disassembly of section .text:
 
 0000039c <test_18>:
  39c:	01200193          	li	gp,18
- 3a0:	00002297          	auipc	t0,0x2
- 3a4:	c6028293          	addi	t0,t0,-928 # 2000 <__DATA_BEGIN__>
+ 3a0:	01000297          	auipc	t0,0x1000
+ 3a4:	c6028293          	addi	t0,t0,-928 # 1000000 <__DATA_BEGIN__>
  3a8:	0002c103          	lbu	sp,0(t0)
  3ac:	00200113          	li	sp,2
  3b0:	00200393          	li	t2,2
@@ -288,8 +288,8 @@ Disassembly of section .text:
 
 000003b8 <test_19>:
  3b8:	01300193          	li	gp,19
- 3bc:	00002297          	auipc	t0,0x2
- 3c0:	c4428293          	addi	t0,t0,-956 # 2000 <__DATA_BEGIN__>
+ 3bc:	01000297          	auipc	t0,0x1000
+ 3c0:	c4428293          	addi	t0,t0,-956 # 1000000 <__DATA_BEGIN__>
  3c4:	0002c103          	lbu	sp,0(t0)
  3c8:	00000013          	nop
  3cc:	00200113          	li	sp,2
