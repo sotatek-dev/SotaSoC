@@ -1,7 +1,7 @@
 import cocotb
 import os
 from test_utils import NOP_INSTR
-from spi_memory_utils import (
+from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
     read_word_from_memory,
@@ -136,7 +136,7 @@ async def test_spi_hex_file(dut):
     def callback(dut, memory):
         nonlocal cycles
         if dut.soc_inst.cpu_core.instr_data.value == 0x00000073:
-            cycles = 5 * 64;
+            cycles = 5 * 18;
             print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
             print("Found ECALL instruction")
         if cycles > 0:

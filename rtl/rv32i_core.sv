@@ -318,8 +318,8 @@ module rv32i_core #(
     assign mem_wdata = ex_mem_rs2_data;
     assign mem_flag = ex_mem_instr[14:12];
     // Only access memory when instruction is ready
-    assign mem_we = instr_ready && ex_mem_mem_we;
-    assign mem_re = instr_ready && ex_mem_mem_re;
+    assign mem_we = ex_mem_mem_we;
+    assign mem_re = ex_mem_mem_re;
     
     assign mem_value = (ex_mem_instr[14:12] == 3'b000) ? {{24{mem_data[7]}}, mem_data[7:0]} :   // LB
                        (ex_mem_instr[14:12] == 3'b001) ? {{16{mem_data[15]}}, mem_data[15:0]} : // LH
@@ -473,7 +473,7 @@ module rv32i_core #(
 
             if (mem_stall || !instr_ready) begin
                 // Stall pipeline
-                if (mem_stall && instr_ready) begin
+                if (mem_stall) begin
                     // Only keep we and re signals for 1 cycle
                     // When the instruction is ready, we start accessing memory (above code) and clear these signals here
                     ex_mem_mem_we <= 1'b0;

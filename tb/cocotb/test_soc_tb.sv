@@ -9,8 +9,8 @@ module test_soc_tb;
     wire flash_cs_n;
     wire ram_cs_n;
     wire spi_sclk;
-    wire spi_mosi;
-    reg spi_miso;
+    reg [3:0] spi_io_in;
+    wire [3:0] spi_io_out;
     wire error_flag;
     
     // Define default values if not provided
@@ -38,8 +38,8 @@ module test_soc_tb;
         .flash_cs_n(flash_cs_n),
         .ram_cs_n(ram_cs_n),
         .spi_sclk(spi_sclk),
-        .spi_mosi(spi_mosi),
-        .spi_miso(spi_miso),
+        .spi_io_in(spi_io_in),
+        .spi_io_out(spi_io_out),
         .error_flag(error_flag)
     );
 

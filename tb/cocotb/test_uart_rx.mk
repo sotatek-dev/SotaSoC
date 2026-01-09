@@ -8,8 +8,9 @@ VERILOG_SOURCES += $(PWD)/rtl/rv32i_core.sv
 VERILOG_SOURCES += $(PWD)/rtl/rv32i_alu.v
 VERILOG_SOURCES += $(PWD)/rtl/rv32i_register.v
 VERILOG_SOURCES += $(PWD)/rtl/rv32i_csr.v
-VERILOG_SOURCES += $(PWD)/rtl/test_mem_ctl.v
+VERILOG_SOURCES += $(PWD)/rtl/mem_ctl.v
 VERILOG_SOURCES += $(PWD)/rtl/soc.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/spi/qspi_master.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_ctl.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_tx.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_rx.v
@@ -19,7 +20,7 @@ COMPILE_ARGS += -g2012 -I$(PWD)/rtl -DSIMULATION
 
 # Pass HEX_FILE parameter to simulation if provided
 ifdef HEX_FILE
-    PLUSARGS += +HEX_FILE=$(HEX_FILE)
+    export HEX_FILE
 endif
 
 # TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
@@ -32,7 +33,7 @@ MODULE = test_uart_rx
 export PYTHONPATH := $(PWD)/tb/cocotb:$(PYTHONPATH)
 
 # Set a unique build directory for this test
-SIM_BUILD = sim_build_alu
+SIM_BUILD = sim_build_spi_mem
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim

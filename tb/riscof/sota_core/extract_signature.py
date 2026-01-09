@@ -40,7 +40,6 @@ def log_message(msg):
     except:
         pass
 
-# Note: We'll use load_hex_file and read_word_from_memory from spi_memory_utils
 # in the generated cocotb test
 
 def get_symbol_address(elf_file, symbol_name):
@@ -74,7 +73,6 @@ def get_symbol_address(elf_file, symbol_name):
         log_message(f"[{time.strftime('%H:%M:%S')}] Error getting symbol address: {e}\n")
         return None
 
-# Note: load_hex_file will be imported from spi_memory_utils
 
 def extract_signature_from_memory(memory, begin_addr, end_addr):
     """Extract signature from memory between begin_addr and end_addr"""

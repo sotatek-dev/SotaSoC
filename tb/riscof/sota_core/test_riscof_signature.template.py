@@ -6,7 +6,7 @@ import os
 
 # Add project cocotb directory to path
 sys.path.insert(0, os.path.join(r"{PROJECT_ROOT}", "tb", "cocotb"))
-from spi_memory_utils import load_hex_file, read_word_from_memory, test_spi_memory
+from qspi_memory_utils import load_hex_file, read_word_from_memory, test_spi_memory
 
 hex_file = r"{HEX_FILE}"
 begin_addr = {BEGIN_ADDR}

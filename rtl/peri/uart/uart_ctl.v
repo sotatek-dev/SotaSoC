@@ -10,13 +10,15 @@
 module uart_ctl (
     input wire clk,
     input wire rst_n,
-    
+
+    input wire uart_request,
+
     // Memory-mapped interface
     input wire [31:0] mem_addr,
     input wire [31:0] mem_wdata,
     input wire mem_we,
     input wire mem_re,
-    output reg [31:0] mem_rdata,
+    output wire [31:0] mem_rdata,
     
     // UART TX interface
     output wire uart_tx_en,
@@ -42,76 +44,6 @@ module uart_ctl (
     assign uart_tx_data = uart_tx_data_reg;
     assign uart_rx_en = uart_rx_en_reg;
 
-    // UART Register Write Macros
-    `define UART_WRITE_TX_DATA(wdata) \
-        begin \
-            uart_tx_data_reg <= wdata[7:0]; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - TX Data Write: data=0x%02h (%c)", \
-                    $time, wdata[7:0], wdata[7:0])); \
-        end
-
-    `define UART_WRITE_CONTROL(wdata) \
-        begin \
-            uart_tx_en_reg <= wdata[1]; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - Control Write: ctrl=0x%08h", \
-                    $time, wdata)); \
-        end
-
-    `define UART_WRITE_RX_DATA_IGNORED(wdata) \
-        begin \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - RX Data Write: ignored", $time)); \
-        end
-
-    `define UART_WRITE_RX_CONTROL(wdata) \
-        begin \
-            uart_rx_valid_reg <= wdata[0]; \
-            uart_rx_en_reg <= wdata[1]; \
-            uart_rx_break_reg <= wdata[2]; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - RX Control Write: ctrl=0x%08h", \
-                    $time, wdata)); \
-        end
-
-    `define UART_WRITE_RESERVED(addr, wdata) \
-        begin \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - Reserved register write: addr=0x%08h, data=0x%08h", \
-                    $time, addr, wdata)); \
-        end
-
-    // UART Register Read Macros
-    `define UART_READ_TX_DATA(rdata) \
-        begin \
-            rdata <= 32'h00000000; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - TX Data Read (write-only): data=0x00000000", $time)); \
-        end
-
-    `define UART_READ_CONTROL(rdata) \
-        begin \
-            rdata <= {31'b0, uart_tx_busy}; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - Control Read: ctrl=0x%08h, busy=%b", \
-                    $time, {31'b0, uart_tx_busy}, uart_tx_busy)); \
-        end
-
-    `define UART_READ_RX_DATA(rdata) \
-        begin \
-            rdata <= {24'b0, uart_rx_data}; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - RX Data Read: data=0x%08h", \
-                    $time, {24'b0, uart_rx_data})); \
-        end
-
-    `define UART_READ_RX_CONTROL(rdata) \
-        begin \
-            rdata <= {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg}; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - RX Control Read: ctrl=0x%08h", \
-                    $time, {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg})); \
-        end
-
-    `define UART_READ_RESERVED(rdata, addr) \
-        begin \
-            rdata <= 32'h00000000; \
-            `DEBUG_PRINT(("Time %0t: UART_MEM - Reserved register read: addr=0x%08h, data=0x00000000", \
-                    $time, addr)); \
-        end
-
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             uart_tx_data_reg <= 8'h0;
@@ -119,7 +51,6 @@ module uart_ctl (
             uart_rx_en_reg <= 1'b0;
             uart_rx_break_reg <= 1'b0;
             uart_rx_valid_reg <= 1'b0;
-            mem_rdata <= 32'h0;
         end else begin
             // Default values
             uart_tx_en_reg <= 1'b0;
@@ -130,29 +61,53 @@ module uart_ctl (
             end
             
             // Handle memory requests
-            if (mem_we || mem_re) begin
-                if (mem_we) begin
-                    // Write operations
-                    case (mem_addr[3:0])
-                        4'h0: `UART_WRITE_TX_DATA(mem_wdata)
-                        4'h4: `UART_WRITE_CONTROL(mem_wdata)
-                        4'h8: `UART_WRITE_RX_DATA_IGNORED(mem_wdata)
-                        4'hC: `UART_WRITE_RX_CONTROL(mem_wdata)
-                        default: `UART_WRITE_RESERVED(mem_addr, mem_wdata)
-                    endcase
-                end else begin
-                    // Read operations
-                    case (mem_addr[3:0])
-                        4'h0: `UART_READ_TX_DATA(mem_rdata)
-                        4'h4: `UART_READ_CONTROL(mem_rdata)
-                        4'h8: `UART_READ_RX_DATA(mem_rdata)
-                        4'hC: `UART_READ_RX_CONTROL(mem_rdata)
-                        default: `UART_READ_RESERVED(mem_rdata, mem_addr)
-                    endcase
-                end
+            if (uart_request && mem_we) begin
+                // Write operations
+                case (mem_addr[3:0])
+                    4'h0: uart_tx_data_reg <= mem_wdata[7:0];
+                    4'h4: uart_tx_en_reg <= mem_wdata[1];
+                    4'h8: ;
+                    4'hC: begin
+                            uart_rx_valid_reg <= mem_wdata[0];
+                            uart_rx_en_reg <= mem_wdata[1];
+                            uart_rx_break_reg <= mem_wdata[2];
+                            
+                        end
+                    default: ;
+                endcase
+
+                case (mem_addr[3:0])
+                    4'h0: `DEBUG_PRINT(("Time %0t: UART_MEM - TX Data Write: data=0x%02h (%c)",
+                                $time, mem_wdata[7:0], mem_wdata[7:0]));
+                    4'h4: `DEBUG_PRINT(("Time %0t: UART_MEM - Control Write: ctrl=0x%08h", $time, mem_wdata));
+                    4'h8: `DEBUG_PRINT(("Time %0t: UART_MEM - Invalid write address: addr=0x%08h", $time, mem_addr));
+                    4'hC: `DEBUG_PRINT(("Time %0t: UART_MEM - RX Control Write: ctrl=0x%08h", $time, mem_wdata));
+                    default: `DEBUG_PRINT(("Time %0t: UART_MEM - Invalid write address: addr=0x%08h", $time, mem_addr));
+                endcase
             end
         end
     end
 
+    wire [31:0] uart_mem_rdata = (mem_addr[3:0] == 4'h0) ? 32'h00000000 :
+                                (mem_addr[3:0] == 4'h4) ? {31'b0, uart_tx_busy} :
+                                (mem_addr[3:0] == 4'h8) ? {24'b0, uart_rx_data} :
+                                (mem_addr[3:0] == 4'hC) ? {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg} :
+                                32'h00000000;
+    assign mem_rdata = (uart_request && mem_re) ? uart_mem_rdata : 32'h00000000;
+
+    always @(*) begin
+        if (uart_request && mem_re) begin
+            case (mem_addr[3:0])
+                4'h0: `DEBUG_PRINT(("Time %0t: UART_MEM - TX Data Read (write-only): data=0x00000000", $time));
+                4'h4: `DEBUG_PRINT(("Time %0t: UART_MEM - Control Read: ctrl=0x%08h, busy=%b",
+                                    $time, {31'b0, uart_tx_busy}, uart_tx_busy));
+                4'h8: `DEBUG_PRINT(("Time %0t: UART_MEM - RX Data Read: data=0x%08h",
+                                    $time, {24'b0, uart_rx_data}));
+                4'hC: `DEBUG_PRINT(("Time %0t: UART_MEM - RX Control Read: ctrl=0x%08h",
+                                    $time, {29'b0, uart_rx_break_reg, uart_rx_en_reg, uart_rx_valid_reg}));
+                default: `DEBUG_PRINT(("Time %0t: UART_MEM - Invalid read address: addr=0x%08h", $time, mem_addr));
+            endcase
+        end
+    end
 endmodule
 
