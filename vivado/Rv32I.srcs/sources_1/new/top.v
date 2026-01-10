@@ -48,9 +48,7 @@ generate
 endgenerate
 
 soc #(
-    .CLK_HZ(20000000),
-    .FLASH_SIZE(32'h00020000),
-    .PSRAM_SIZE(32'h00020000)
+    .CLK_HZ(20000000)
 ) soc_ins(
     .clk(clk),
     .rst_n(rst_n),

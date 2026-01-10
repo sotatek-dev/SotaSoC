@@ -11,3 +11,10 @@ download.sh
 venv
 __pycache__
 riscof_work
+
+vivado/Rv32I.cache
+vivado/Rv32I.gen
+vivado/Rv32I.hw
+vivado/Rv32I.ip_user_files
+vivado/Rv32I.runs
+vivado/Rv32I.sim
