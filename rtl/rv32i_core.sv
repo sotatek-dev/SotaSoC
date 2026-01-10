@@ -37,6 +37,8 @@ module rv32i_core #(
     output wire error_flag            // Error flag
 );
 
+    localparam PC_FLUSH_ADDR = 32'hF0000000;
+
     // Pipeline registers
     reg [31:0] if_id_instr, if_id_pc;
 
@@ -254,7 +256,7 @@ module rv32i_core #(
     // 5. We're not in the middle of handling an exception or interrupt
     
     // Check for timer interrupt (MTIP = bit 7 of mip, MTIE = bit 7 of mie)
-    wire int_timer_pending = csr_mip[7] && csr_mie[7] && csr_mstatus[3];  // MIE bit
+    wire int_timer_pending = csr_mip[7] && csr_mie[7];  // MIE bit
     
     // Interrupt is pending if any enabled interrupt is pending
     assign int_pending = int_timer_pending;
@@ -263,12 +265,16 @@ module rv32i_core #(
     // Interrupt cause: bit 31 = 1 (interrupt), bits [3:0] = interrupt ID
     // Timer interrupt ID = 7 (MTIP)
     assign int_cause_next = {1'b1, 30'd0, 1'b0, 3'd7};  // 0x80000007
-    assign int_pc_next = if_id_pc;  // PC of instruction that would execute next
     
-    // Interrupt should be taken in IF/ID stage (before instruction executes)
+    // When an interrupt is detected, we need to flush IF/ID, ID/EX, and EX/MEM stages.
+    // So that the next instruction will be executed after interrupt is handled is id_ex_pc.
+    // There is an edge case that the branch instruction in pipeline, id_ex_pc is filled with PC_FLUSH_ADDR,
+    // in that case, we need to wait one more cycle to get the correct pc.
     // Check if interrupt is pending and enabled, and we're not already handling an exception/interrupt
     // Also check that we're not in a memory stall or waiting for instruction
+    assign int_pc_next = id_ex_pc;  // PC of instruction that would execute next
     assign int_is_interrupt = int_pending && int_enabled
+                                && (id_ex_pc != PC_FLUSH_ADDR)
                                 && !mem_stall && instr_ready
                                 && !exception_trigger &&!id_ex_is_exception;
 
@@ -528,8 +534,11 @@ module rv32i_core #(
                 end
             end else begin
                 // Pipeline stage 1: Instruction Fetch
-                // If load_use_hazard is detected, keep the same instruction in IF/ID stage, don't increment PC
-                if (!load_use_hazard) begin
+                if (load_use_hazard) begin
+                    // If load_use_hazard is detected, keep the same instruction in IF/ID stage, don't increment PC
+                    `DEBUG_PRINT(("Time %0t: Keep current IF/ID stage, load_use_hazard=%b", $time, load_use_hazard));
+                end else begin
+                    // Normal execution: update pc and instruction
                     pc <= pc_next;
                     if_id_instr <= instr_data;
                     if_id_pc <= pc;
@@ -578,15 +587,18 @@ module rv32i_core #(
 
                 // If branch_hazard, exception, interrupt, or mret is detected, flush IF/ID stage with NOP
                 if (branch_hazard || id_ex_is_exception || int_is_interrupt || id_ex_is_mret) begin
-                    `DEBUG_PRINT(("Time %0t: IF/ID - Flushing with NOP", $time));
+                    `DEBUG_PRINT(("Time %0t: IF/ID - Flushing with NOP, branch_hazard=%b, id_ex_is_exception=%b, int_is_interrupt=%b, id_ex_is_mret=%b",
+                                $time, branch_hazard, id_ex_is_exception, int_is_interrupt, id_ex_is_mret));
                     if_id_instr <= 32'h00000013; // NOP instruction
-                    if_id_pc <= 32'h00000000;    // Invalid PC
+                    if_id_pc <= PC_FLUSH_ADDR;
                     
                 end
                 // If load_use_hazard, branch_hazard, exception, interrupt, or mret is detected, flush ID/EX stage with NOP
-                if (branch_hazard == 1'b1 || load_use_hazard == 1'b1 || id_ex_is_exception == 1'b1 || int_is_interrupt == 1'b1 || id_ex_is_mret == 1'b1) begin
+                if (branch_hazard || load_use_hazard || id_ex_is_exception || int_is_interrupt || id_ex_is_mret) begin
+                    `DEBUG_PRINT(("Time %0t: ID/EX - Flushing with NOP, branch_hazard=%b, load_use_hazard=%b, id_ex_is_exception=%b, int_is_interrupt=%b, id_ex_is_mret=%b",
+                                $time, branch_hazard, load_use_hazard, id_ex_is_exception, int_is_interrupt, id_ex_is_mret));
                     id_ex_instr <= 32'h00000013;
-                    id_ex_pc <= 32'h00000000;
+                    id_ex_pc <= PC_FLUSH_ADDR;
                     id_ex_rs1_addr <= 5'd0;
                     id_ex_rs2_addr <= 5'd0;
                     id_ex_rd_addr <= 5'd0;
@@ -634,6 +646,23 @@ module rv32i_core #(
                 ex_mem_csr_addr <= id_ex_csr_addr;
                 ex_mem_csr_op <= id_ex_csr_op;
                 ex_mem_csr_we <= id_ex_csr_we;
+
+                if (int_is_interrupt) begin
+                    `DEBUG_PRINT(("Time %0t: EX/MEM - Flushing with interrupt, int_is_interrupt=%b", $time, int_is_interrupt));
+                    ex_mem_result <= mtvec;
+                    ex_mem_rs1_data <= 32'd0;
+                    ex_mem_rs2_data <= 32'd0;
+                    ex_mem_pc <= PC_FLUSH_ADDR;
+                    ex_mem_instr <= 32'h00000013; // NOP instruction
+                    ex_mem_rd_addr <= 5'd0;
+                    ex_mem_mem_we <= 1'b0;
+                    ex_mem_mem_re <= 1'b0;
+                    ex_mem_reg_we <= 1'b0;
+
+                    ex_mem_csr_addr <= 12'd0;
+                    ex_mem_csr_op <= 3'd0;
+                    ex_mem_csr_we <= 1'b0;
+                end
 
                 // Exception handling - assign combinational logic results
                 exception_trigger <= id_ex_is_exception || int_is_interrupt;
@@ -975,6 +1004,11 @@ module rv32i_core #(
         if (id_ex_is_exception) begin
             `DEBUG_PRINT(("Time %0t: EX - Exception: cause=0x%h, pc=0x%h, value=0x%h", 
                      $time, exception_cause_next, exception_pc_next, exception_value_next));
+        end
+
+        if (int_is_interrupt) begin
+            `DEBUG_PRINT(("Time %0t: EX - Interrupt: cause=0x%h, pc=0x%h", 
+                     $time, int_cause_next, int_pc_next));
         end
 
         // Log memory operations

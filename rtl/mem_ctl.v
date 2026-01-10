@@ -182,6 +182,7 @@ module mem_ctl #(
     wire uart_request = data_request && mem_addr[31:8] == UART_BASE_ADDR[31:8];
     wire gpio_request = data_request && mem_addr[31:8] == GPIO_BASE_ADDR[31:8];
     wire timer_request = data_request && mem_addr[31:8] == TIMER_BASE_ADDR[31:8];
+    wire peripheral_request = uart_request || gpio_request || timer_request;
 
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE || ACCESS_PAUSE);
@@ -223,13 +224,13 @@ module mem_ctl #(
             // Mem ctl logic:
             // 1. data accesses are sequential, a data access cannot be started when another data access is ongoing
             //     So if start_data_access is true, we are sure that current state must be ACCESS_IDLE or fetching instruction
-            // 2. If there is data access and it is uart or gpio access, we return data immediately and do not change any state.
+            // 2. If there is data access and it is peripheral access, we return data immediately and do not change any state.
             //    It lets current instruction fetch (if any) continue.
-            // 3. If there is data access and it is not uart or gpio access,
+            // 3. If there is data access and it is not peripheral access,
             //      if there is a ongoing instruction fetch, we stop it and start data access.
             //      otherwise, we start data access as normal.
             // 4. If there is instruction fetch, we start instruction fetch or getch next instruction as normal.
-            if (start_data_access && (uart_request || gpio_request)) begin
+            if (start_data_access && peripheral_request) begin
                 if (uart_request) begin
                     // UART requests are handled by uart_ctl module
                     // Just forward the response

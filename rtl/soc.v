@@ -19,7 +19,8 @@ module soc #(
     parameter UART_BASE_ADDR = 32'h40000000,
     parameter UART_BIT_RATE = 115200,
     parameter GPIO_BASE_ADDR = 32'h40001000,
-    parameter GPIO_SIZE = 5
+    parameter GPIO_SIZE = 5,
+    parameter TIMER_BASE_ADDR = 32'h40002000
 ) (
     input wire clk,
     input wire rst_n,
@@ -117,7 +118,8 @@ module soc #(
         .PSRAM_BASE_ADDR(PSRAM_BASE_ADDR),
         .UART_BASE_ADDR(UART_BASE_ADDR),
         .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
-        .GPIO_SIZE(GPIO_SIZE)
+        .GPIO_SIZE(GPIO_SIZE),
+        .TIMER_BASE_ADDR(TIMER_BASE_ADDR)
     ) mem_ctrl (
         .clk(clk),
         .rst_n(rst_n),

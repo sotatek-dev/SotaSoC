@@ -36,6 +36,37 @@ def encode_lui(rd, imm20):
     return (imm20 << 12) | (rd << 7) | 0x37
 
 
+def encode_jal(rd, imm20):
+    """Encode JAL instruction: rd = PC + 4, PC = PC + imm20
+    imm20 is the byte offset (must be multiple of 2, LSB is ignored)"""
+    # JAL format: imm[20|10:1|11|19:12] | rd[11:0] | opcode
+    # Sign-extend to 32 bits first
+    if imm20 & 0x100000:
+        imm = imm20 | 0xFFE00000  # Sign extend negative
+    else:
+        imm = imm20 & 0x1FFFFF  # Positive, mask to 21 bits
+    # Extract bits from the original immediate
+    imm20_bit = (imm >> 20) & 0x1
+    imm10_1 = (imm >> 1) & 0x3FF  # bits [10:1]
+    imm11_bit = (imm >> 11) & 0x1
+    imm19_12 = (imm >> 12) & 0xFF  # bits [19:12]
+    return (imm20_bit << 31) | (imm19_12 << 12) | (imm11_bit << 20) | (imm10_1 << 21) | (rd << 7) | 0x6F
+
+
+def encode_csrrw(rd, csr, rs1):
+    """Encode CSRRW instruction: rd = CSR[csr]; CSR[csr] = rs1"""
+    return (csr << 20) | (rs1 << 15) | (0x1 << 12) | (rd << 7) | 0x73
+
+
+# CSR addresses
+CSR_MSTATUS = 0x300
+CSR_MIE = 0x304
+CSR_MTVEC = 0x305
+
+# Instruction encodings
+MRET_INSTR = 0x30200073   # MRET: opcode=0x73, funct3=0, imm12=0x302
+
+
 @cocotb.test()
 async def test_timer_read_mtime(dut):
     """Test reading mtime register - should increment every clock cycle"""
@@ -194,3 +225,158 @@ async def test_timer_interrupt(dut):
 
     await test_spi_memory(dut, memory, max_cycles, callback)
 
+def get_timer_trap_handler_memory():
+    # Trap handler address
+    trap_handler_addr = 0x00000100
+    # Test function address
+    test_func_addr = 0x00000030
+    
+    hex_memory = {
+        0x00000000: NOP_INSTR,
+        # Setup: set mtvec to point to trap handler
+        0x00000004: encode_lui(11, (trap_handler_addr >> 12) & 0xFFFFF),  # LUI x11, upper bits
+        0x00000008: encode_addi(11, 11, trap_handler_addr & 0xFFF),  # ADDI x11, x11, lower bits
+        0x0000000C: encode_csrrw(0, CSR_MTVEC, 11),  # CSRRW x0, mtvec, x11 (set mtvec)
+
+        # Enable timer interrupts: set MTIE (bit 7 of mie) and MIE (bit 3 of mstatus)
+        0x00000010: encode_addi(12, 12, 0x80),  # ADDI x12, x0, 0x80 (MTIE bit 7)
+        0x00000014: encode_csrrw(0, CSR_MIE, 12),  # CSRRW x0, mie, x12 (enable MTIE)
+        0x00000018: encode_addi(12, 12, 0x8),  # ADDI x12, x0, 0x8 (MIE bit 3)
+        0x0000001C: encode_csrrw(0, CSR_MSTATUS, 12),  # CSRRW x0, mstatus, x12 (enable MIE)
+        0x00000020: NOP_INSTR,
+        0x00000024: NOP_INSTR,
+        # Jump to test function
+        0x00000028: encode_jal(0, test_func_addr - 0x00000028),  # JAL x0, offset to test function
+        0x0000002C: NOP_INSTR,
+        # Test function
+        0x00000030: encode_addi(1, 1, 1),  # ADDI x1, x0, 1
+        0x00000034: encode_addi(2, 2, 2),  # ADDI x2, x0, 2
+        0x00000038: encode_addi(3, 3, 3),  # ADDI x3, x0, 3
+        0x0000003C: encode_addi(4, 4, 4),  # ADDI x4, x0, 4
+        0x00000040: encode_addi(5, 5, 5),  # ADDI x5, x0, 5
+        0x00000044: encode_addi(6, 6, 6),  # ADDI x6, x0, 6
+        0x00000048: NOP_INSTR,
+        0x0000004C: NOP_INSTR,
+        0x00000050: NOP_INSTR,
+        0x00000054: NOP_INSTR,
+        0x00000058: NOP_INSTR,
+        0x0000005C: NOP_INSTR,
+        0x00000060: NOP_INSTR,
+        # Trap handler
+        0x00000100: encode_addi(14, 14, 14),  # ADDI x14, x0, 14
+        0x00000104: encode_addi(15, 15, 15),  # ADDI x15, x0, 15
+        # Set mtimecmp to 0x0F000000
+        0x00000108: encode_lui(9, (TIMER_BASE_ADDR >> 12) & 0xFFFFF),  # LUI x9, timer base upper bits
+        0x0000010C: encode_addi(9, 9, TIMER_BASE_ADDR & 0xFFF),  # ADDI x9, x9, timer base lower bits
+        0x00000110: encode_lui(10, 0x0F000),  # LUI x10, 0x0F000 (x10 = 0x0F000000)
+        0x00000114: encode_store(9, 10, 0x8),  # SW x10, 8(x9) - write mtimecmp[31:0] = 0x0F000000
+        0x00000118: encode_store(9, 10, 0xC),  # SW x10, 12(x9) - write mtimecmp[47:32] = 0
+        0x0000011C: MRET_INSTR,  # MRET - return from trap
+        0x00000120: NOP_INSTR,
+    }
+
+    return hex_memory
+
+async def test_timer_trap_handler(dut, hex_memory, timer_hit_position):
+    """Test timer interrupt with trap handler and test function"""
+
+    timer_hit = False
+    
+    
+    max_cycles = 7000
+
+    memory = convert_hex_memory_to_byte_memory(hex_memory)
+    
+    def callback(dut, memory):
+        nonlocal timer_hit
+
+        if dut.soc_inst.cpu_core.instr_addr.value == timer_hit_position and not timer_hit:
+            timer_hit = True
+            dut.soc_inst.timer_inst.mtimecmp.value = 0x00000050
+            dut.soc_inst.cpu_core.mtime_counter.value = 0x00000050
+
+        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000060:
+            registers = dut.soc_inst.cpu_core.register_file.registers
+            
+            assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"
+            
+            assert registers[1].value.to_unsigned() == 1, \
+                f"x1 should be 1 after trap handler, got {registers[1].value.to_unsigned()}"
+            assert registers[2].value.to_unsigned() == 2, \
+                f"x2 should be 2 after trap handler, got {registers[2].value.to_unsigned()}"
+            assert registers[3].value.to_unsigned() == 3, \
+                f"x3 should be 3 after trap handler, got {registers[3].value.to_unsigned()}"
+            assert registers[4].value.to_unsigned() == 4, \
+                f"x4 should be 4 after trap handler, got {registers[4].value.to_unsigned()}"
+            assert registers[5].value.to_unsigned() == 5, \
+                f"x5 should be 5 after trap handler, got {registers[5].value.to_unsigned()}"
+            assert registers[6].value.to_unsigned() == 6, \
+                f"x6 should be 6 after trap handler, got {registers[6].value.to_unsigned()}"
+            assert registers[14].value.to_unsigned() == 14, \
+                f"x14 should be 14 after trap handler, got {registers[14].value.to_unsigned()}"
+            assert registers[15].value.to_unsigned() == 15, \
+                f"x15 should be 15 after trap handler, got {registers[15].value.to_unsigned()}"
+            
+            return True
+        return False
+    
+    await test_spi_memory(dut, memory, max_cycles, callback)
+
+
+@cocotb.test()
+async def test_timer_trap_handler_1(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    await test_timer_trap_handler(dut, hex_memory, 0x00000030)
+
+@cocotb.test()
+async def test_timer_trap_handler_2(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    await test_timer_trap_handler(dut, hex_memory, 0x00000034)
+
+@cocotb.test()
+async def test_timer_trap_handler_3(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    await test_timer_trap_handler(dut, hex_memory, 0x00000038)
+
+@cocotb.test()
+async def test_timer_trap_handler_4(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    await test_timer_trap_handler(dut, hex_memory, 0x0000003C)
+
+@cocotb.test()
+async def test_timer_trap_handler_5(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    await test_timer_trap_handler(dut, hex_memory, 0x00000040)
+
+@cocotb.test()
+async def test_timer_trap_handler_6(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    await test_timer_trap_handler(dut, hex_memory, 0x00000044)
+
+@cocotb.test()
+async def test_timer_trap_handler_7(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    hex_memory[0x00000020] = encode_jal(0, 0x30 - 0x20)  # JAL x0, offset to test function
+    hex_memory[0x00000024] = NOP_INSTR
+    hex_memory[0x00000028] = NOP_INSTR
+    hex_memory[0x0000002C] = NOP_INSTR
+    await test_timer_trap_handler(dut, hex_memory, 0x00000030)
+
+@cocotb.test()
+async def test_timer_trap_handler_8(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    hex_memory[0x00000020] = NOP_INSTR
+    hex_memory[0x00000024] = encode_jal(0, 0x30 - 0x24)  # JAL x0, offset to test function
+    hex_memory[0x00000028] = NOP_INSTR
+    hex_memory[0x0000002C] = NOP_INSTR
+    await test_timer_trap_handler(dut, hex_memory, 0x00000030)
+
+
+@cocotb.test()
+async def test_timer_trap_handler_9(dut):
+    hex_memory = get_timer_trap_handler_memory()
+    hex_memory[0x00000020] = NOP_INSTR
+    hex_memory[0x00000024] = NOP_INSTR
+    hex_memory[0x00000028] = NOP_INSTR
+    hex_memory[0x0000002C] = encode_jal(0, 0x30 - 0x2C)  # JAL x0, offset to test function
+    await test_timer_trap_handler(dut, hex_memory, 0x00000030)
