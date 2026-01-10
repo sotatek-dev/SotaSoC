@@ -17,6 +17,7 @@ VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/spi/qspi_master.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_ctl.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_tx.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_rx.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/timer/mtime_timer.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 -I$(PROJECT_ROOT)/rtl -DSIMULATION

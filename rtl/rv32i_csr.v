@@ -15,19 +15,23 @@ module rv32i_csr (
     output reg csr_illegal,          // Illegal CSR access
 
     // Counter inputs (for cycle, time, instret)
-    input wire [31:0] cycle_count,
-    input wire [31:0] instret_count,
+    input wire [47:0] mtime,
 
     // Exception interface
     input wire exception_trigger,       // Trigger exception handling
     input wire [31:0] exception_cause,  // Exception cause code
     input wire [31:0] exception_pc,     // PC of instruction causing exception
     input wire [31:0] exception_value,  // Value for mtval
-    output wire [31:0] mtvec_out,       // Output mtvec for PC redirection
-    
-    // MRET interface
+
     input wire mret_trigger,            // Trigger MRET handling
-    output wire [31:0] mepc_out         // Output mepc for PC redirection
+    output wire [31:0] mstatus_out,     // Current mstatus value
+    output wire [31:0] mie_out,         // Current mie value
+    output wire [31:0] mtvec_out,       // Output mtvec for PC redirection
+    output wire [31:0] mepc_out,        // Output mepc for PC redirection
+    output wire [31:0] mip_out,         // Current mip value
+
+    // Interrupt interface
+    input wire timer_interrupt          // Machine timer interrupt (MTIP)
 );
 
     // CSR register definitions
@@ -40,20 +44,18 @@ module rv32i_csr (
     reg [31:0] mepc;         // 0x341 - Machine exception program counter
     reg [31:0] mcause;       // 0x342 - Machine trap cause
     reg [31:0] mtval;        // 0x343 - Machine trap value
-    reg [31:0] mip;          // 0x344 - Machine interrupt pending
     // Note: medeleg (0x302), mideleg (0x303), satp (0x180), pmpcfg0 (0x3a0), pmpaddr0 (0x3b0),
     // mvendorid (0xf11), marchid (0xf12), mimpid (0xf13), mhartid (0xf14)
     // are writable but always return 0 when read
 
-    // Read-only counters (shadow copies for atomicity)
-    reg [31:0] cycle;        // 0xc00 - Cycle counter
-    reg [31:0] instret;      // 0xc02 - Instructions retired counter
+    // mip[7] = timer interrupt pending (MTIP)
+    wire [31:0] mip = {24'h0, timer_interrupt, 7'h0};
 
-    // Output mtvec for exception handling
-    assign mtvec_out = mtvec;
-    
-    // Output mepc for MRET
-    assign mepc_out = mepc;
+    assign mstatus_out = mstatus;
+    assign mie_out = mie;
+    assign mtvec_out = mtvec; // Output mtvec for exception handling
+    assign mepc_out = mepc; // Output mepc for MRET
+    assign mip_out = mip;
 
     // CSR read operation
     always @(*) begin
@@ -82,14 +84,14 @@ module rv32i_csr (
             12'h3b0: csr_rdata = 32'd0;        // PMPADDR0
 
             // Read-only counters
-            12'hc00: csr_rdata = cycle;        // CYCLE
-            12'hc01: csr_rdata = cycle;        // TIME
-            12'hc02: csr_rdata = instret;      // INSTRET
+            12'hc00: csr_rdata = mtime[31:0];       // CYCLE
+            12'hc01: csr_rdata = mtime[31:0];       // TIME
+            12'hc02: csr_rdata = mtime[31:0];       // INSTRET
             
-            // Read-only counter upper halves (for 64-bit counters, return 0 for 32-bit)
-            12'hc80: csr_rdata = 32'd0;        // CYCLEH
-            12'hc81: csr_rdata = 32'd0;        // TIMEH
-            12'hc82: csr_rdata = 32'd0;        // INSTRETH
+            // Read-only counter upper halves
+            12'hc80: csr_rdata = {16'd0, mtime[47:32]};        // CYCLEH
+            12'hc81: csr_rdata = {16'd0, mtime[47:32]};        // TIMEH
+            12'hc82: csr_rdata = {16'd0, mtime[47:32]};        // INSTRETH
 
             // Machine Information CSRs
             12'hf11: csr_rdata = 32'd0;        // MVENDORID
@@ -115,14 +117,8 @@ module rv32i_csr (
             mepc <= 32'd0;
             mcause <= 32'd0;
             mtval <= 32'd0;
-            mip <= 32'd0;
-            cycle <= 32'd0;
-            instret <= 32'd0;
             `DEBUG_PRINT(("Time %0t: CSR - CSR file reset", $time));
         end else begin
-            // Update counters from external inputs
-            cycle <= cycle_count;
-            instret <= instret_count;
 
             // Handle exceptions (takes priority over CSR writes)
             if (exception_trigger) begin
@@ -163,7 +159,7 @@ module rv32i_csr (
                             12'h341: mepc <= csr_wdata;
                             12'h342: mcause <= csr_wdata;
                             12'h343: mtval <= csr_wdata;
-                            12'h344: mip <= csr_wdata;
+                            12'h344: ; // MIP
                             12'h180: ; // SATP
                             12'h3a0: ; // PMPCFG0
                             12'h3b0: ; // PMPADDR0
@@ -186,7 +182,7 @@ module rv32i_csr (
                             12'h341: mepc <= mepc | csr_wdata;
                             12'h342: mcause <= mcause | csr_wdata;
                             12'h343: mtval <= mtval | csr_wdata;
-                            12'h344: mip <= mip | csr_wdata;
+                            12'h344: ; // MIP
                             12'h180: ; // SATP
                             12'h3a0: ; // PMPCFG0
                             12'h3b0: ; // PMPADDR0
@@ -208,7 +204,7 @@ module rv32i_csr (
                             12'h341: mepc <= mepc & ~csr_wdata;
                             12'h342: mcause <= mcause & ~csr_wdata;
                             12'h343: mtval <= mtval & ~csr_wdata;
-                            12'h344: mip <= mip & ~csr_wdata;
+                            12'h344: ; // MIP
                             12'h180: ; // SATP
                             12'h3a0: ; // PMPCFG0
                             12'h3b0: ; // PMPADDR0
@@ -230,7 +226,7 @@ module rv32i_csr (
                             12'h341: mepc <= {27'd0, csr_wdata[4:0]};
                             12'h342: mcause <= {27'd0, csr_wdata[4:0]};
                             12'h343: mtval <= {27'd0, csr_wdata[4:0]};
-                            12'h344: mip <= {27'd0, csr_wdata[4:0]};
+                            12'h344: ; // MIP
                             12'h180: ; // SATP
                             12'h3a0: ; // PMPCFG0
                             12'h3b0: ; // PMPADDR0
@@ -252,7 +248,7 @@ module rv32i_csr (
                             12'h341: mepc <= mepc | {27'd0, csr_wdata[4:0]};
                             12'h342: mcause <= mcause | {27'd0, csr_wdata[4:0]};
                             12'h343: mtval <= mtval | {27'd0, csr_wdata[4:0]};
-                            12'h344: mip <= mip | {27'd0, csr_wdata[4:0]};
+                            12'h344: ; // MIP
                             12'h180: ; // SATP
                             12'h3a0: ; // PMPCFG0
                             12'h3b0: ; // PMPADDR0
@@ -274,7 +270,7 @@ module rv32i_csr (
                             12'h341: mepc <= mepc & ~{27'd0, csr_wdata[4:0]};
                             12'h342: mcause <= mcause & ~{27'd0, csr_wdata[4:0]};
                             12'h343: mtval <= mtval & ~{27'd0, csr_wdata[4:0]};
-                            12'h344: mip <= mip & ~{27'd0, csr_wdata[4:0]};
+                            12'h344: ; // MIP
                             12'h180: ; // SATP
                             12'h3a0: ; // PMPCFG0
                             12'h3b0: ; // PMPADDR0

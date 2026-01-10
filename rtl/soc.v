@@ -19,7 +19,8 @@ module soc #(
     parameter UART_BASE_ADDR = 32'h40000000,
     parameter UART_BIT_RATE = 115200,
     parameter GPIO_BASE_ADDR = 32'h40001000,
-    parameter GPIO_SIZE = 5
+    parameter GPIO_SIZE = 5,
+    parameter TIMER_BASE_ADDR = 32'h40002000
 ) (
     input wire clk,
     input wire rst_n,
@@ -52,11 +53,17 @@ module soc #(
     wire [2:0] core_mem_flag;
     wire core_mem_we;
     wire core_mem_re;
-    
+
+    wire [47:0] mtime;
+
     // Memory controller ready signals
     wire mem_instr_ready;
     wire mem_data_ready;
-    
+
+    // Timer connections
+    wire timer_interrupt;
+    wire [31:0] timer_mem_rdata;
+
     // UART TX connections
     wire uart_tx_en;
     wire uart_tx_busy;
@@ -96,6 +103,11 @@ module soc #(
         .mem_data(core_mem_rdata),
         .mem_ready(mem_data_ready),
 
+        .mtime(mtime),
+
+        // Timer interrupt
+        .timer_interrupt(timer_interrupt),
+
         // Error flag
         .error_flag(error_flag)
     );
@@ -106,7 +118,8 @@ module soc #(
         .PSRAM_BASE_ADDR(PSRAM_BASE_ADDR),
         .UART_BASE_ADDR(UART_BASE_ADDR),
         .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
-        .GPIO_SIZE(GPIO_SIZE)
+        .GPIO_SIZE(GPIO_SIZE),
+        .TIMER_BASE_ADDR(TIMER_BASE_ADDR)
     ) mem_ctrl (
         .clk(clk),
         .rst_n(rst_n),
@@ -138,6 +151,9 @@ module soc #(
         
         // GPIO interface
         .gpio_out(gpio_out),
+
+        // Timer interface
+        .timer_mem_rdata(timer_mem_rdata),
         
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),
@@ -176,6 +192,24 @@ module soc #(
         .uart_rx_break(uart_rx_break),
         .uart_rx_valid(uart_rx_valid),
         .uart_rx_data(uart_rx_data)
+    );
+
+    // Timer module
+    mtime_timer #(
+        .TIMER_BASE_ADDR(32'h40002000)
+    ) timer_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(timer_mem_rdata),
+
+        .mtime(mtime),
+
+        .timer_interrupt(timer_interrupt)
     );
 
 endmodule
