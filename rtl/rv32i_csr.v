@@ -34,6 +34,8 @@ module rv32i_csr (
     input wire timer_interrupt          // Machine timer interrupt (MTIP)
 );
 
+    localparam [31:0] MIE_MASK = 32'h00000880;  // meie and mtie only
+
     // CSR register definitions
     // Machine-level CSRs
     reg [31:0] mstatus;      // 0x300 - Machine status register
@@ -52,7 +54,7 @@ module rv32i_csr (
     wire [31:0] mip = {24'h0, timer_interrupt, 7'h0};
 
     assign mstatus_out = mstatus;
-    assign mie_out = mie;
+    assign mie_out = mie & MIE_MASK;
     assign mtvec_out = mtvec; // Output mtvec for exception handling
     assign mepc_out = mepc; // Output mepc for MRET
     assign mip_out = mip;
@@ -68,7 +70,7 @@ module rv32i_csr (
             12'h301: csr_rdata = 32'h40000100; // MISA - read-only constant (RV32I, MXL=1)
             12'h302: csr_rdata = 32'd0;        // MEDELEG
             12'h303: csr_rdata = 32'd0;        // MIDELEG
-            12'h304: csr_rdata = mie;          // MIE
+            12'h304: csr_rdata = mie & MIE_MASK; // MIE
             12'h305: csr_rdata = mtvec;        // MTVEC
             12'h340: csr_rdata = mscratch;     // MSCRATCH
             12'h341: csr_rdata = mepc;         // MEPC
@@ -153,7 +155,7 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= csr_wdata;
+                            12'h304: mie <= csr_wdata & MIE_MASK;
                             12'h305: mtvec <= csr_wdata;
                             12'h340: mscratch <= csr_wdata;
                             12'h341: mepc <= csr_wdata;
@@ -176,7 +178,7 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= mie | csr_wdata;
+                            12'h304: mie <= (mie | csr_wdata) & MIE_MASK;
                             12'h305: mtvec <= mtvec | csr_wdata;
                             12'h340: mscratch <= mscratch | csr_wdata;
                             12'h341: mepc <= mepc | csr_wdata;
@@ -198,7 +200,7 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= mie & ~csr_wdata;
+                            12'h304: mie <= (mie & ~csr_wdata) & MIE_MASK;
                             12'h305: mtvec <= mtvec & ~csr_wdata;
                             12'h340: mscratch <= mscratch & ~csr_wdata;
                             12'h341: mepc <= mepc & ~csr_wdata;
@@ -220,7 +222,7 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= {27'd0, csr_wdata[4:0]};
+                            12'h304: mie <= ({27'd0, csr_wdata[4:0]} & MIE_MASK);
                             12'h305: mtvec <= {27'd0, csr_wdata[4:0]};
                             12'h340: mscratch <= {27'd0, csr_wdata[4:0]};
                             12'h341: mepc <= {27'd0, csr_wdata[4:0]};
@@ -242,7 +244,7 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= mie | {27'd0, csr_wdata[4:0]};
+                            12'h304: mie <= (mie | {27'd0, csr_wdata[4:0]}) & MIE_MASK;
                             12'h305: mtvec <= mtvec | {27'd0, csr_wdata[4:0]};
                             12'h340: mscratch <= mscratch | {27'd0, csr_wdata[4:0]};
                             12'h341: mepc <= mepc | {27'd0, csr_wdata[4:0]};
@@ -264,7 +266,7 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= mie & ~{27'd0, csr_wdata[4:0]};
+                            12'h304: mie <= (mie & ~{27'd0, csr_wdata[4:0]}) & MIE_MASK;
                             12'h305: mtvec <= mtvec & ~{27'd0, csr_wdata[4:0]};
                             12'h340: mscratch <= mscratch & ~{27'd0, csr_wdata[4:0]};
                             12'h341: mepc <= mepc & ~{27'd0, csr_wdata[4:0]};
