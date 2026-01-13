@@ -29,7 +29,7 @@ async def test_beq_1(dut):
         0x80000828: NOP_INSTR,
         0x8000082C: NOP_INSTR,
     }
-    await do_test(dut, memory, 14)
+    await do_test(dut, memory, 10)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0, f"Register x1 should still be 0, got 0x{registers[1].value.integer:08x}"
@@ -68,7 +68,7 @@ async def test_beq_2(dut):
         0x80000828: NOP_INSTR,
         0x8000082C: NOP_INSTR,
     }
-    await do_test(dut, memory, 15)
+    await do_test(dut, memory, 12)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0xC, f"Register x1 should be 0xC, got 0x{registers[1].value.integer:08x}"
@@ -104,7 +104,7 @@ async def test_bne_1(dut):
         0x8000082C: NOP_INSTR,
         0x80000830: NOP_INSTR,
     }
-    await do_test(dut, memory, 15)
+    await do_test(dut, memory, 12)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 5, f"Register x1 should be 5, got 0x{registers[1].value.integer:08x}"
@@ -145,7 +145,7 @@ async def test_bne_2(dut):
         0x80000828: NOP_INSTR,
         0x8000082C: NOP_INSTR,
     }
-    await do_test(dut, memory, 15)
+    await do_test(dut, memory, 12)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 3, f"Register x1 should be 3, got 0x{registers[1].value.integer:08x}"
@@ -185,7 +185,7 @@ async def test_blt_1(dut):
         0x80000830: NOP_INSTR,
         0x80000834: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0xFFFFFFFF, f"Register x1 should be -1, got 0x{registers[1].value.integer:08x}"
@@ -225,7 +225,7 @@ async def test_blt_2(dut):
         0x80000828: NOP_INSTR,
         0x8000082C: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0xC, f"Register x1 should be 0xC, got 0x{registers[1].value.integer:08x}"
@@ -266,7 +266,7 @@ async def test_bge_1(dut):
         0x80000830: NOP_INSTR,
         0x80000834: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 5, f"Register x1 should be 5, got 0x{registers[1].value.integer:08x}"
@@ -307,7 +307,7 @@ async def test_bge_2(dut):
         0x8000082C: NOP_INSTR,
         0x80000830: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 6, f"Register x1 should be 6, got 0x{registers[1].value.integer:08x}"
@@ -347,7 +347,7 @@ async def test_bltu_1(dut):
         0x80000830: NOP_INSTR,
         0x80000834: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 1, f"Register x1 should be 1, got 0x{registers[1].value.integer:08x}"
@@ -388,7 +388,7 @@ async def test_bltu_2(dut):
         0x8000082C: NOP_INSTR,
         0x80000830: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0xC, f"Register x1 should be 0xC, got 0x{registers[1].value.integer:08x}"
@@ -428,7 +428,7 @@ async def test_bgeu_1(dut):
         0x80000830: NOP_INSTR,
         0x80000834: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 5, f"Register x1 should be 5, got 0x{registers[1].value.integer:08x}"
@@ -468,7 +468,7 @@ async def test_bgeu_2(dut):
         0x80000828: NOP_INSTR,
         0x8000082C: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 8, f"Register x1 should be 8, got 0x{registers[1].value.integer:08x}"
@@ -497,7 +497,7 @@ async def test_jal_1(dut):
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
     }
-    await do_test(dut, memory, 14)
+    await do_test(dut, memory, 12)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0x80000008, f"Register x1 should be 0x80000008 (return address), got 0x{registers[1].value.integer:08x}"
@@ -521,7 +521,7 @@ async def test_jal_2(dut):
         0x80000020: NOP_INSTR,
         0x80000024: NOP_INSTR,
     }
-    await do_test(dut, memory, 14)
+    await do_test(dut, memory, 9)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0x80000014, f"Register x1 should be 0x80000014 (return address), got 0x{registers[1].value.integer:08x}"
@@ -549,7 +549,7 @@ async def test_jal_3(dut):
         0x80000030: NOP_INSTR,
         0x80000034: NOP_INSTR,
     }
-    await do_test(dut, memory, 14)
+    await do_test(dut, memory, 12)
 
     registers = dut.core.register_file.registers
     assert registers[0].value == 0, f"Register x0 should always be 0, got 0x{registers[0].value.integer:08x}"
@@ -633,7 +633,7 @@ async def test_jalr_3(dut):
         0x80000814: NOP_INSTR,
         0x80000018: NOP_INSTR,
     }
-    await do_test(dut, memory, 16)
+    await do_test(dut, memory, 13)
 
     registers = dut.core.register_file.registers
     assert registers[1].value == 0x80000810, f"Register x1 should be 0x8000810 (return address from JALR), got 0x{registers[1].value.integer:08x}"

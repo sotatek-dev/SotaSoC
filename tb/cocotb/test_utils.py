@@ -4,7 +4,7 @@ from cocotb.clock import Clock
 
 # Constants
 CYCLES_PER_INSTRUCTION = 8
-MEMORY_CYCLES = 3
+MEMORY_CYCLES = 4
 NOP_INSTR = 0x00000013
 
 # Global variables to track memory operations

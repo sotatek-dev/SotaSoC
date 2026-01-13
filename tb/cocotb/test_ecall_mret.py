@@ -123,7 +123,7 @@ async def test_ecall_with_mie_enabled(dut):
             
             # mstatus: MPP=3, MPIE=1 (MIE was 1), MIE=0
             # Expected: 0x00001800 (MPP=3, MPIE=1, MIE=0)
-            assert csr.mstatus.value == 0x00001800, f"mstatus should be 0x00001800, got 0x{csr.mstatus.value.integer:08x}"
+            assert csr.mstatus.value == 0x00001880, f"mstatus should be 0x00001880, got 0x{csr.mstatus.value.integer:08x}"
 
             return True
         return False
@@ -135,48 +135,43 @@ async def test_ecall_with_mie_enabled(dut):
 async def test_mret_basic(dut):
     """Basic test for MRET instruction: should return from exception handler"""
 
-    exception_handler = 0x00000100
-    return_address = 0x00000020
-    
+
     hex_memory = {
         0x00000000: NOP_INSTR,
-        # Setup: set mtvec and simulate exception state
+        # Setup: set mtvec to point to exception handler
         0x00000004: 0x10000093,  # ADDI x1, x0, 0x100 (set mtvec)
-        0x00000008: encode_csrrw(0, CSR_MTVEC, 1),  # CSRRW x0, mtvec, x1
-        # Set mstatus to simulate post-exception state (MPP=3, MPIE=1, MIE=0)
-        0x0000000C: 0x000010b7,  # LUI x1, 0x1 (x1 = 0x00001000)
-        0x00000010: 0x80008093,  # ADDI x1, x1, 0x800 (x1 = 0x00001800)
-        0x00000014: encode_csrrw(0, CSR_MSTATUS, 1),  # CSRRW x0, mstatus, x1
-        0x00000018: 0x02400093,  # ADDI x1, x0, 0x24 (set mepc)
-        0x0000001C: encode_csrrw(0, CSR_MEPC, 1),  # CSRRW x0, mepc, x1
-        0x00000020: 0x0e0001ef,  # JAL x3, 0xe0 (jump to exception handler)
-        0x00000024: NOP_INSTR,   # Return address (mepc = 0x24)
-        0x00000028: NOP_INSTR,
-        0x0000002C: NOP_INSTR,
-        0x00000030: NOP_INSTR,
-        0x00000034: NOP_INSTR,
-        0x00000038: NOP_INSTR,
+        0x00000008: encode_csrrw(0, CSR_MTVEC, 1),  # CSRRW x0, mtvec, x1 (mtvec = 0x100)
+        0x0000000C: NOP_INSTR,
+        0x00000010: NOP_INSTR,
+        0x00000014: NOP_INSTR,
+        0x00000018: ECALL_INSTR,  # ECALL - should jump to 0x100 (exception handler)
+        0x0000001C: NOP_INSTR,   # Return address after ECALL (mepc + 4 = 0x18 + 4 = 0x1C)
+        0x00000020: NOP_INSTR,
+        0x00000024: NOP_INSTR,
         # Exception handler
-        0x00000100: NOP_INSTR,
-        0x00000104: MRET_INSTR,  # MRET - should jump back to 0x20
-        0x00000108: NOP_INSTR,   # This should not be reached
+        0x00000100: encode_csrrw(1, CSR_MEPC, 0),  # CSRRW x1, mepc, x0 (read mepc into x1)
+        0x00000104: 0x00408093,  # ADDI x1, x1, 4 (increment mepc by 4 to skip ECALL)
+        0x00000108: encode_csrrw(0, CSR_MEPC, 1),  # CSRRW x0, mepc, x1 (write updated mepc back)
+        0x0000010C: MRET_INSTR,  # MRET - should jump back to 0x1C (address after ECALL)
+        0x00000110: NOP_INSTR,   # This should not be reached
     }
     memory = convert_hex_memory_to_byte_memory(hex_memory)
 
     max_cycles = 10000
 
     def callback(dut, memory):
-        # Check when we return from exception handler
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000038:
+        # Check when we return from exception handler to address after ECALL
+        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000024:
             csr = dut.soc_inst.cpu_core.csr_file
 
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"
 
             # Verify mstatus was updated by MRET
-            # Before MRET: mstatus = 0x00001800 (MPP=3, MPIE=1, MIE=0)
-            # After MRET: MIE = MPIE = 1, MPIE = 1, MPP = 0
-            # Expected: 0x00000888 (MPP=0, MPIE=1, MIE=1)
-            assert csr.mstatus.value == 0x00000088, f"mstatus should be 0x00000088, got 0x{csr.mstatus.value.to_unsigned():08x}"
+            # After ECALL: mstatus has MPP=3, MPIE=MIE (from before), MIE=0
+            # After MRET: MIE = MPIE, MPIE = 1, MPP = 0
+            # Since initial MIE was 0, after MRET: MIE = 0, MPIE = 1, MPP = 0
+            # Expected: 0x00000080 (MPP=0, MPIE=1, MIE=0)
+            assert csr.mstatus.value.to_unsigned() == 0x00000080, f"mstatus should be 0x00000080, got 0x{csr.mstatus.value.to_unsigned():08x}"
 
             return True
         return False

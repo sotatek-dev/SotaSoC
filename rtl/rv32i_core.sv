@@ -43,18 +43,10 @@ module rv32i_core #(
     reg [31:0] if_id_instr, if_id_pc;
 
     reg [31:0] id_ex_instr, id_ex_pc, id_ex_imm;
-    reg [4:0] id_ex_rs1_addr, id_ex_rs2_addr, id_ex_rd_addr;
-    reg [3:0] id_ex_alu_op;
     reg id_ex_mem_we, id_ex_mem_re, id_ex_reg_we;
-    reg id_ex_alu_a_forward_ex, id_ex_alu_b_forward_ex;
-    reg [31:0] id_ex_alu_a_forwarded, id_ex_alu_b_forwarded;
 
     reg [31:0] pc;
     wire [31:0] pc_next;
-    reg [31:0] pc_branch_taken, pc_branch_not_taken;
-    reg [2:0] pc_id_ex_funct3;
-    reg id_ex_rs1_forward_ex, id_ex_rs2_forward_ex;
-    reg [31:0] id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded;
 
 
     reg [31:0] ex_mem_instr, ex_mem_result, ex_mem_rs1_data, ex_mem_rs2_data, ex_mem_pc;
@@ -74,22 +66,12 @@ module rv32i_core #(
     reg [11:0] ex_mem_csr_addr;
     reg [2:0] ex_mem_csr_op;
     reg ex_mem_csr_we;
-    reg [31:0] ex_mem_csr_rdata;
-    reg csr_should_update;
 
     // Instruction type signals
     wire if_id_is_r_type, if_id_is_i_type, if_id_is_s_type, if_id_is_b_type, if_id_is_j_type, if_id_is_u_type, if_id_is_risb_type, if_id_is_rsb_type;
 
     // Branch hazard signals
     wire branch_hazard;
-
-    // Data hazard and forwarding signals
-    wire [31:0] if_id_rs1_data_forwarded, if_id_rs2_data_forwarded;
-    wire if_id_rs1_forward_id, if_id_rs2_forward_id, if_id_alu_b_forward_id, if_id_rs1_forward_ex, if_id_rs2_forward_ex;
-    wire [31:0] if_id_alu_a_forwarded, if_id_alu_b_forwarded;
-
-    // Load-use hazard signals
-    wire load_use_hazard;
 
     // Memory stall signals
     reg mem_stall;
@@ -98,43 +80,41 @@ module rv32i_core #(
     wire [6:0] if_id_opcode;
     wire [2:0] funct3;
     wire [6:0] funct7;
-    wire [4:0] rd, if_id_rs1, if_id_rs2;
+    wire [4:0] rd;
     wire [11:0] imm12;
     wire [31:0] if_id_imm, imm_i, imm_s, imm_b, imm_u, imm_j;
-    wire [31:0] if_id_pc_branch_taken, if_id_pc_branch_not_taken;
+
+    wire [4:0] id_ex_rs1_addr, id_ex_rs2_addr, id_ex_rd_addr;
+    wire [6:0] id_ex_funct7;
 
     // Writeback result selection
     wire [31:0] wb_result;
     wire [31:0] mem_value;
 
     // Use to check data hazard
+    // TODO remove
     wire [6:0] id_opcode;
     wire [4:0] id_rs1, id_rs2;
+    wire [2:0] id_ex_funct3;
     wire is_valid_opcode;
 
     // Control signals
-    wire [3:0] if_id_alu_op;
-    wire [31:0] if_id_fixed_alu_a, if_id_fixed_alu_b;
-    wire if_id_is_alu_a_fixed, if_id_is_alu_b_fixed;
 
     wire mem_we_ctrl, mem_re_ctrl, reg_we_ctrl;
     wire [31:0] alu_result;
     wire alu_zero, alu_negative, alu_overflow;
 
     // Register file connections
-    wire [31:0] if_id_rs1_data, if_id_rs2_data;
+    wire [31:0] id_ex_rs1_data, id_ex_rs2_data;
 
     // ALU operand selection
+    wire [3:0] id_ex_alu_op;
     wire [31:0] id_ex_alu_a, id_ex_alu_b;
-
-    wire [31:0] id_ex_rs1_final_data_forwarded;
-    wire [31:0] id_ex_rs2_final_data_forwarded;
 
     // CSR signals
     wire if_id_is_csr;
     wire [11:0] if_id_csr_addr;
     wire [2:0] if_id_csr_op;
-    wire [31:0] if_id_csr_wdata;
     wire ex_mem_is_csr;
     wire [31:0] ex_mem_csr_wdata;
     wire [31:0] csr_rdata;
@@ -146,6 +126,7 @@ module rv32i_core #(
     reg id_ex_is_ecall, id_ex_is_ebreak, id_ex_is_mret;
     wire [31:0] mtvec, mepc;
     reg exception_trigger, mret_trigger;
+    // TODO remove these regs
     reg [31:0] exception_cause;
     reg [31:0] exception_pc;
     reg [31:0] exception_value;
@@ -167,9 +148,10 @@ module rv32i_core #(
     assign if_id_opcode = if_id_instr[6:0];
     assign rd = if_id_instr[11:7];
     assign funct3 = if_id_instr[14:12];
-    assign if_id_rs1 = if_id_instr[19:15];
-    assign if_id_rs2 = if_id_instr[24:20];
     assign funct7 = if_id_instr[31:25];
+    assign id_ex_rd_addr = id_ex_instr[11:7];
+    assign id_ex_rs1_addr = id_ex_instr[19:15];
+    assign id_ex_rs2_addr = id_ex_instr[24:20];
 
     // Immediate generation
     assign imm12 = if_id_instr[31:20];
@@ -185,12 +167,12 @@ module rv32i_core #(
                     (if_id_opcode == 7'b1101111) ? imm_j :
                     (if_id_opcode == 7'b0110111) || (if_id_opcode == 7'b0010111) ? imm_u :
                     32'd0;
-    assign if_id_pc_branch_taken = if_id_pc + if_id_imm;
-    assign if_id_pc_branch_not_taken = if_id_pc + 4;
 
+    assign id_ex_funct7 = id_ex_instr[31:25];
     assign id_opcode = id_ex_instr[6:0];
     assign id_rs1 = id_ex_instr[19:15];
     assign id_rs2 = id_ex_instr[24:20];
+    assign id_ex_funct3 = id_ex_instr[14:12];
 
     // Instruction address
     assign instr_addr = pc;
@@ -200,10 +182,10 @@ module rv32i_core #(
     rv32i_register register_file (
         .clk(clk),
         .rst_n(rst_n),
-        .rs1_addr(if_id_rs1),
-        .rs2_addr(if_id_rs2),
-        .rs1_data(if_id_rs1_data),
-        .rs2_data(if_id_rs2_data),
+        .rs1_addr(id_ex_rs1_addr),
+        .rs2_addr(id_ex_rs2_addr),
+        .rs1_data(id_ex_rs1_data),
+        .rs2_data(id_ex_rs2_data),
         .rd_addr(mem_wb_rd_addr),
         .rd_data(mem_wb_result),
         .rd_we(mem_wb_reg_we)
@@ -226,7 +208,7 @@ module rv32i_core #(
         .rst_n(rst_n),
         .csr_addr(ex_mem_csr_addr),
         .csr_wdata(ex_mem_csr_wdata),
-        .csr_we(ex_mem_csr_we && csr_should_update),
+        .csr_we(ex_mem_csr_we),
         .csr_op(ex_mem_csr_op),
         .csr_rdata(csr_rdata),
         .csr_illegal(csr_illegal),
@@ -266,16 +248,13 @@ module rv32i_core #(
     // Timer interrupt ID = 7 (MTIP)
     assign int_cause_next = {1'b1, 30'd0, 1'b0, 3'd7};  // 0x80000007
     
-    // When an interrupt is detected, we need to flush IF/ID, ID/EX, and EX/MEM stages.
-    // So that the next instruction will be executed after interrupt is handled is id_ex_pc.
-    // There is an edge case that the branch instruction in pipeline, id_ex_pc is filled with PC_FLUSH_ADDR,
-    // in that case, we need to wait one more cycle to get the correct pc.
-    // Check if interrupt is pending and enabled, and we're not already handling an exception/interrupt
-    // Also check that we're not in a memory stall or waiting for instruction
-    assign int_pc_next = id_ex_pc;  // PC of instruction that would execute next
+    // Only handle interrupt when there is no memory stall, exception, or interrupt is already being handled
+    // Also make sure to handle interrupt only if if_id_pc is a valid address,
+    // otherwise, we can not return to the correct address after interrupt is handled
+    assign int_pc_next = if_id_pc;  // PC of instruction that would execute next
     assign int_is_interrupt = int_pending && int_enabled
-                                && (id_ex_pc != PC_FLUSH_ADDR)
-                                && !mem_stall && instr_ready
+                                && (if_id_pc != PC_FLUSH_ADDR)
+                                && !mem_stall
                                 && !exception_trigger &&!id_ex_is_exception;
 
     assign is_valid_opcode = (id_opcode == 7'b0110011)  // R-type
@@ -314,41 +293,42 @@ module rv32i_core #(
     assign if_id_is_csr = (if_id_opcode == 7'b1110011) && (funct3 != 3'b000); // CSR instructions (not ECALL/EBREAK)
     assign if_id_csr_addr = if_id_instr[31:20];  // CSR address (12 bits)
     assign if_id_csr_op = funct3;  // CSR operation type
-    assign if_id_csr_wdata = if_id_is_csr ? (if_id_csr_op[2] ? {27'd0, if_id_rs1} : if_id_rs1_data_forwarded) : 32'd0;
 
     // Control unit
     wire alu_i_type_bit;
-    assign alu_i_type_bit = (funct3 == 3'b101) ? funct7[5] : 1'b0;
-    assign if_id_alu_op = (if_id_opcode == 7'b0110011) ? {funct7[5], funct3} :      // R-type
-                    (if_id_opcode == 7'b0010011) ? {alu_i_type_bit, funct3} : // I-type (ALU)
-                    (if_id_opcode == 7'b0000011) ? 4'b0000 :                       // I-type (Load) - ADD for address
-                    (if_id_opcode == 7'b0100011) ? 4'b0000 :                       // S-type (Store) - ADD for address
-                    (if_id_opcode == 7'b0110111) ? 4'b0000 :                       // U-type (LUI)
-                    (if_id_opcode == 7'b0010111) ? 4'b0000 :                       // U-type (AUIPC) - ADD
+    assign alu_i_type_bit = (id_ex_funct3 == 3'b101) ? id_ex_funct7[5] : 1'b0;
+    assign id_ex_alu_op = (id_opcode == 7'b0110011) ? {id_ex_funct7[5], id_ex_funct3} :      // R-type
+                    (id_opcode == 7'b0010011) ? {alu_i_type_bit, id_ex_funct3} :      // I-type (ALU)
+                    (id_opcode == 7'b0000011) ? 4'b0000 :                       // I-type (Load) - ADD for address
+                    (id_opcode == 7'b0100011) ? 4'b0000 :                       // S-type (Store) - ADD for address
+                    (id_opcode == 7'b1101111) ? 4'b0000 :                       // J-type (JAL)
+                    (id_opcode == 7'b1100111) ? 4'b0000 :                       // I-type (JALR)
+                    (id_opcode == 7'b0110111) ? 4'b0000 :                       // U-type (LUI)
+                    (id_opcode == 7'b0010111) ? 4'b0000 :                       // U-type (AUIPC) - ADD
                     4'b1111; // default (NOP)
 
-    assign if_id_is_alu_a_fixed = (if_id_instr[6:0] == 7'b0010111)     // AUIPC
-                            || (if_id_instr[6:0] == 7'b0110111);    // LUI
-    assign if_id_fixed_alu_a = (if_id_instr[6:0] == 7'b0010111) ? if_id_pc : // AUIPC uses PC
-                         (if_id_instr[6:0] == 7'b0110111) ? 0 :        // LUI uses 0
-                         0;
 
-    assign if_id_is_alu_b_fixed = (if_id_instr[6:0] == 7'b0010011)                  // I-type (ALU): use immediate
-                            || (if_id_instr[6:0] == 7'b0000011)                  // I-type (Load): use immediate for address
-                            || (if_id_instr[6:0] == 7'b0100011)                  // S-type (Store): use immediate for address
-                            || (if_id_instr[6:0] == 7'b1101111)                  // J-type (JAL): use immediate
-                            || (if_id_instr[6:0] == 7'b1100111)                  // I-type (JALR): use immediate
-                            || (if_id_instr[6:0] == 7'b0110111)                  // U-type (LUI): use immediate
-                            || (if_id_instr[6:0] == 7'b0010111);                  // U-type (AUIPC): use immediate
-    assign if_id_fixed_alu_b = if_id_is_alu_b_fixed ? if_id_imm : 0;
-
-    // ALU operand A selection - use forwarded data
-    assign id_ex_alu_a = id_ex_alu_a_forward_ex ? wb_result :
-                        id_ex_alu_a_forwarded;
+    // ALU operand A selection
+    assign id_ex_alu_a = (id_ex_instr[6:0] == 7'b0110011) ? id_ex_rs1_data :       // R-type (ALU)
+                        (id_ex_instr[6:0] == 7'b0010011) ? id_ex_rs1_data :        // I-type (ALU)
+                        (id_ex_instr[6:0] == 7'b0000011) ? id_ex_rs1_data :        // I-type (Load)
+                        (id_ex_instr[6:0] == 7'b0100011) ? id_ex_rs1_data :        // S-type (Store)
+                        (id_ex_instr[6:0] == 7'b1101111) ? id_ex_pc :              // J-type (JAL)
+                        (id_ex_instr[6:0] == 7'b1100111) ? id_ex_pc :              // I-type (JALR)
+                        (id_ex_instr[6:0] == 7'b0110111) ? 32'd0 :                 // U-type (LUI)
+                        (id_ex_instr[6:0] == 7'b0010111) ? id_ex_pc :              // U-type (AUIPC)
+                        32'd0;
     
-    // ALU operand B selection - use forwarded data
-    assign id_ex_alu_b = id_ex_alu_b_forward_ex ? wb_result :
-                        id_ex_alu_b_forwarded;
+    // ALU operand B selection
+    assign id_ex_alu_b = (id_ex_instr[6:0] == 7'b0110011) ? id_ex_rs2_data :        // R-type (ALU)
+                        (id_ex_instr[6:0] == 7'b0010011) ? id_ex_imm :              // I-type (ALU)
+                        (id_ex_instr[6:0] == 7'b0000011) ? id_ex_imm :              // I-type (Load)
+                        (id_ex_instr[6:0] == 7'b0100011) ? id_ex_imm :              // S-type (Store)
+                        (id_ex_instr[6:0] == 7'b1101111) ? 32'd4 :                  // J-type (JAL)
+                        (id_ex_instr[6:0] == 7'b1100111) ? 32'd4 :                  // I-type (JALR)
+                        (id_ex_instr[6:0] == 7'b0110111) ? id_ex_imm :              // U-type (LUI)
+                        (id_ex_instr[6:0] == 7'b0010111) ? id_ex_imm :              // U-type (AUIPC)
+                        32'd0;
 
     assign mem_we_ctrl = (if_id_opcode == 7'b0100011) ? 1'b1 : 1'b0; // Only Store instructions write to memory
 
@@ -386,48 +366,16 @@ module rv32i_core #(
                               ex_mem_rs1_data;  // Register versions (CSRRW, CSRRS, CSRRC) - uses rs1, not rs2
     
     assign wb_result = (ex_mem_instr[6:0] == 7'b0000011) ? mem_value :          // Load: use memory data
-                       (ex_mem_instr[6:0] == 7'b1101111) ? ex_mem_pc + 4 :      // JAL: return address
-                       (ex_mem_instr[6:0] == 7'b1100111) ? ex_mem_pc + 4 :      // JALR: return address
+                       (ex_mem_instr[6:0] == 7'b1101111) ? ex_mem_result :      // JAL: return address
+                       (ex_mem_instr[6:0] == 7'b1100111) ? ex_mem_result :      // JALR: return address
                        (ex_mem_instr[6:0] == 7'b0110111) ? ex_mem_result :      // LUI: ALU result (immediate)
-                       (ex_mem_is_csr) ? ex_mem_csr_rdata :                     // CSR: use CSR read data
+                       (ex_mem_is_csr) ? csr_rdata :                            // CSR: use CSR read data
                        ex_mem_result;                                           // Others: ALU result
 
     // Branch hazard detection
-    assign branch_hazard = (id_ex_instr[6:0] == 7'b1100011) ||     // B-Type (BEQ, BNE, BLT, BGE)
+    assign branch_hazard = (id_ex_instr[6:0] == 7'b1100011) ||    // B-Type (BEQ, BNE, BLT, BGE)
                           (id_ex_instr[6:0] == 7'b1101111) ||     // JAL
                           (id_ex_instr[6:0] == 7'b1100111);       // JALR
-
-    // Data hazard detection and forwarding logic in IF/ID stage
-    // Check if we need to forward from ID/EX stage
-    assign if_id_rs1_forward_id = (if_id_is_risb_type || if_id_is_csr) && (if_id_rs1 != 0) && (if_id_rs1 == id_ex_rd_addr) && id_ex_reg_we && 
-                            !(id_ex_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
-    assign if_id_rs2_forward_id = if_id_is_rsb_type && (if_id_rs2 != 0) && (if_id_rs2 == id_ex_rd_addr) && id_ex_reg_we && 
-                            !(id_ex_instr[6:0] == 7'b0000011); // Don't forward from load in EX/MEM
-    assign if_id_alu_b_forward_id = !if_id_is_alu_b_fixed && if_id_rs2_forward_id;
-
-    // Check if we need to forward from EX/MEM stage
-    assign if_id_rs1_forward_ex = (if_id_is_risb_type || if_id_is_csr) && (if_id_rs1 != 0) && (if_id_rs1 == ex_mem_rd_addr) && ex_mem_reg_we && 
-                             !if_id_rs1_forward_id; // Only if not already forwarding from EX/MEM
-    assign if_id_rs2_forward_ex = if_id_is_rsb_type && (if_id_rs2 != 0) && (if_id_rs2 == ex_mem_rd_addr) && ex_mem_reg_we && 
-                             !if_id_rs2_forward_id; // Only if not already forwarding from EX/MEM
-
-    // Select forwarded data
-    assign if_id_rs1_data_forwarded = if_id_rs1_forward_ex ? wb_result :
-                                if_id_rs1_data;
-    assign if_id_rs2_data_forwarded = if_id_rs2_forward_ex ? wb_result :
-                                if_id_rs2_data;
-
-    assign if_id_alu_a_forwarded = if_id_is_alu_a_fixed ? if_id_fixed_alu_a :
-                                if_id_rs1_data_forwarded;
-    assign if_id_alu_b_forwarded = if_id_is_alu_b_fixed ? if_id_fixed_alu_b :
-                                if_id_rs2_data_forwarded;
-
-    // Load-use hazard detection
-    // Detect when current instruction in ID/EX is a load and next instruction in IF/ID uses the loaded register
-    assign load_use_hazard = (id_ex_instr[6:0] == 7'b0000011) && // Current instruction is a load
-                             (id_ex_rd_addr != 0) &&              // Load writes to a register
-                             ((if_id_rs1 == id_ex_rd_addr) || // Next instruction uses rs1
-                              (if_id_rs2 == id_ex_rd_addr));  // Next instruction uses rs2
 
     // Pipeline stages
     always @(posedge clk or negedge rst_n) begin
@@ -440,28 +388,12 @@ module rv32i_core #(
             id_ex_instr <= 32'h00000013;
             id_ex_pc <= RESET_ADDR;
             id_ex_imm <= 32'd0;
-            id_ex_rs1_addr <= 5'd0;
-            id_ex_rs2_addr <= 5'd0;
-            id_ex_rd_addr <= 5'd0;
-            id_ex_alu_op <= 4'd0;
             id_ex_mem_we <= 1'b0;
             id_ex_mem_re <= 1'b0;
             id_ex_reg_we <= 1'b0;
-            id_ex_rs1_forward_ex <= 1'b0;
-            id_ex_rs2_forward_ex <= 1'b0;
-            id_ex_alu_a_forward_ex <= 1'b0;
-            id_ex_alu_b_forward_ex <= 1'b0;
-            id_ex_rs1_data_forwarded <= 32'd0;
-            id_ex_rs2_data_forwarded <= 32'd0;
-            id_ex_alu_a_forwarded <= 32'd0;
-            id_ex_alu_b_forwarded <= 32'd0;
             id_ex_is_ecall <= 1'b0;
             id_ex_is_ebreak <= 1'b0;
             id_ex_is_mret <= 1'b0;
-
-            pc_branch_taken <= 32'd0;
-            pc_branch_not_taken <= 32'd0;
-            pc_id_ex_funct3 <= 3'd0;
 
             ex_mem_result <= 32'd0;
             ex_mem_rs1_data <= 32'd0;
@@ -493,8 +425,6 @@ module rv32i_core #(
             ex_mem_csr_addr <= 12'd0;
             ex_mem_csr_op <= 3'd0;
             ex_mem_csr_we <= 1'b0;
-            ex_mem_csr_rdata <= 32'd0;
-            csr_should_update <= 1'b0;
             
             // Counters
             mtime_counter <= 48'd0;
@@ -503,25 +433,18 @@ module rv32i_core #(
         end else begin
             mtime_counter <= mtime_counter + 1;
 
-            csr_should_update <= 1'b0;
-            if (csr_should_update == 1'b1) begin
-                ex_mem_csr_rdata <= csr_rdata;
-            end
-
             // Hazard handling logic:
-            // * Branch hazard
-            //     + Insert NOP to both IF/ID and ID/EX stages
-            // * Data hazard
-            //     + Forwarding from EX/MEM MEM/WB, and WB/_ stages
-            // * Load-use hazard
-            //     + Keep the same instruction in IF/ID stage, don't increment PC
-            //     + Insert NOP to ID/EX stage
-            // * Instruction memory not ready
-            //     + Stall pipeline at instruction fetch stage when instruction memory is not ready
             // * Data memory stall
             //     + Stall pipeline at memory stage when data memory is not ready
+            // * Branch hazard
+            // * Data hazard
+            // * Instruction memory not ready
+            //     This core is designed to use with qspi instruction memory, so each instruction takes at least 8 cycles to be fetched
+            //     So we don't neet to handle data hazard and branch hazard,
+            //     because all instructions will finish executing before the next instruction is fetched
 
-            if (mem_stall || !instr_ready) begin
+            if (mem_stall) begin
+                `DEBUG_PRINT(("Time %0t: MEM_STALL, mem_stall=%b", $time, mem_stall));
                 // Stall pipeline
                 if (mem_stall) begin
                     // Only keep we and re signals for 1 cycle
@@ -534,9 +457,18 @@ module rv32i_core #(
                 end
             end else begin
                 // Pipeline stage 1: Instruction Fetch
-                if (load_use_hazard) begin
-                    // If load_use_hazard is detected, keep the same instruction in IF/ID stage, don't increment PC
-                    `DEBUG_PRINT(("Time %0t: Keep current IF/ID stage, load_use_hazard=%b", $time, load_use_hazard));
+                if (!instr_ready || branch_hazard || id_ex_is_exception || int_is_interrupt || id_ex_is_mret) begin
+                    // If instruction is not ready or branch_hazard is detected or exception or interrupt or mret is detected,
+                    // keep the same instruction in IF/ID stage, don't increment PC
+                    `DEBUG_PRINT(("Time %0t: Keep current IF/ID stage, instr_ready=%b, branch_hazard=%b, id_ex_is_exception=%b, int_is_interrupt=%b, id_ex_is_mret=%b",
+                                $time, instr_ready, branch_hazard, id_ex_is_exception, int_is_interrupt, id_ex_is_mret));
+                    if_id_instr <= 32'h00000013; // NOP instruction
+                    if_id_pc <= PC_FLUSH_ADDR;
+
+                    if (branch_hazard || id_ex_is_exception || int_is_interrupt || id_ex_is_mret) begin
+                        `DEBUG_PRINT(("Time %0t: Update pc to branch target pc=0x%h", $time, pc_next));
+                        pc <= pc_next;
+                    end
                 end else begin
                     // Normal execution: update pc and instruction
                     pc <= pc_next;
@@ -554,10 +486,6 @@ module rv32i_core #(
                 // Pipeline stage 2: Instruction Decode
                 id_ex_instr <= if_id_instr;
                 id_ex_pc <= if_id_pc;
-                id_ex_rs1_addr <= if_id_rs1;
-                id_ex_rs2_addr <= if_id_rs2;
-                id_ex_rd_addr <= rd;
-                id_ex_alu_op <= if_id_alu_op;
                 id_ex_mem_we <= mem_we_ctrl;
                 id_ex_mem_re <= mem_re_ctrl;
                 id_ex_reg_we <= reg_we_ctrl;
@@ -566,55 +494,20 @@ module rv32i_core #(
                 id_ex_is_ebreak <= if_id_is_ebreak;
                 id_ex_is_mret <= if_id_is_mret;
 
-                id_ex_rs1_forward_ex <= if_id_rs1_forward_id;
-                id_ex_rs2_forward_ex <= if_id_rs2_forward_id;
-                id_ex_alu_a_forward_ex <= if_id_rs1_forward_id;
-                id_ex_alu_b_forward_ex <= if_id_alu_b_forward_id;
-                id_ex_rs1_data_forwarded <= if_id_rs1_data_forwarded;
-                id_ex_rs2_data_forwarded <= if_id_rs2_data_forwarded;
-                id_ex_alu_a_forwarded <= if_id_alu_a_forwarded;
-                id_ex_alu_b_forwarded <= if_id_alu_b_forwarded;
-
                 // CSR signals
                 id_ex_csr_addr <= if_id_csr_addr;
                 id_ex_csr_op <= if_id_csr_op;
                 id_ex_csr_we <= if_id_is_csr;
-                csr_should_update <= 1'b1;
 
-                pc_branch_taken <= if_id_pc_branch_taken;
-                pc_branch_not_taken <= if_id_pc_branch_not_taken;
-                pc_id_ex_funct3 <= funct3;
-
-                // If branch_hazard, exception, interrupt, or mret is detected, flush IF/ID stage with NOP
-                if (branch_hazard || id_ex_is_exception || int_is_interrupt || id_ex_is_mret) begin
-                    `DEBUG_PRINT(("Time %0t: IF/ID - Flushing with NOP, branch_hazard=%b, id_ex_is_exception=%b, int_is_interrupt=%b, id_ex_is_mret=%b",
-                                $time, branch_hazard, id_ex_is_exception, int_is_interrupt, id_ex_is_mret));
-                    if_id_instr <= 32'h00000013; // NOP instruction
-                    if_id_pc <= PC_FLUSH_ADDR;
-                    
-                end
-                // If load_use_hazard, branch_hazard, exception, interrupt, or mret is detected, flush ID/EX stage with NOP
-                if (branch_hazard || load_use_hazard || id_ex_is_exception || int_is_interrupt || id_ex_is_mret) begin
-                    `DEBUG_PRINT(("Time %0t: ID/EX - Flushing with NOP, branch_hazard=%b, load_use_hazard=%b, id_ex_is_exception=%b, int_is_interrupt=%b, id_ex_is_mret=%b",
-                                $time, branch_hazard, load_use_hazard, id_ex_is_exception, int_is_interrupt, id_ex_is_mret));
+                // If exception, interrupt, or mret is detected, flush ID/EX stage with NOP
+                if (int_is_interrupt) begin
+                    `DEBUG_PRINT(("Time %0t: ID/EX - Flushing with NOP, iint_is_interrupt=%b", $time, int_is_interrupt));
                     id_ex_instr <= 32'h00000013;
                     id_ex_pc <= PC_FLUSH_ADDR;
-                    id_ex_rs1_addr <= 5'd0;
-                    id_ex_rs2_addr <= 5'd0;
-                    id_ex_rd_addr <= 5'd0;
-                    id_ex_alu_op <= 4'd0;
                     id_ex_mem_we <= 1'b0;
                     id_ex_mem_re <= 1'b0;
                     id_ex_reg_we <= 1'b0;
                     id_ex_imm <= 32'd0;
-                    id_ex_rs1_forward_ex <= 1'b0;
-                    id_ex_rs2_forward_ex <= 1'b0;
-                    id_ex_alu_a_forward_ex <= 1'b0;
-                    id_ex_alu_b_forward_ex <= 1'b0;
-                    id_ex_rs1_data_forwarded <= 32'd0;
-                    id_ex_rs2_data_forwarded <= 32'd0;
-                    id_ex_alu_a_forwarded <= 32'd0;
-                    id_ex_alu_b_forwarded <= 32'd0;
                     id_ex_is_ecall <= 1'b0;
                     id_ex_is_ebreak <= 1'b0;
 
@@ -622,17 +515,12 @@ module rv32i_core #(
                     id_ex_csr_addr <= 12'd0;
                     id_ex_csr_op <= 3'd0;
                     id_ex_csr_we <= 1'b0;
-                    csr_should_update <= 1'b1;
-
-                    pc_branch_taken <= 32'd0;
-                    pc_branch_not_taken <= 32'd0;
-                    pc_id_ex_funct3 <= 3'd0;
                 end
 
                 // Pipeline stage 3: Execute
                 ex_mem_result <= alu_result;
-                ex_mem_rs1_data <= id_ex_rs1_final_data_forwarded;
-                ex_mem_rs2_data <= id_ex_rs2_final_data_forwarded;
+                ex_mem_rs1_data <= id_ex_rs1_data;
+                ex_mem_rs2_data <= id_ex_rs2_data;
                 ex_mem_pc <= id_ex_pc;
                 ex_mem_instr <= id_ex_instr;
                 ex_mem_rd_addr <= id_ex_rd_addr;
@@ -646,23 +534,6 @@ module rv32i_core #(
                 ex_mem_csr_addr <= id_ex_csr_addr;
                 ex_mem_csr_op <= id_ex_csr_op;
                 ex_mem_csr_we <= id_ex_csr_we;
-
-                if (int_is_interrupt) begin
-                    `DEBUG_PRINT(("Time %0t: EX/MEM - Flushing with interrupt, int_is_interrupt=%b", $time, int_is_interrupt));
-                    ex_mem_result <= mtvec;
-                    ex_mem_rs1_data <= 32'd0;
-                    ex_mem_rs2_data <= 32'd0;
-                    ex_mem_pc <= PC_FLUSH_ADDR;
-                    ex_mem_instr <= 32'h00000013; // NOP instruction
-                    ex_mem_rd_addr <= 5'd0;
-                    ex_mem_mem_we <= 1'b0;
-                    ex_mem_mem_re <= 1'b0;
-                    ex_mem_reg_we <= 1'b0;
-
-                    ex_mem_csr_addr <= 12'd0;
-                    ex_mem_csr_op <= 3'd0;
-                    ex_mem_csr_we <= 1'b0;
-                end
 
                 // Exception handling - assign combinational logic results
                 exception_trigger <= id_ex_is_exception || int_is_interrupt;
@@ -689,35 +560,33 @@ module rv32i_core #(
 
 
     // Select forwarded data
-    assign id_ex_rs1_final_data_forwarded = id_ex_rs1_forward_ex ? wb_result :
-                                id_ex_rs1_data_forwarded;
-    assign id_ex_rs2_final_data_forwarded = id_ex_rs2_forward_ex ? wb_result :
-                                id_ex_rs2_data_forwarded;
-
-    wire        id_ex_sign_rs1 = id_ex_rs1_final_data_forwarded[31];
-    wire        id_ex_sign_rs2 = id_ex_rs2_final_data_forwarded[31];
-    wire [31:0] id_ex_diff     = id_ex_rs1_final_data_forwarded - id_ex_rs2_final_data_forwarded;
+    wire        id_ex_sign_rs1 = id_ex_rs1_data[31];
+    wire        id_ex_sign_rs2 = id_ex_rs2_data[31];
+    wire [31:0] id_ex_diff     = id_ex_rs1_data - id_ex_rs2_data;
 
     wire        id_ex_lt_s = (id_ex_sign_rs1 ^ id_ex_sign_rs2) ? id_ex_sign_rs1 : id_ex_diff[31]; // rs1 < rs2 (signed)
     wire        id_ex_ge_s = ~id_ex_lt_s;                                                          // rs1 >= rs2 (signed)
 
-    wire id_ex_eq = (id_ex_rs1_final_data_forwarded == id_ex_rs2_final_data_forwarded);
+    wire id_ex_eq = (id_ex_rs1_data == id_ex_rs2_data);
     wire id_ex_ne = ~id_ex_eq;
-    wire id_ex_lt = (id_ex_rs1_final_data_forwarded < id_ex_rs2_final_data_forwarded);
+    wire id_ex_lt = (id_ex_rs1_data < id_ex_rs2_data);
     wire id_ex_ge = ~id_ex_lt;
+
+    wire [31:0] pc_branch_taken = id_ex_pc + id_ex_imm;
+    wire [31:0] pc_branch_not_taken = id_ex_pc + 4;
 
     // PC update logic
     wire [31:0] pc_target = (id_opcode == 7'b1100011) ? ( // Branch
-                        (pc_id_ex_funct3 == 3'b000) ? ((id_ex_eq) ? pc_branch_taken : pc_branch_not_taken) : // BEQ
-                        (pc_id_ex_funct3 == 3'b001) ? ((id_ex_ne) ? pc_branch_taken : pc_branch_not_taken) : // BNE
-                        (pc_id_ex_funct3 == 3'b100) ? ((id_ex_lt_s) ? pc_branch_taken : pc_branch_not_taken) : // BLT
-                        (pc_id_ex_funct3 == 3'b101) ? ((id_ex_ge_s) ? pc_branch_taken : pc_branch_not_taken) : // BGE
-                        (pc_id_ex_funct3 == 3'b110) ? ((id_ex_lt) ? pc_branch_taken : pc_branch_not_taken) : // BLTU
-                        (pc_id_ex_funct3 == 3'b111) ? ((id_ex_ge) ? pc_branch_taken : pc_branch_not_taken) : // BGEU
+                        (id_ex_funct3 == 3'b000) ? ((id_ex_eq) ? pc_branch_taken : pc_branch_not_taken) : // BEQ
+                        (id_ex_funct3 == 3'b001) ? ((id_ex_ne) ? pc_branch_taken : pc_branch_not_taken) : // BNE
+                        (id_ex_funct3 == 3'b100) ? ((id_ex_lt_s) ? pc_branch_taken : pc_branch_not_taken) : // BLT
+                        (id_ex_funct3 == 3'b101) ? ((id_ex_ge_s) ? pc_branch_taken : pc_branch_not_taken) : // BGE
+                        (id_ex_funct3 == 3'b110) ? ((id_ex_lt) ? pc_branch_taken : pc_branch_not_taken) : // BLTU
+                        (id_ex_funct3 == 3'b111) ? ((id_ex_ge) ? pc_branch_taken : pc_branch_not_taken) : // BGEU
                         pc_branch_not_taken // default
                      ) :
                      (id_opcode == 7'b1101111) ? pc_branch_taken : // JAL
-                     (id_opcode == 7'b1100111) ? (id_ex_rs1_final_data_forwarded + id_ex_imm) & ~1 : // JALR
+                     (id_opcode == 7'b1100111) ? (id_ex_rs1_data + id_ex_imm) & ~1 : // JALR
                      pc + 4; // default: sequential execution
 
     // Exception handling logic
@@ -937,49 +806,17 @@ module rv32i_core #(
         id_ex_instr_str = decode_instruction(id_ex_instr);
         ex_mem_instr_str = decode_instruction(ex_mem_instr);
 
-        if (!mem_stall && instr_ready) begin
+        // if (!mem_stall) begin
+        if (if_id_pc != PC_FLUSH_ADDR || id_ex_pc != PC_FLUSH_ADDR || ex_mem_pc != PC_FLUSH_ADDR || mem_wb_rd_addr != 5'd0) begin
 
 
         // Log instruction fetch
         `DEBUG_PRINT(("Time %0t: IF - PC=0x%h, Instr=0x%h (%s), instr_ready=%b, PC_next=0x%h", $time, if_id_pc, if_id_instr, if_id_instr_str, instr_ready, pc_next));
         
         // Log instruction decode and register reads
-        `DEBUG_PRINT(("Time %0t: ID - PC=0x%h, Instr=0x%h (%s), alu_a=x%0d(0x%h), alu_b=x%0d(0x%h), rd=x%0d, rs1=0x%h, rs2=0x%h", 
-                    $time, id_ex_pc, id_ex_instr, id_ex_instr_str, id_ex_rs1_addr, id_ex_alu_a_forwarded,
-                    id_ex_rs2_addr, id_ex_alu_b_forwarded, id_ex_rd_addr, id_ex_rs1_data_forwarded, id_ex_rs2_data_forwarded));
-
-        if (id_ex_alu_a_forward_ex) begin
-            `DEBUG_PRINT(("Time %0t: FORWARD - alu_a forwarding: rs1=x%0d, id_ex_alu_a_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs1_addr, id_ex_alu_a_forward_ex, id_ex_alu_a));
-        end
-        if (id_ex_alu_b_forward_ex) begin
-            `DEBUG_PRINT(("Time %0t: FORWARD - alu_b forwarding: rs2=x%0d, id_ex_alu_b_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs2_addr, id_ex_alu_b_forward_ex, id_ex_alu_b));
-        end
-
-        if (id_ex_rs1_forward_ex) begin
-            `DEBUG_PRINT(("Time %0t: FORWARD - rs1 forwarding: rs1=x%0d, id_ex_rs1_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs1_addr, id_ex_rs1_forward_ex, id_ex_rs1_final_data_forwarded));
-        end
-        if (id_ex_rs2_forward_ex) begin
-            `DEBUG_PRINT(("Time %0t: FORWARD - rs2 forwarding: rs2=x%0d, id_ex_rs2_forward_ex=%b, data=0x%h", 
-                     $time, id_ex_rs2_addr, id_ex_rs2_forward_ex, id_ex_rs2_final_data_forwarded));
-        end
-        
-        // Log data hazard detection
-        if ((id_rs1 != 0 && id_rs1 == ex_mem_rd_addr && ex_mem_reg_we) ||
-            (id_rs2 != 0 && id_rs2 == ex_mem_rd_addr && ex_mem_reg_we) ||
-            (id_rs1 != 0 && id_rs1 == mem_wb_rd_addr && mem_wb_reg_we) ||
-            (id_rs2 != 0 && id_rs2 == mem_wb_rd_addr && mem_wb_reg_we)) begin
-            `DEBUG_PRINT(("Time %0t: HAZARD - Data hazard detected: rs1=x%0d, rs2=x%0d, ex_mem_rd=x%0d, mem_wb_rd=x%0d", 
-                     $time, id_rs1, id_rs2, ex_mem_rd_addr, mem_wb_rd_addr));
-        end
-
-        // Log load-use hazard detection
-        if (load_use_hazard) begin
-            `DEBUG_PRINT(("Time %0t: HAZARD - Load-use hazard detected: load_rd=x%0d, next_rs1=x%0d, next_rs2=x%0d", 
-                     $time, id_ex_rd_addr, if_id_rs1, if_id_rs2));
-        end
+        `DEBUG_PRINT(("Time %0t: ID - PC=0x%h, Instr=0x%h (%s), alu_a=x%0d(0x%h), alu_b=x%0d(0x%h), rd=x%0d",
+                    $time, id_ex_pc, id_ex_instr, id_ex_instr_str, id_ex_rs1_addr, id_ex_rs1_data,
+                    id_ex_rs2_addr, id_ex_rs2_data, id_ex_rd_addr));
 
         // Log memory issues
         if (!instr_ready) begin
@@ -1035,19 +872,19 @@ module rv32i_core #(
         
         // Log branches and jumps
         if (id_opcode == 7'b1100011) begin
-            case (pc_id_ex_funct3)
+            case (id_ex_funct3)
                 3'b000: `DEBUG_PRINT(("Time %0t: BRANCH - BEQ: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_eq));
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, id_ex_eq));
                 3'b001: `DEBUG_PRINT(("Time %0t: BRANCH - BNE: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ne));
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, id_ex_ne));
                 3'b100: `DEBUG_PRINT(("Time %0t: BRANCH - BLT: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_lt_s));
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, id_ex_lt_s));
                 3'b101: `DEBUG_PRINT(("Time %0t: BRANCH - BGE: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ge_s));
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, id_ex_ge_s));
                 3'b110: `DEBUG_PRINT(("Time %0t: BRANCH - BLTU: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_lt));
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, id_ex_lt));
                 3'b111: `DEBUG_PRINT(("Time %0t: BRANCH - BGEU: rs1=0x%h, rs2=0x%h, taken=%b", 
-                                  $time, id_ex_rs1_final_data_forwarded, id_ex_rs2_final_data_forwarded, id_ex_ge));
+                                  $time, id_ex_rs1_data, id_ex_rs2_data, id_ex_ge));
             endcase
         end
 
