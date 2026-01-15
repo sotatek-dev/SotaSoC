@@ -21,16 +21,16 @@ module test_rv32i_core_tb;
     rv32i_core core (
         .clk(clk),
         .rst_n(rst_n),
-        .instr_data(instr_data),
-        .mem_data(mem_data),
-        .instr_ready(instr_ready),
-        .mem_ready(mem_ready),
-        .instr_addr(instr_addr),
-        .mem_addr(mem_addr),
-        .mem_wdata(mem_wdata),
-        .mem_flag(mem_flag),
-        .mem_we(mem_we),
-        .mem_re(mem_re)
+        .i_instr_data(instr_data),
+        .i_mem_data(mem_data),
+        .i_instr_ready(instr_ready),
+        .i_mem_ready(mem_ready),
+        .o_instr_addr(instr_addr),
+        .o_mem_addr(mem_addr),
+        .o_mem_wdata(mem_wdata),
+        .o_mem_flag(mem_flag),
+        .o_mem_we(mem_we),
+        .o_mem_re(mem_re)
     );
 
     // Monitor signals

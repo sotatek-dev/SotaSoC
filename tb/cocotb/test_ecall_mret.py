@@ -52,7 +52,7 @@ async def test_ecall_basic(dut):
 
     def callback(dut, memory):
         # Check when we reach the exception handler
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x0000010C:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x0000010C:
             csr = dut.soc_inst.cpu_core.csr_file
 
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"
@@ -107,7 +107,7 @@ async def test_ecall_with_mie_enabled(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x0000010C:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x0000010C:
             csr = dut.soc_inst.cpu_core.csr_file
 
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"
@@ -161,7 +161,7 @@ async def test_mret_basic(dut):
 
     def callback(dut, memory):
         # Check when we return from exception handler to address after ECALL
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000024:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000024:
             csr = dut.soc_inst.cpu_core.csr_file
 
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"

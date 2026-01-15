@@ -94,7 +94,7 @@ async def test_timer_read_mtime(dut):
         nonlocal mtime_first_read, mtime_second_read
 
         # Check when we've read mtime twice
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000024:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000024:
             registers = dut.soc_inst.cpu_core.register_file.registers
 
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"
@@ -153,7 +153,7 @@ async def test_timer_write_read_mtimecmp(dut):
 
     def callback(dut, memory):
         # Check when we've read mtimecmp back
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x0000003C:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x0000003C:
             registers = dut.soc_inst.cpu_core.register_file.registers
 
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"
@@ -203,7 +203,7 @@ async def test_timer_interrupt(dut):
 
     def callback(dut, memory):
         # Check after writing mtimecmp and waiting
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
             # Verify timer interrupt is asserted when mtime >= mtimecmp
             timer_inst = dut.soc_inst.timer_inst
             mtime = dut.soc_inst.cpu_core.mtime_counter.value.to_unsigned()
@@ -290,12 +290,12 @@ async def test_timer_trap_handler(dut, hex_memory, timer_hit_position):
     def callback(dut, memory):
         nonlocal timer_hit
 
-        if dut.soc_inst.cpu_core.instr_addr.value == timer_hit_position and not timer_hit:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == timer_hit_position and not timer_hit:
             timer_hit = True
             dut.soc_inst.timer_inst.mtimecmp.value = 0x00000050
             dut.soc_inst.cpu_core.mtime_counter.value = 0x00000050
 
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000060:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000060:
             registers = dut.soc_inst.cpu_core.register_file.registers
             
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0, got 0x{int(dut.soc_inst.error_flag.value)}"

@@ -34,7 +34,9 @@ module rv32i_csr (
     input wire timer_interrupt          // Machine timer interrupt (MTIP)
 );
 
-    localparam [31:0] MIE_MASK = 32'h00000880;  // meie and mtie only
+    localparam MASK_ADDR = 32'h00FFFFFF;
+    localparam MASK_MIE = 32'h00000880;  // meie and mtie only
+    localparam MASK_MCAUSE = 32'h8000000F;
 
     // CSR register definitions
     // Machine-level CSRs
@@ -46,17 +48,18 @@ module rv32i_csr (
     reg [31:0] mepc;         // 0x341 - Machine exception program counter
     reg [31:0] mcause;       // 0x342 - Machine trap cause
     reg [31:0] mtval;        // 0x343 - Machine trap value
+    reg mip_tip;             // 0x344 - Timer interrupt pending
     // Note: medeleg (0x302), mideleg (0x303), satp (0x180), pmpcfg0 (0x3a0), pmpaddr0 (0x3b0),
     // mvendorid (0xf11), marchid (0xf12), mimpid (0xf13), mhartid (0xf14)
     // are writable but always return 0 when read
 
     // mip[7] = timer interrupt pending (MTIP)
-    wire [31:0] mip = {24'h0, timer_interrupt, 7'h0};
+    wire [31:0] mip = {24'h0, mip_tip, 7'h0};
 
     assign mstatus_out = mstatus;
-    assign mie_out = mie & MIE_MASK;
-    assign mtvec_out = mtvec; // Output mtvec for exception handling
-    assign mepc_out = mepc; // Output mepc for MRET
+    assign mie_out = mie & MASK_MIE;
+    assign mtvec_out = mtvec & MASK_ADDR; // Output mtvec for exception handling
+    assign mepc_out = mepc & MASK_ADDR; // Output mepc for MRET
     assign mip_out = mip;
 
     // CSR read operation
@@ -66,17 +69,17 @@ module rv32i_csr (
 
         case (csr_addr)
             // Machine-level CSRs
-            12'h300: csr_rdata = mstatus;      // MSTATUS
-            12'h301: csr_rdata = 32'h40000100; // MISA - read-only constant (RV32I, MXL=1)
-            12'h302: csr_rdata = 32'd0;        // MEDELEG
-            12'h303: csr_rdata = 32'd0;        // MIDELEG
-            12'h304: csr_rdata = mie & MIE_MASK; // MIE
-            12'h305: csr_rdata = mtvec;        // MTVEC
-            12'h340: csr_rdata = mscratch;     // MSCRATCH
-            12'h341: csr_rdata = mepc;         // MEPC
-            12'h342: csr_rdata = mcause;       // MCAUSE
-            12'h343: csr_rdata = mtval;        // MTVAL
-            12'h344: csr_rdata = mip;          // MIP
+            12'h300: csr_rdata = mstatus;                     // MSTATUS
+            12'h301: csr_rdata = 32'h40000100;                // MISA - read-only constant (RV32I, MXL=1)
+            12'h302: csr_rdata = 32'd0;                       // MEDELEG
+            12'h303: csr_rdata = 32'd0;                       // MIDELEG
+            12'h304: csr_rdata = mie & MASK_MIE;              // MIE
+            12'h305: csr_rdata = mtvec & MASK_ADDR;           // MTVEC
+            12'h340: csr_rdata = mscratch;                    // MSCRATCH
+            12'h341: csr_rdata = mepc & MASK_ADDR;            // MEPC
+            12'h342: csr_rdata = mcause;                      // MCAUSE
+            12'h343: csr_rdata = mtval;                       // MTVAL
+            12'h344: csr_rdata = mip;                         // MIP
 
             // Supervisor CSRs
             12'h180: csr_rdata = 32'd0;        // SATP
@@ -119,8 +122,11 @@ module rv32i_csr (
             mepc <= 32'd0;
             mcause <= 32'd0;
             mtval <= 32'd0;
+            mip_tip <= 1'b0;
             `DEBUG_PRINT(("Time %0t: CSR - CSR file reset", $time));
         end else begin
+
+            mip_tip <= timer_interrupt;
 
             // Handle exceptions (takes priority over CSR writes)
             if (exception_trigger) begin
@@ -129,8 +135,8 @@ module rv32i_csr (
                 // MPIE (bit 7) <- MIE (bit 3)
                 // MIE (bit 3) <- 0 (disable interrupts)
                 mstatus <= {mstatus[31:13], 2'b11, mstatus[10:8], mstatus[3], mstatus[6:4], 1'b0, mstatus[2:0]};
-                mepc <= exception_pc;
-                mcause <= exception_cause;
+                mepc <= exception_pc & MASK_ADDR;
+                mcause <= exception_cause & MASK_MCAUSE;
                 mtval <= exception_value;
                 // `DEBUG_PRINT(("Time %0t: CSR - Exception triggered: cause=0x%h, pc=0x%h, mtval=0x%h, mtvec=0x%h", 
                 //           $time, exception_cause, exception_pc, exception_value, mtvec));
@@ -155,11 +161,11 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= csr_wdata & MIE_MASK;
-                            12'h305: mtvec <= csr_wdata;
+                            12'h304: mie <= csr_wdata & MASK_MIE;
+                            12'h305: mtvec <= csr_wdata & MASK_ADDR;
                             12'h340: mscratch <= csr_wdata;
-                            12'h341: mepc <= csr_wdata;
-                            12'h342: mcause <= csr_wdata;
+                            12'h341: mepc <= csr_wdata & MASK_ADDR;
+                            12'h342: mcause <= csr_wdata & MASK_MCAUSE;
                             12'h343: mtval <= csr_wdata;
                             12'h344: ; // MIP
                             12'h180: ; // SATP
@@ -178,11 +184,11 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= (mie | csr_wdata) & MIE_MASK;
-                            12'h305: mtvec <= mtvec | csr_wdata;
+                            12'h304: mie <= (mie | csr_wdata) & MASK_MIE;
+                            12'h305: mtvec <= (mtvec | csr_wdata) & MASK_ADDR;
                             12'h340: mscratch <= mscratch | csr_wdata;
-                            12'h341: mepc <= mepc | csr_wdata;
-                            12'h342: mcause <= mcause | csr_wdata;
+                            12'h341: mepc <= (mepc | csr_wdata) & MASK_ADDR;
+                            12'h342: mcause <= (mcause | csr_wdata) & MASK_MCAUSE;
                             12'h343: mtval <= mtval | csr_wdata;
                             12'h344: ; // MIP
                             12'h180: ; // SATP
@@ -200,11 +206,11 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= (mie & ~csr_wdata) & MIE_MASK;
-                            12'h305: mtvec <= mtvec & ~csr_wdata;
+                            12'h304: mie <= (mie & ~csr_wdata) & MASK_MIE;
+                            12'h305: mtvec <= (mtvec & ~csr_wdata) & MASK_ADDR;
                             12'h340: mscratch <= mscratch & ~csr_wdata;
-                            12'h341: mepc <= mepc & ~csr_wdata;
-                            12'h342: mcause <= mcause & ~csr_wdata;
+                            12'h341: mepc <= (mepc & ~csr_wdata) & MASK_ADDR;
+                            12'h342: mcause <= (mcause & ~csr_wdata) & MASK_MCAUSE;
                             12'h343: mtval <= mtval & ~csr_wdata;
                             12'h344: ; // MIP
                             12'h180: ; // SATP
@@ -222,11 +228,11 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= ({27'd0, csr_wdata[4:0]} & MIE_MASK);
-                            12'h305: mtvec <= {27'd0, csr_wdata[4:0]};
+                            12'h304: mie <= ({27'd0, csr_wdata[4:0]} & MASK_MIE);
+                            12'h305: mtvec <= {27'd0, csr_wdata[4:0]} & MASK_ADDR;
                             12'h340: mscratch <= {27'd0, csr_wdata[4:0]};
-                            12'h341: mepc <= {27'd0, csr_wdata[4:0]};
-                            12'h342: mcause <= {27'd0, csr_wdata[4:0]};
+                            12'h341: mepc <= {27'd0, csr_wdata[4:0]} & MASK_ADDR;
+                            12'h342: mcause <= ({27'd0, csr_wdata[4:0]} & MASK_MCAUSE);
                             12'h343: mtval <= {27'd0, csr_wdata[4:0]};
                             12'h344: ; // MIP
                             12'h180: ; // SATP
@@ -244,11 +250,11 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= (mie | {27'd0, csr_wdata[4:0]}) & MIE_MASK;
-                            12'h305: mtvec <= mtvec | {27'd0, csr_wdata[4:0]};
+                            12'h304: mie <= (mie | {27'd0, csr_wdata[4:0]}) & MASK_MIE;
+                            12'h305: mtvec <= (mtvec | {27'd0, csr_wdata[4:0]}) & MASK_ADDR;
                             12'h340: mscratch <= mscratch | {27'd0, csr_wdata[4:0]};
-                            12'h341: mepc <= mepc | {27'd0, csr_wdata[4:0]};
-                            12'h342: mcause <= mcause | {27'd0, csr_wdata[4:0]};
+                            12'h341: mepc <= (mepc | {27'd0, csr_wdata[4:0]}) & MASK_ADDR;
+                            12'h342: mcause <= (mcause | {27'd0, csr_wdata[4:0]}) & MASK_MCAUSE;
                             12'h343: mtval <= mtval | {27'd0, csr_wdata[4:0]};
                             12'h344: ; // MIP
                             12'h180: ; // SATP
@@ -266,11 +272,11 @@ module rv32i_csr (
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
-                            12'h304: mie <= (mie & ~{27'd0, csr_wdata[4:0]}) & MIE_MASK;
-                            12'h305: mtvec <= mtvec & ~{27'd0, csr_wdata[4:0]};
+                            12'h304: mie <= (mie & ~{27'd0, csr_wdata[4:0]}) & MASK_MIE;
+                            12'h305: mtvec <= mtvec & ~{27'd0, csr_wdata[4:0]} & MASK_ADDR;
                             12'h340: mscratch <= mscratch & ~{27'd0, csr_wdata[4:0]};
-                            12'h341: mepc <= mepc & ~{27'd0, csr_wdata[4:0]};
-                            12'h342: mcause <= mcause & ~{27'd0, csr_wdata[4:0]};
+                            12'h341: mepc <= (mepc & ~{27'd0, csr_wdata[4:0]}) & MASK_ADDR;
+                            12'h342: mcause <= (mcause & ~{27'd0, csr_wdata[4:0]}) & MASK_MCAUSE;
                             12'h343: mtval <= mtval & ~{27'd0, csr_wdata[4:0]};
                             12'h344: ; // MIP
                             12'h180: ; // SATP

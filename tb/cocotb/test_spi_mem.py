@@ -35,7 +35,7 @@ async def test_spi_instr(dut):
     max_cycles = 10000;
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
             registers = dut.soc_inst.cpu_core.register_file.registers
             assert registers[3].value == 3, f"Register x3 should be 3, got 0x{registers[3].value.integer:08x}"
             return True
@@ -70,7 +70,7 @@ async def test_spi_data(dut):
     max_cycles = 10000;
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
             registers = dut.soc_inst.cpu_core.register_file.registers
             assert registers[3].value == 0x123, f"Register x3 should be 0x123, got 0x{registers[3].value.integer:08x}"
             return True
@@ -108,7 +108,7 @@ async def test_sh(dut):
     max_cycles = 10000;
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
             mem_value = read_word_from_memory(memory, 0x01000320)
             assert mem_value == 0x56347777, f"Memory[0x01000320] should be 0x56347777, got 0x{mem_value:08x}"
             registers = dut.soc_inst.cpu_core.register_file.registers
@@ -135,9 +135,9 @@ async def test_spi_bin_file(dut):
 
     def callback(dut, memory):
         nonlocal cycles
-        if dut.soc_inst.cpu_core.instr_data.value == 0x00000073:
+        if dut.soc_inst.cpu_core.i_instr_data.value == 0x00000073:
             cycles = 5 * 18;
-            print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
+            print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.i_instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.o_instr_addr.value):08x}")
             print("Found ECALL instruction")
         if cycles > 0:
             cycles -= 1;
