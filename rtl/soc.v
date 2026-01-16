@@ -90,26 +90,26 @@ module soc #(
         .rst_n(rst_n),
         
         // Instruction memory interface
-        .instr_addr(core_instr_addr),
-        .instr_data(core_instr_data),
-        .instr_ready(mem_instr_ready),
+        .o_instr_addr(core_instr_addr),
+        .i_instr_data(core_instr_data),
+        .i_instr_ready(mem_instr_ready),
         
         // Data memory interface  
-        .mem_addr(core_mem_addr),
-        .mem_wdata(core_mem_wdata),
-        .mem_flag(core_mem_flag),
-        .mem_we(core_mem_we),
-        .mem_re(core_mem_re),
-        .mem_data(core_mem_rdata),
-        .mem_ready(mem_data_ready),
+        .o_mem_addr(core_mem_addr),
+        .o_mem_wdata(core_mem_wdata),
+        .o_mem_flag(core_mem_flag),
+        .o_mem_we(core_mem_we),
+        .o_mem_re(core_mem_re),
+        .i_mem_data(core_mem_rdata),
+        .i_mem_ready(mem_data_ready),
 
-        .mtime(mtime),
+        .o_mtime(mtime),
 
         // Timer interrupt
-        .timer_interrupt(timer_interrupt),
+        .i_timer_interrupt(timer_interrupt),
 
         // Error flag
-        .error_flag(error_flag)
+        .o_error_flag(error_flag)
     );
     
     // Memory Controller instantiation

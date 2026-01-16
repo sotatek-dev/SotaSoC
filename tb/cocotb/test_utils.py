@@ -4,7 +4,7 @@ from cocotb.clock import Clock
 
 # Constants
 CYCLES_PER_INSTRUCTION = 8
-MEMORY_CYCLES = 3
+MEMORY_CYCLES = 7
 NOP_INSTR = 0x00000013
 
 # Global variables to track memory operations
@@ -23,7 +23,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
-    dut.instr_data.value = memory[0x80000000]
+    dut.instr_data.value = memory[0x00000000]
     dut.mem_data.value = mem_data
     dut.instr_ready.value = 0
     dut.mem_ready.value = 0
@@ -33,7 +33,7 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
     await Timer(20, unit="ns")
     dut.rst_n.value = 1
 
-    current_pc  = 0
+    current_pc = 0xFFFFFFFF
     current_mem_we = 0
     current_mem_re = 0
     instr_wait_cycles = 0
@@ -73,5 +73,5 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
                 dut.instr_ready.value = 1
 
         # print(f"mem_wait_cycles={mem_wait_cycles}, instr_wait_cycles={instr_wait_cycles}")
-        # print(f"Cycle {_}: PC={dut.instr_addr.value.integer:08x}, Instr={memory[dut.instr_addr.value.integer]:08x}")
+        # print(f"Cycle {_}: PC={dut.instr_addr.value.to_unsigned():08x}, Instr={memory[dut.instr_addr.value.to_unsigned()]:08x}")
         # print(f"Cycle {_}: mem_addr={dut.mem_addr.value.integer:08x}, mem_data={dut.mem_data.value.integer:08x}, mem_wdata={dut.mem_wdata.value.integer:08x}, mem_flag={dut.mem_flag.value.integer:08x}") 

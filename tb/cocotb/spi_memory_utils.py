@@ -142,7 +142,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 # print(f"SPI_: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, addr=0x{addr:08x}, data=0x{data:08x}")
                 if not is_instr and command == 0x02:
                     if bit_counter > 0:
-                        print(f"Writing {bit_counter} bits to memory: addr=0x{addr:08x}, data=0x{data:08x})")
+                        print(f"SPI: Writing {bit_counter} bits to memory: addr=0x{addr:08x}, data=0x{data:08x})")
                         if (bit_counter == 32):
                             write_word_to_memory(memory, addr, data)
                         elif (bit_counter == 16):
@@ -166,18 +166,18 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             bit_counter = 0
                             if is_instr:
                                 addr = (addr & 0x00FFFFFF) + FLASH_BASE_ADDR
-                                print(f"Reading from instr memory: addr=0x{addr:08x}")
+                                print(f"SPI: Reading from instr memory: addr=0x{addr:08x}")
                                 data = read_word_from_memory(memory, addr)
-                                print(f"data: 0x{data:08x}")
+                                print(f"SPI: data: 0x{data:08x}")
                             else:
                                 command = (addr >> 24) & 0xFF
                                 addr = (addr & 0x00FFFFFF) + PSRAM_BASE_ADDR
                                 if command == 0x03:
-                                    print(f"Reading from data memory: addr=0x{addr:08x}")
+                                    print(f"SPI: Reading from data memory: addr=0x{addr:08x}")
                                     data = read_word_from_memory(memory, addr )
-                                    print(f"data: 0x{data:08x}")
+                                    print(f"SPI: data: 0x{data:08x}")
                                 else:
-                                    print(f"Writing to data memory: addr=0x{addr:08x}")
+                                    print(f"SPI: Writing to data memory: addr=0x{addr:08x}")
                                     data = 0
             else:
                 if is_instr or (not is_instr and command == 0x03):
@@ -193,9 +193,9 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                                 if bit_counter == 32:
                                     bit_counter = 0
                                     addr = addr + 4
-                                    print(f"Reading next instr from instr memory: addr=0x{addr:08x}")
+                                    print(f"SPI: Reading next instr from instr memory: addr=0x{addr:08x}")
                                     data = read_word_from_memory(memory, addr)
-                                    print(f"data: 0x{data:08x}")
+                                    print(f"SPI: data: 0x{data:08x}")
 
                         elif fsm_state == FSM_DONE:
                             fsm_state = FSM_IDLE
@@ -211,7 +211,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             data = (data << 1) | get_packed_bit(dut.soc_inst.spi_io_out, 0)
                             bit_counter += 1
                             if bit_counter == 32:
-                                print(f"Write data: addr=0x{addr:08x}, data=0x{data:08x}")
+                                print(f"SPI: Write data: addr=0x{addr:08x}, data=0x{data:08x}")
                                 write_word_to_memory(memory, addr, data)
                                 fsm_state = FSM_DONE
                         elif fsm_state == FSM_DONE:

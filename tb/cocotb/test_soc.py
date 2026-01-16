@@ -23,9 +23,9 @@ async def test_soc(dut):
     # Execute for several cycles
     for _ in range(max_cycles):
         await RisingEdge(dut.clk)
-        if dut.soc_inst.cpu_core.instr_data.value.to_unsigned() == 0x00000073:
+        if dut.soc_inst.cpu_core.i_instr_data.value.to_unsigned() == 0x00000073:
             cycles = 5 * instr_fetch_delay;
-            print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
+            print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.i_instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.o_instr_addr.value):08x}")
             print("Found ECALL instruction")
         if cycles > 0:
             cycles -= 1;

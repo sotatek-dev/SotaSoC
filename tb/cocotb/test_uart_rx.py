@@ -46,9 +46,9 @@ async def test_uart_rx(dut):
                 dut.soc_inst.uart_rx.value = bits[bit_index];
             # print(f"UART RX: {dut.soc_inst.mem_ctrl.uart_rx_data.value}")
 
-        if dut.soc_inst.cpu_core.instr_data.value == 0x00000073:
+        if dut.soc_inst.cpu_core.i_instr_data.value == 0x00000073:
             cycles = 5 * instr_fetch_delay;
-            print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.instr_addr.value):08x}")
+            print(f"Intruction: 0x{int(dut.soc_inst.cpu_core.i_instr_data.value):08x}, PC: 0x{int(dut.soc_inst.cpu_core.o_instr_addr.value):08x}")
             print("Found ECALL instruction")
         if cycles > 0:
             cycles -= 1;

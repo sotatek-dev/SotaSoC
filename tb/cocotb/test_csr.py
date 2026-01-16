@@ -79,7 +79,7 @@ async def test_csrrw1(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000040:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000040:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -122,7 +122,7 @@ async def test_csrrw2(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000040:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000040:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -158,7 +158,7 @@ async def test_csrrw3(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000020:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000020:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -192,7 +192,7 @@ async def test_csrrw4(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000020:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000020:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -226,7 +226,7 @@ async def test_csrrw5(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000020:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000020:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -265,7 +265,7 @@ async def test_csrrw6(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -308,7 +308,7 @@ async def test_csrrw7(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000040:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000040:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -355,7 +355,7 @@ async def test_csrrw8(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000050:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000050:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -395,7 +395,7 @@ async def test_csrrw9(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000030:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -438,7 +438,7 @@ async def test_csrrw10(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000040:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000040:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -485,7 +485,7 @@ async def test_csrrw11(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000050:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000050:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -521,7 +521,7 @@ async def test_csrrs(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000024:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000024:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
 
@@ -555,7 +555,7 @@ async def test_csrrc(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000024:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000024:
             registers = dut.soc_inst.cpu_core.register_file.registers
             csr = dut.soc_inst.cpu_core.csr_file
             
@@ -618,7 +618,7 @@ async def test_csr_instr(dut):
     max_cycles = 10000
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.instr_addr.value == 0x00000050:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000050:
             registers = dut.soc_inst.cpu_core.register_file.registers
             
             # Check CSRRW: x4 should contain initial mscratch value (0x0 after reset)
