@@ -1,36 +1,14 @@
 # Makefile
 
-# defaults
-SIM ?= icarus
-TOPLEVEL_LANG ?= verilog
+# Include common configuration
+include $(dir $(lastword $(MAKEFILE_LIST)))Makefile.inc
 
-VERILOG_SOURCES += $(PWD)/rtl/rv32i_core.sv
-VERILOG_SOURCES += $(PWD)/rtl/rv32i_alu.v
-VERILOG_SOURCES += $(PWD)/rtl/rv32i_register.v
-VERILOG_SOURCES += $(PWD)/rtl/rv32i_csr.v
-VERILOG_SOURCES += $(PWD)/rtl/mem_ctl.v
-VERILOG_SOURCES += $(PWD)/rtl/soc.v
-VERILOG_SOURCES += $(PWD)/rtl/peri/spi/qspi_master.v
-VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_ctl.v
-VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_tx.v
-VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_rx.v
-VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv
-
-COMPILE_ARGS += -g2012 -I$(PWD)/rtl -DSIMULATION
-
-# Pass BIN_FILE parameter to simulation if provided
-ifdef BIN_FILE
-    export BIN_FILE
-endif
-
-# TOPLEVEL is the name of the toplevel module in your Verilog or VHDL file
-TOPLEVEL = test_soc_tb
+# Remove timer and PWM sources for this test (not needed)
+VERILOG_SOURCES := $(filter-out $(PROJECT_ROOT)/rtl/peri/timer/mtime_timer.v,$(VERILOG_SOURCES))
+VERILOG_SOURCES := $(filter-out $(PROJECT_ROOT)/rtl/peri/pwm/pwm.v,$(VERILOG_SOURCES))
 
 # MODULE is the basename of the Python test file
 MODULE = test_uart_rx
-
-# Set Python path to find the test module
-export PYTHONPATH := $(PWD)/tb/cocotb:$(PYTHONPATH)
 
 # Set a unique build directory for this test
 SIM_BUILD = sim_build_spi_mem
