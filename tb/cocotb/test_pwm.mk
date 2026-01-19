@@ -1,4 +1,4 @@
-# Makefile for Timer tests
+# Makefile for PWM tests
 
 # defaults
 SIM ?= icarus
@@ -43,13 +43,13 @@ endif
 TOPLEVEL = test_soc_tb
 
 # MODULE is the basename of the Python test file
-MODULE = test_timer
+MODULE = test_pwm
 
 # Set Python path to find the test module
 export PYTHONPATH := $(PWD)/tb/cocotb:$(PYTHONPATH)
 
 # Set a unique build directory for this test
-SIM_BUILD = sim_build_timer
+SIM_BUILD = sim_build_pwm
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim

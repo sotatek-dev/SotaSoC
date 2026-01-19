@@ -1,39 +1,17 @@
 import cocotb
-from test_utils import NOP_INSTR
+from test_utils import (
+    NOP_INSTR,
+    encode_csrrw,
+    encode_csrrs,
+    encode_csrrc,
+    encode_csrrwi,
+    encode_csrrsi,
+    encode_csrrci,
+)
 from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
 )
-
-
-def encode_csrrw(rd, csr, rs1):
-    """Encode CSRRW instruction: rd = CSR[csr]; CSR[csr] = rs1"""
-    return (csr << 20) | (rs1 << 15) | (0x1 << 12) | (rd << 7) | 0x73
-
-
-def encode_csrrs(rd, csr, rs1):
-    """Encode CSRRS instruction: rd = CSR[csr]; CSR[csr] |= rs1"""
-    return (csr << 20) | (rs1 << 15) | (0x2 << 12) | (rd << 7) | 0x73
-
-
-def encode_csrrc(rd, csr, rs1):
-    """Encode CSRRC instruction: rd = CSR[csr]; CSR[csr] &= ~rs1"""
-    return (csr << 20) | (rs1 << 15) | (0x3 << 12) | (rd << 7) | 0x73
-
-
-def encode_csrrwi(rd, csr, imm):
-    """Encode CSRRWI instruction: rd = CSR[csr]; CSR[csr] = imm"""
-    return (csr << 20) | (imm << 15) | (0x5 << 12) | (rd << 7) | 0x73
-
-
-def encode_csrrsi(rd, csr, imm):
-    """Encode CSRRSI instruction: rd = CSR[csr]; CSR[csr] |= imm"""
-    return (csr << 20) | (imm << 15) | (0x6 << 12) | (rd << 7) | 0x73
-
-
-def encode_csrrci(rd, csr, imm):
-    """Encode CSRRCI instruction: rd = CSR[csr]; CSR[csr] &= ~imm"""
-    return (csr << 20) | (imm << 15) | (0x7 << 12) | (rd << 7) | 0x73
 
 
 # CSR addresses

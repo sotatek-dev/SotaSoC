@@ -1,5 +1,13 @@
 import cocotb
-from test_utils import NOP_INSTR
+from test_utils import (
+    NOP_INSTR,
+    encode_load,
+    encode_store,
+    encode_addi,
+    encode_lui,
+    encode_jal,
+    encode_csrrw,
+)
 from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
@@ -12,50 +20,6 @@ TIMER_MTIME_LO = TIMER_BASE_ADDR + 0x0
 TIMER_MTIME_HI = TIMER_BASE_ADDR + 0x4
 TIMER_MTIMECMP_LO = TIMER_BASE_ADDR + 0x8
 TIMER_MTIMECMP_HI = TIMER_BASE_ADDR + 0xC
-
-
-def encode_load(rd, rs1, imm12):
-    """Encode LOAD instruction (LW): rd = MEM[rs1 + imm12]"""
-    return (imm12 << 20) | (rs1 << 15) | (0x2 << 12) | (rd << 7) | 0x03
-
-
-def encode_store(rs1, rs2, imm12):
-    """Encode STORE instruction (SW): MEM[rs1 + imm12] = rs2"""
-    imm11_5 = (imm12 >> 5) & 0x7F
-    imm4_0 = imm12 & 0x1F
-    return (imm11_5 << 25) | (rs2 << 20) | (rs1 << 15) | (0x2 << 12) | (imm4_0 << 7) | 0x23
-
-
-def encode_addi(rd, rs1, imm12):
-    """Encode ADDI instruction: rd = rs1 + imm12"""
-    return (imm12 << 20) | (rs1 << 15) | (0x0 << 12) | (rd << 7) | 0x13
-
-
-def encode_lui(rd, imm20):
-    """Encode LUI instruction: rd = imm20 << 12"""
-    return (imm20 << 12) | (rd << 7) | 0x37
-
-
-def encode_jal(rd, imm20):
-    """Encode JAL instruction: rd = PC + 4, PC = PC + imm20
-    imm20 is the byte offset (must be multiple of 2, LSB is ignored)"""
-    # JAL format: imm[20|10:1|11|19:12] | rd[11:0] | opcode
-    # Sign-extend to 32 bits first
-    if imm20 & 0x100000:
-        imm = imm20 | 0xFFE00000  # Sign extend negative
-    else:
-        imm = imm20 & 0x1FFFFF  # Positive, mask to 21 bits
-    # Extract bits from the original immediate
-    imm20_bit = (imm >> 20) & 0x1
-    imm10_1 = (imm >> 1) & 0x3FF  # bits [10:1]
-    imm11_bit = (imm >> 11) & 0x1
-    imm19_12 = (imm >> 12) & 0xFF  # bits [19:12]
-    return (imm20_bit << 31) | (imm19_12 << 12) | (imm11_bit << 20) | (imm10_1 << 21) | (rd << 7) | 0x6F
-
-
-def encode_csrrw(rd, csr, rs1):
-    """Encode CSRRW instruction: rd = CSR[csr]; CSR[csr] = rs1"""
-    return (csr << 20) | (rs1 << 15) | (0x1 << 12) | (rd << 7) | 0x73
 
 
 # CSR addresses
