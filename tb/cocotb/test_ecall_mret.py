@@ -1,14 +1,12 @@
 import cocotb
-from test_utils import NOP_INSTR
+from test_utils import (
+    NOP_INSTR,
+    encode_csrrw,
+)
 from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
 )
-
-
-def encode_csrrw(rd, csr, rs1):
-    """Encode CSRRW instruction: rd = CSR[csr]; CSR[csr] = rs1"""
-    return (csr << 20) | (rs1 << 15) | (0x1 << 12) | (rd << 7) | 0x73
 
 
 # CSR addresses

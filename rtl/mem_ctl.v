@@ -18,7 +18,8 @@ module mem_ctl #(
     parameter UART_BASE_ADDR,
     parameter GPIO_BASE_ADDR,
     parameter GPIO_SIZE,
-    parameter TIMER_BASE_ADDR
+    parameter TIMER_BASE_ADDR,
+    parameter PWM_BASE_ADDR
 ) (
     input wire clk,
     input wire rst_n,
@@ -52,6 +53,9 @@ module mem_ctl #(
 
     // Timer interface
     input wire [31:0] timer_mem_rdata,
+
+    // PWM interface
+    input wire [31:0] pwm_mem_rdata,
 
     // Shared SPI interface
     output wire flash_cs_n,
@@ -182,7 +186,8 @@ module mem_ctl #(
     wire uart_request = data_request && mem_addr[31:8] == UART_BASE_ADDR[31:8];
     wire gpio_request = data_request && mem_addr[31:8] == GPIO_BASE_ADDR[31:8];
     wire timer_request = data_request && mem_addr[31:8] == TIMER_BASE_ADDR[31:8];
-    wire peripheral_request = uart_request || gpio_request || timer_request;
+    wire pwm_request = data_request && mem_addr[31:8] == PWM_BASE_ADDR[31:8];
+    wire peripheral_request = uart_request || gpio_request || timer_request || pwm_request;
 
     // Priority logic: data has higher priority
     wire start_data_access = data_request && (access_state == ACCESS_IDLE || ACCESS_PAUSE);
@@ -236,21 +241,22 @@ module mem_ctl #(
                     // Just forward the response
                     mem_rdata <= uart_mem_rdata;
                     mem_ready <= 1'b1;
-                end
-
-                if (gpio_request) begin
+                end else if (gpio_request) begin
                     if (mem_we) begin
                         gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
                     end else begin
                         mem_rdata <= gpio_mem_rdata;
                     end
                     mem_ready <= 1'b1;
-                end
-
-                if (timer_request) begin
+                end else if (timer_request) begin
                     // Timer requests are handled by mtime_timer module
                     // Just forward the response
                     mem_rdata <= timer_mem_rdata;
+                    mem_ready <= 1'b1;
+                end else if (pwm_request) begin
+                    // PWM requests are handled by pwm module
+                    // Just forward the response
+                    mem_rdata <= pwm_mem_rdata;
                     mem_ready <= 1'b1;
                 end
             end else

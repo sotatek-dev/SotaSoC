@@ -15,6 +15,7 @@ VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_ctl.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_tx.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/uart/uart_rx.v
 VERILOG_SOURCES += $(PWD)/rtl/peri/timer/mtime_timer.v
+VERILOG_SOURCES += $(PWD)/rtl/peri/pwm/pwm.v
 VERILOG_SOURCES += $(PWD)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 -I$(PWD)/rtl -DSIMULATION
