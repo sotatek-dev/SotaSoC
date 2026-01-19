@@ -37,16 +37,8 @@ module mem_ctl #(
     output reg [31:0] mem_rdata,
     output reg mem_ready,
 
-    // UART TX interface
-    output wire uart_tx_en,
-    input wire uart_tx_busy,
-    output wire [7:0] uart_tx_data,
-
-    // UART RX interface
-    output wire uart_rx_en,
-    input wire uart_rx_break,
-    input wire uart_rx_valid,
-    input wire [7:0] uart_rx_data,
+    // UART interface
+    input wire [31:0] uart_mem_rdata,
 
     // GPIO interface
     output wire [GPIO_SIZE-1:0] gpio_out,
@@ -103,9 +95,6 @@ module mem_ctl #(
 
     reg [GPIO_SIZE-1:0] gpio_reg;
 
-    // UART controller interface signals
-    wire [31:0] uart_mem_rdata;
-
     assign gpio_out = gpio_reg;
     wire [31:0] gpio_mem_rdata = {{(32 - GPIO_SIZE){1'b0}}, gpio_reg};
 
@@ -132,32 +121,6 @@ module mem_ctl #(
         .spi_io_in(spi_io_in),
         .spi_io_out(spi_io_out),
         .spi_io_oe(spi_io_oe)
-    );
-
-    // UART Controller instance
-    uart_ctl uart_ctl_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-
-        .uart_request(uart_request),
-        
-        // Memory-mapped interface
-        .mem_addr(mem_addr),
-        .mem_wdata(mem_wdata),
-        .mem_we(mem_we),
-        .mem_re(mem_re),
-        .mem_rdata(uart_mem_rdata),
-        
-        // UART TX interface
-        .uart_tx_en(uart_tx_en),
-        .uart_tx_data(uart_tx_data),
-        .uart_tx_busy(uart_tx_busy),
-        
-        // UART RX interface
-        .uart_rx_en(uart_rx_en),
-        .uart_rx_break(uart_rx_break),
-        .uart_rx_valid(uart_rx_valid),
-        .uart_rx_data(uart_rx_data)
     );
 
     wire instr_addr_not_changed = instr_addr[23:0] == spi_addr[23:0];

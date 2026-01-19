@@ -65,6 +65,9 @@ module soc #(
     wire mem_instr_ready;
     wire mem_data_ready;
 
+    // UART connections
+    wire [31:0] uart_mem_rdata;
+
     // Timer connections
     wire timer_interrupt;
     wire [31:0] timer_mem_rdata;
@@ -72,16 +75,7 @@ module soc #(
     // PWM connections
     wire [31:0] pwm_mem_rdata;
 
-    // UART TX connections
-    wire uart_tx_en;
-    wire uart_tx_busy;
-    wire [7:0] uart_tx_data;
 
-    wire uart_rx_en;
-    wire uart_rx_break;
-    wire uart_rx_valid;
-    wire [7:0] uart_rx_data;
-    
     // Enhanced core with ready signal handling
     wire core_instr_valid;
     wire core_mem_valid;
@@ -147,16 +141,8 @@ module soc #(
         .mem_rdata(core_mem_rdata),
         .mem_ready(mem_data_ready),
         
-        // UART TX interface
-        .uart_tx_en(uart_tx_en),
-        .uart_tx_busy(uart_tx_busy),
-        .uart_tx_data(uart_tx_data),
-
-        // UART RX interface
-        .uart_rx_en(uart_rx_en),
-        .uart_rx_break(uart_rx_break),
-        .uart_rx_valid(uart_rx_valid),
-        .uart_rx_data(uart_rx_data),
+        // UART interface
+        .uart_mem_rdata(uart_mem_rdata),
         
         // GPIO interface
         .gpio_out(gpio_out),
@@ -175,35 +161,24 @@ module soc #(
         .spi_io_out(spi_io_out),
         .spi_io_oe(spi_io_oe)
     );
-    
-    // UART TX module instantiation
-    uart_tx #(
-        .CLK_HZ(CLK_HZ),
-        .BIT_RATE(UART_BIT_RATE),
-        .PAYLOAD_BITS(8),
-        .STOP_BITS(1)
-    ) uart_transmitter (
-        .clk(clk),
-        .resetn(rst_n),
-        .uart_txd(uart_tx),
-        .uart_tx_busy(uart_tx_busy),
-        .uart_tx_en(uart_tx_en),
-        .uart_tx_data(uart_tx_data)
-    );
 
-    uart_rx #(
+    // UART Controller module instantiation
+    uart_ctl #(
+        .UART_BASE_ADDR(UART_BASE_ADDR),
         .CLK_HZ(CLK_HZ),
-        .BIT_RATE(UART_BIT_RATE),
+        .UART_BIT_RATE(UART_BIT_RATE),
         .PAYLOAD_BITS(8),
         .STOP_BITS(1)
-    ) uart_receiver (
+    ) uart_inst (
         .clk(clk),
-        .resetn(rst_n),
-        .uart_rxd(uart_rx),
-        .uart_rx_en(uart_rx_en),
-        .uart_rx_break(uart_rx_break),
-        .uart_rx_valid(uart_rx_valid),
-        .uart_rx_data(uart_rx_data)
+        .rst_n(rst_n),
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(uart_mem_rdata),
+        .uart_tx(uart_tx),
+        .uart_rx(uart_rx)
     );
 
     // Timer module

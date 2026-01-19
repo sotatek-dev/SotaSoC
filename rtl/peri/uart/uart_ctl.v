@@ -7,11 +7,15 @@
  * - 0xC: RX Control (read/write)
  */
 
-module uart_ctl (
+module uart_ctl #(
+    parameter UART_BASE_ADDR   = 32'h40000000,
+    parameter CLK_HZ           = 10000000,
+    parameter UART_BIT_RATE    = 115200,
+    parameter PAYLOAD_BITS     = 8,
+    parameter STOP_BITS        = 1
+) (
     input wire clk,
     input wire rst_n,
-
-    input wire uart_request,
 
     // Memory-mapped interface
     input wire [31:0] mem_addr,
@@ -20,16 +24,9 @@ module uart_ctl (
     input wire mem_re,
     output wire [31:0] mem_rdata,
     
-    // UART TX interface
-    output wire uart_tx_en,
-    output wire [7:0] uart_tx_data,
-    input wire uart_tx_busy,
-    
-    // UART RX interface
-    output wire uart_rx_en,
-    input wire uart_rx_break,
-    input wire uart_rx_valid,
-    input wire [7:0] uart_rx_data
+    // UART physical interface
+    output wire uart_tx,
+    input wire uart_rx
 );
 
     // Internal registers used by macros
@@ -39,10 +36,53 @@ module uart_ctl (
     reg uart_rx_break_reg;
     reg uart_rx_valid_reg;
 
+    // UART TX/RX internal signals
+    wire uart_tx_en;
+    wire [7:0] uart_tx_data;
+    wire uart_tx_busy;
+    wire uart_rx_en;
+    wire uart_rx_break;
+    wire uart_rx_valid;
+    wire [7:0] uart_rx_data;
+
+    // UART request signal - calculated internally
+    wire uart_request = mem_addr[31:8] == UART_BASE_ADDR[31:8];
+
     // Assign outputs from registers
     assign uart_tx_en = uart_tx_en_reg;
     assign uart_tx_data = uart_tx_data_reg;
     assign uart_rx_en = uart_rx_en_reg;
+
+    // UART TX module instantiation
+    uart_tx #(
+        .CLK_HZ(CLK_HZ),
+        .BIT_RATE(UART_BIT_RATE),
+        .PAYLOAD_BITS(PAYLOAD_BITS),
+        .STOP_BITS(STOP_BITS)
+    ) uart_transmitter (
+        .clk(clk),
+        .resetn(rst_n),
+        .uart_txd(uart_tx),
+        .uart_tx_busy(uart_tx_busy),
+        .uart_tx_en(uart_tx_en),
+        .uart_tx_data(uart_tx_data)
+    );
+
+    // UART RX module instantiation
+    uart_rx #(
+        .CLK_HZ(CLK_HZ),
+        .BIT_RATE(UART_BIT_RATE),
+        .PAYLOAD_BITS(PAYLOAD_BITS),
+        .STOP_BITS(STOP_BITS)
+    ) uart_receiver (
+        .clk(clk),
+        .resetn(rst_n),
+        .uart_rxd(uart_rx),
+        .uart_rx_en(uart_rx_en),
+        .uart_rx_break(uart_rx_break),
+        .uart_rx_valid(uart_rx_valid),
+        .uart_rx_data(uart_rx_data)
+    );
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
