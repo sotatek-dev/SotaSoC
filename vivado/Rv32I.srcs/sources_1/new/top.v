@@ -34,7 +34,7 @@ IBUFDS #(
 );
 
 clk_wiz_0 clk_ins(
-   .clk_out100(clk),
+   .clk_out(clk),
    .clk_in1(clk_200m)
 );
 
