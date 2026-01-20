@@ -33,10 +33,6 @@ ifdef HEX_FILE
     export HEX_FILE
 endif
 
-ifdef CLK_HZ
-    COMPILE_ARGS += -DCLK_HZ=$(CLK_HZ)
-endif
-
 ifdef FLASH_BASE_ADDR
     FLASH_BASE_ADDR_DEC := $(shell printf "%d" $(FLASH_BASE_ADDR))
     COMPILE_ARGS += -DFLASH_BASE_ADDR=$(FLASH_BASE_ADDR_DEC)

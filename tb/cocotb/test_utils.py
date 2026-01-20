@@ -3,6 +3,7 @@ from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.clock import Clock
 
 # Constants
+CLK_HZ = 62_500_000
 CYCLES_PER_INSTRUCTION = 8
 MEMORY_CYCLES = 7
 NOP_INSTR = 0x00000013

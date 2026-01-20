@@ -1,6 +1,6 @@
 import cocotb
 import os
-from test_utils import NOP_INSTR
+from test_utils import NOP_INSTR, CLK_HZ
 from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
@@ -20,28 +20,31 @@ async def test_uart_rx(dut):
 
     instr_fetch_delay = 32
 
-    max_cycles = 10000;
+    max_cycles = 20000;
     cycles = 0;
 
-    uart_cycles = -1;
-    bit_index = 0;
-    bits = [0, 1, 1, 0, 0, 0, 0, 1, 0, 1]; # start bit, C (0x43), stop bit
+    uart_cycles_per_bit = int(CLK_HZ / 115200)
+
+    uart_cycles = -1
+    bit_index = 0
+    bits = [0, 1, 1, 0, 0, 0, 0, 1, 0, 1] # start bit, C (0x43), stop bit
 
     def callback(dut, memory):
         nonlocal cycles
         nonlocal uart_cycles
         nonlocal bit_index
+        nonlocal uart_cycles_per_bit
 
         if uart_cycles >= 0:
-            if uart_cycles % 87 == 0:
+            if uart_cycles % uart_cycles_per_bit == 0:
                 bit_index += 1;
                 if bit_index < len(bits):
                     dut.soc_inst.uart_rx.value = bits[bit_index];
             uart_cycles -= 1;
 
-        if dut.soc_inst.uart_inst.uart_receiver.uart_rx_en.value == 1:
+        if dut.soc_inst.uart_instances[0].uart_inst.uart_receiver.uart_rx_en.value == 1:
             if uart_cycles < 0:
-                uart_cycles = 87 * 20 - 1;
+                uart_cycles = uart_cycles_per_bit * 20 - 1;
                 bit_index = 0;
                 dut.soc_inst.uart_rx.value = bits[bit_index];
             # print(f"UART RX: {dut.soc_inst.mem_ctrl.uart_rx_data.value}")

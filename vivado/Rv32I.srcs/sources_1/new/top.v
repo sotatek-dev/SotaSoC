@@ -1,5 +1,7 @@
 module top #(
-    parameter GPIO_SIZE = 5
+    parameter UART_NUM = 1,
+    parameter GPIO_SIZE = 5,
+    parameter PWM_NUM_CHANNELS = 2
 )(
     input clk_p,
     input clk_n,
@@ -8,9 +10,10 @@ module top #(
     output ram_cs_n,
     output spi_sclk,
     inout wire [3:0] spi_io,
-    output uart_tx,
-    input wire uart_rx,
+    output [UART_NUM-1:0] uart_tx,
+    input wire [UART_NUM-1:0] uart_rx,
     output wire [GPIO_SIZE-1:0] gpio_out,
+    output wire [PWM_NUM_CHANNELS-1:0] pwm_out,
     output wire error_flag
 );
 
@@ -48,7 +51,6 @@ generate
 endgenerate
 
 soc #(
-    .CLK_HZ(20000000)
 ) soc_ins(
     .clk(clk),
     .rst_n(rst_n),

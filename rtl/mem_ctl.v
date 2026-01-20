@@ -5,9 +5,6 @@
  * - Data memory operations to SPI RAM
  * - Address mapping and SPI protocol handling
  * 
- * Memory Map:
- * 0x80000000 - 0x8FFFFFFF: Flash (Instructions)
- * 0x00000000 - 0x0FFFFFFF: RAM (Data)
  */
 
 `include "debug_defines.vh"
@@ -16,6 +13,8 @@ module mem_ctl #(
     parameter FLASH_BASE_ADDR,
     parameter PSRAM_BASE_ADDR,
     parameter UART_BASE_ADDR,
+    parameter UART_NUM = 1,
+    parameter UART_SPACING = 32'h100,
     parameter GPIO_BASE_ADDR,
     parameter GPIO_SIZE,
     parameter TIMER_BASE_ADDR,
@@ -38,7 +37,7 @@ module mem_ctl #(
     output reg mem_ready,
 
     // UART interface
-    input wire [31:0] uart_mem_rdata,
+    input wire [UART_NUM*32-1:0] uart_mem_rdata,
 
     // GPIO interface
     output wire [GPIO_SIZE-1:0] gpio_out,
@@ -98,6 +97,23 @@ module mem_ctl #(
     assign gpio_out = gpio_reg;
     wire [31:0] gpio_mem_rdata = {{(32 - GPIO_SIZE){1'b0}}, gpio_reg};
 
+    wire [1:0] uart_instance_sel = mem_addr[9:8];  // Select UART instance (0-3)
+    wire uart_instance_valid = (uart_instance_sel < UART_NUM);
+    reg [31:0] uart_mem_rdata_selected;
+    always @(*) begin
+        if (uart_instance_valid) begin
+            case (uart_instance_sel)
+                2'b00: uart_mem_rdata_selected = uart_mem_rdata[31:0];   // UART0
+                2'b01: uart_mem_rdata_selected = uart_mem_rdata[63:32];  // UART1
+                2'b10: uart_mem_rdata_selected = uart_mem_rdata[95:64];  // UART2
+                2'b11: uart_mem_rdata_selected = uart_mem_rdata[127:96]; // UART3
+                default: uart_mem_rdata_selected = 32'h0;
+            endcase
+        end else begin
+            uart_mem_rdata_selected = 32'h0;
+        end
+    end
+
     // SPI Master instance
     spi_master spi_master_inst (
         .clk(clk),
@@ -146,7 +162,7 @@ module mem_ctl #(
     // Request signals
     wire data_request = mem_write_request || mem_read_request;
     wire instr_request = instr_addr_changed || !instr_ready_reg;
-    wire uart_request = data_request && mem_addr[31:8] == UART_BASE_ADDR[31:8];
+    wire uart_request = data_request && mem_addr[31:8] == UART_BASE_ADDR[31:8] && uart_instance_valid;
     wire gpio_request = data_request && mem_addr[31:8] == GPIO_BASE_ADDR[31:8];
     wire timer_request = data_request && mem_addr[31:8] == TIMER_BASE_ADDR[31:8];
     wire pwm_request = data_request && mem_addr[31:8] == PWM_BASE_ADDR[31:8];
@@ -199,10 +215,10 @@ module mem_ctl #(
             //      otherwise, we start data access as normal.
             // 4. If there is instruction fetch, we start instruction fetch or getch next instruction as normal.
             if (start_data_access && peripheral_request) begin
-                if (uart_request) begin
+                if (uart_request && uart_instance_valid) begin
                     // UART requests are handled by uart_ctl module
                     // Just forward the response
-                    mem_rdata <= uart_mem_rdata;
+                    mem_rdata <= uart_mem_rdata_selected;
                     mem_ready <= 1'b1;
                 end else if (gpio_request) begin
                     if (mem_we) begin

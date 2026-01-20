@@ -9,6 +9,7 @@
 module uart_rx(
 input  wire       clk          , // Top level system clock input.
 input  wire       resetn       , // Asynchronous active low reset.
+input  wire [9:0] divider      , // Clock divider: CLK_HZ / BIT_RATE
 input  wire       uart_rxd     , // UART Recieve pin.
 input  wire       uart_rx_en   , // Recieve enable
 output wire       uart_rx_break, // Did we get a BREAK message?
@@ -19,16 +20,6 @@ output reg  [PAYLOAD_BITS-1:0] uart_rx_data   // The recieved data.
 // --------------------------------------------------------------------------- 
 // External parameters.
 // 
-
-//
-// Input bit rate of the UART line.
-parameter   BIT_RATE        = 9600; // bits / sec
-localparam  BIT_P           = 1_000_000_000 * 1/BIT_RATE; // nanoseconds
-
-//
-// Clock frequency in hertz.
-parameter   CLK_HZ          =    50_000_000;
-localparam  CLK_P           = 1_000_000_000 * 1/CLK_HZ; // nanoseconds
 
 //
 // Number of data bits recieved per UART packet.
@@ -43,12 +34,9 @@ parameter   STOP_BITS       = 1;
 // 
 
 //
-// Number of clock cycles per uart bit.
-localparam       CYCLES_PER_BIT     = BIT_P / CLK_P;
-
-//
 // Size of the registers which store sample counts and bit durations.
-localparam       COUNT_REG_LEN      = 1+$clog2(CYCLES_PER_BIT);
+// Divider is 10 bits (0-1023), so we need 10 bits for cycle_counter
+localparam       COUNT_REG_LEN      = 10;
 
 // -------------------------------------------------------------------------- 
 // Internal registers.
@@ -105,9 +93,9 @@ end
 // FSM next state selection.
 // 
 
-wire next_bit     = cycle_counter == CYCLES_PER_BIT ||
+wire next_bit     = cycle_counter == divider ||
                         fsm_state       == FSM_STOP && 
-                        cycle_counter   == CYCLES_PER_BIT/2;
+                        cycle_counter   == {1'b0, divider[9:1]};
 wire payload_done = bit_counter   == PAYLOAD_BITS  ;
 
 //
@@ -159,7 +147,7 @@ end
 always @(posedge clk) begin : p_bit_sample
     if(!resetn) begin
         bit_sample <= 1'b0;
-    end else if (cycle_counter == CYCLES_PER_BIT/2) begin
+    end else if (cycle_counter == {1'b0, divider[9:1]}) begin
         bit_sample <= rxd_reg;
     end
 end
