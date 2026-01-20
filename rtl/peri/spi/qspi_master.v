@@ -68,10 +68,10 @@ module spi_master (
                 if (start) begin
                     if (initialized) begin
                         fsm_next_state = FSM_SEND_CMD;
-                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
+//                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
                     end else begin
                         fsm_next_state = FSM_INIT;
-                        `DEBUG_PRINT(("Time %0t: QSPI_MASTER - Initializing QSPI", $time));
+//                        `DEBUG_PRINT(("Time %0t: QSPI_MASTER - Initializing QSPI", $time));
                     end
                 end else begin
                     fsm_next_state = FSM_IDLE;
