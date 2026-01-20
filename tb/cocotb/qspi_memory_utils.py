@@ -2,7 +2,7 @@ import cocotb
 import os
 from cocotb.triggers import Timer, RisingEdge, FallingEdge
 from cocotb.clock import Clock
-from test_utils import NOP_INSTR
+from test_utils import NOP_INSTR, CLK_HZ
 
 FLASH_BASE_ADDR = 0x00000000
 PSRAM_BASE_ADDR = 0x01000000
@@ -91,8 +91,7 @@ def write_byte_to_memory(memory, addr, data):
 async def test_spi_memory(dut, memory, max_cycles, callback):
     """Test the SPI memory"""
 
-    clk_hz = int(dut.soc_inst.CLK_HZ.value)
-    clk_cycle_time = 1000000000 / clk_hz
+    clk_cycle_time = 1_000_000_000 / CLK_HZ
 
     clock = Clock(dut.clk, clk_cycle_time, unit="ns")
     cocotb.start_soon(clock.start())

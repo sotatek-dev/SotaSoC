@@ -12,12 +12,7 @@ module test_soc_tb;
     reg [3:0] spi_io_in;
     wire [3:0] spi_io_out;
     wire error_flag;
-    
-    // Define default values if not provided
-    `ifndef CLK_HZ
-    `define CLK_HZ 10000000
-    `endif
-    
+
     `ifndef FLASH_BASE_ADDR  
     `define FLASH_BASE_ADDR 32'h00000000
     `endif
@@ -28,7 +23,6 @@ module test_soc_tb;
     
     // Instantiate the SoC
     soc#(
-        .CLK_HZ(`CLK_HZ),
         .RESET_ADDR(32'h00000000),
         .FLASH_BASE_ADDR(`FLASH_BASE_ADDR),
         .PSRAM_BASE_ADDR(`PSRAM_BASE_ADDR)
