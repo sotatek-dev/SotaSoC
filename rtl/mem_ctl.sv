@@ -104,9 +104,9 @@ module mem_ctl #(
         if (uart_instance_valid) begin
             case (uart_instance_sel)
                 2'b00: uart_mem_rdata_selected = uart_mem_rdata[31:0];   // UART0
-                2'b01: uart_mem_rdata_selected = uart_mem_rdata[63:32];  // UART1
-                2'b10: uart_mem_rdata_selected = uart_mem_rdata[95:64];  // UART2
-                2'b11: uart_mem_rdata_selected = uart_mem_rdata[127:96]; // UART3
+                2'b01: uart_mem_rdata_selected = (UART_NUM > 1) ? uart_mem_rdata[63:32]  : 32'h0;  // UART1
+                2'b10: uart_mem_rdata_selected = (UART_NUM > 2) ? uart_mem_rdata[95:64]  : 32'h0;  // UART2
+                2'b11: uart_mem_rdata_selected = (UART_NUM > 3) ? uart_mem_rdata[127:96] : 32'h0;  // UART3
                 default: uart_mem_rdata_selected = 32'h0;
             endcase
         end else begin
