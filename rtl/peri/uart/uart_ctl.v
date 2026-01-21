@@ -29,6 +29,8 @@ module uart_ctl #(
     input wire uart_rx
 );
 
+    wire [21:0] _unused_mem_wdata = mem_wdata[31:10];
+
     // Internal registers used by macros
     reg [7:0] uart_tx_data_reg;
     reg uart_tx_en_reg;
@@ -85,8 +87,7 @@ module uart_ctl #(
 
     // UART RX module instantiation
     uart_rx #(
-        .PAYLOAD_BITS(PAYLOAD_BITS),
-        .STOP_BITS(STOP_BITS)
+        .PAYLOAD_BITS(PAYLOAD_BITS)
     ) uart_receiver (
         .clk(clk),
         .resetn(rst_n),

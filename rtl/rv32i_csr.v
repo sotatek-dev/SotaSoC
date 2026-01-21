@@ -176,6 +176,7 @@ module rv32i_csr (
                             12'hf13: ; // MIMPID
                             12'hf14: ; // MHARTID
                             // Read-only CSRs (cycle, time, instret) - ignore writes
+                            default: ;
                         endcase
                     end
                     3'b010: begin // CSRRS - Atomic Read and Set Bits
@@ -198,6 +199,7 @@ module rv32i_csr (
                             12'hf12: ; // MARCHID
                             12'hf13: ; // MIMPID
                             12'hf14: ; // MHARTID
+                            default: ;
                         endcase
                     end
                     3'b011: begin // CSRRC - Atomic Read and Clear Bits
@@ -220,6 +222,7 @@ module rv32i_csr (
                             12'hf12: ; // MARCHID
                             12'hf13: ; // MIMPID
                             12'hf14: ; // MHARTID
+                            default: ;
                         endcase
                     end
                     3'b101: begin // CSRRWI - Atomic Read/Write (Immediate)
@@ -242,6 +245,7 @@ module rv32i_csr (
                             12'hf12: ; // MARCHID
                             12'hf13: ; // MIMPID
                             12'hf14: ; // MHARTID
+                            default: ;
                         endcase
                     end
                     3'b110: begin // CSRRSI - Atomic Read and Set Bits (Immediate)
@@ -264,6 +268,7 @@ module rv32i_csr (
                             12'hf12: ; // MARCHID
                             12'hf13: ; // MIMPID
                             12'hf14: ; // MHARTID
+                            default: ;
                         endcase
                     end
                     3'b111: begin // CSRRCI - Atomic Read and Clear Bits (Immediate)
@@ -286,6 +291,7 @@ module rv32i_csr (
                             12'hf12: ; // MARCHID
                             12'hf13: ; // MIMPID
                             12'hf14: ; // MHARTID
+                            default: ;
                         endcase
                     end
                     default: begin

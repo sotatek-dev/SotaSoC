@@ -1,7 +1,7 @@
 module top #(
     parameter UART_NUM = 1,
     parameter GPIO_SIZE = 5,
-    parameter PWM_NUM_CHANNELS = 2
+    parameter PWM_NUM = 2
 )(
     input clk_p,
     input clk_n,
@@ -13,7 +13,7 @@ module top #(
     output [UART_NUM-1:0] uart_tx,
     input wire [UART_NUM-1:0] uart_rx,
     output wire [GPIO_SIZE-1:0] gpio_out,
-    output wire [PWM_NUM_CHANNELS-1:0] pwm_out,
+    output wire [PWM_NUM-1:0] pwm_out,
     output wire error_flag
 );
 

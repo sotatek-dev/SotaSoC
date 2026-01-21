@@ -18,9 +18,8 @@ module soc #(
     parameter PWM_BASE_ADDR    = 32'h40003000,
     parameter UART_NUM         = 1,  // Maximum 4 instances
     parameter UART_SPACING     = 32'h100,
-    parameter UART_BIT_RATE    = 115200,
     parameter GPIO_SIZE        = 5,
-    parameter PWM_NUM_CHANNELS = 2
+    parameter PWM_NUM          = 2
 ) (
     input wire clk,
     input wire rst_n,
@@ -41,7 +40,7 @@ module soc #(
     output wire [GPIO_SIZE-1:0] gpio_out,
 
     // PWM interface
-    output wire [PWM_NUM_CHANNELS-1:0] pwm_out,
+    output wire [PWM_NUM-1:0] pwm_out,
 
     // Error flag
     output wire error_flag
@@ -73,15 +72,6 @@ module soc #(
     // PWM connections
     wire [31:0] pwm_mem_rdata;
 
-
-    // Enhanced core with ready signal handling
-    wire core_instr_valid;
-    wire core_mem_valid;
-    
-    // Simple ready signal handling - core waits for memory
-    assign core_instr_valid = mem_instr_ready;
-    assign core_mem_valid = mem_data_ready;
-    
     // RV32I Core instantiation
     rv32i_core #(
         .RESET_ADDR(RESET_ADDR)
@@ -118,7 +108,6 @@ module soc #(
         .PSRAM_BASE_ADDR(PSRAM_BASE_ADDR),
         .UART_BASE_ADDR(UART_BASE_ADDR),
         .UART_NUM(UART_NUM),
-        .UART_SPACING(UART_SPACING),
         .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
         .GPIO_SIZE(GPIO_SIZE),
         .TIMER_BASE_ADDR(TIMER_BASE_ADDR),
@@ -205,7 +194,7 @@ module soc #(
     // PWM module
     pwm #(
         .PWM_BASE_ADDR(PWM_BASE_ADDR),
-        .PWM_NUM_CHANNELS(PWM_NUM_CHANNELS),
+        .PWM_NUM(PWM_NUM),
         .COUNTER_WIDTH(16)
     ) pwm_inst (
         .clk(clk),

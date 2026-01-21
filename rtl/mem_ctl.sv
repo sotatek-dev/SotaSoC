@@ -14,7 +14,6 @@ module mem_ctl #(
     parameter PSRAM_BASE_ADDR,
     parameter UART_BASE_ADDR,
     parameter UART_NUM = 1,
-    parameter UART_SPACING = 32'h100,
     parameter GPIO_BASE_ADDR,
     parameter GPIO_SIZE,
     parameter TIMER_BASE_ADDR,
@@ -62,13 +61,6 @@ module mem_ctl #(
     localparam ACCESS_STOP = 3'b011;
     localparam ACCESS_NEXT_INSTR = 3'b100;
 
-    // SPI Flash commands
-    localparam FLASH_READ_CMD = 8'h03;  // Read command
-    
-    // SPI RAM commands  
-    localparam RAM_READ_CMD = 8'h03;    // Read command
-    localparam RAM_WRITE_CMD = 8'h02;   // Write command
-
     reg [2:0] access_state;
 
     reg instr_ready_reg;
@@ -102,17 +94,13 @@ module mem_ctl #(
     reg [31:0] uart_mem_rdata_selected;
     always @(*) begin
         if (uart_instance_valid) begin
-            case (uart_instance_sel)
-                2'b00: uart_mem_rdata_selected = uart_mem_rdata[31:0];   // UART0
-                2'b01: uart_mem_rdata_selected = (UART_NUM > 1) ? uart_mem_rdata[63:32]  : 32'h0;  // UART1
-                2'b10: uart_mem_rdata_selected = (UART_NUM > 2) ? uart_mem_rdata[95:64]  : 32'h0;  // UART2
-                2'b11: uart_mem_rdata_selected = (UART_NUM > 3) ? uart_mem_rdata[127:96] : 32'h0;  // UART3
-                default: uart_mem_rdata_selected = 32'h0;
-            endcase
+            uart_mem_rdata_selected = uart_mem_rdata[uart_instance_sel*32 +: 32];
         end else begin
             uart_mem_rdata_selected = 32'h0;
         end
     end
+
+    wire [7:0] _unused_instr_addr = instr_addr[31:24];
 
     // SPI Master instance
     spi_master spi_master_inst (
@@ -169,7 +157,7 @@ module mem_ctl #(
     wire peripheral_request = uart_request || gpio_request || timer_request || pwm_request;
 
     // Priority logic: data has higher priority
-    wire start_data_access = data_request && (access_state == ACCESS_IDLE || ACCESS_PAUSE);
+    wire start_data_access = data_request;
     wire start_instr_access = instr_request && (access_state == ACCESS_IDLE) && !data_request;
 
     wire [23:0] next_instr_addr = spi_addr[23:0] + 4;
@@ -240,7 +228,7 @@ module mem_ctl #(
                 end
             end else
             // If we need to access memory but mem ctl is reading instruction => stop reading instruction
-            if (start_data_access && (access_state == ACCESS_ACTIVE || ACCESS_PAUSE) && spi_is_instr == 1'b1) begin
+            if (start_data_access && spi_is_instr == 1'b1) begin
                 spi_stop <= 1'b1;
                 spi_is_instr <= 1'b0;
                 spi_write_enable <= mem_we;
@@ -313,7 +301,7 @@ module mem_ctl #(
                         mem_ready <= 1'b0;
                         spi_start <= 1'b0;
                         spi_cont <= 1'b0;
-                        spi_addr <= 32'h0;
+                        spi_addr <= 24'h0;
                         spi_data_in <= 32'h0;
                         spi_data_len <= 6'b0;
                         spi_is_instr <= 1'b0;

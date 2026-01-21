@@ -23,7 +23,6 @@ module spi_master (
 );
 
     // Parameters
-    parameter CLK_DIV = 4;               // Clock divider for QSPI clock (system_clk / CLK_DIV)
     parameter FSM_IDLE = 3'b000;
     parameter FSM_INIT = 3'b001;
     parameter FSM_SEND_CMD = 3'b010;
@@ -38,7 +37,7 @@ module spi_master (
     // Internal signals
     reg [2:0] fsm_state;
     reg [2:0] fsm_next_state;
-    reg [7:0] bit_counter;               // Counts bits transferred
+    reg [5:0] bit_counter;               // Counts bits transferred
     reg [31:0] shift_reg_out;
     reg [31:0] shift_reg_in;
     reg spi_clk_en;
@@ -152,7 +151,7 @@ module spi_master (
             spi_io_oe <= 4'b0000;
             spi_io_out <= 4'b0000;
             spi_clk_en <= 1'b0;
-            bit_counter <= 8'b0;
+            bit_counter <= 6'b0;
             shift_reg_out <= 32'b0;
             shift_reg_in <= 32'b0;
             data_out <= 32'b0;
@@ -177,7 +176,7 @@ module spi_master (
                     spi_io_oe <= 4'b0000;
                     spi_io_out <= 4'b0000;
                     spi_clk_en <= 1'b0;
-                    bit_counter <= 8'b0;
+                    bit_counter <= 6'b0;
                     write_mosi <= 1'b0;
                     
                     if (start) begin
@@ -218,7 +217,7 @@ module spi_master (
                     end
 
                     if (bit_counter == 8) begin
-                        bit_counter <= 8'b0;  // Reset counter for data phase
+                        bit_counter <= 6'b0;  // Reset counter for data phase
                     end
 
                     write_mosi <= ~write_mosi;
@@ -240,7 +239,7 @@ module spi_master (
                         end else begin
                             shift_reg_out <= 32'b0;    // Clear for read phase
                         end
-                        bit_counter <= 8'b0;  // Reset counter for data phase
+                        bit_counter <= 6'b0;  // Reset counter for data phase
                     end
 
                     write_mosi <= ~write_mosi;
@@ -260,7 +259,7 @@ module spi_master (
                     end
 
                     if (bit_counter == 6) begin
-                        bit_counter <= 8'b0;
+                        bit_counter <= 6'b0;
                     end
 
                     write_mosi <= ~write_mosi;
@@ -291,7 +290,7 @@ module spi_master (
                     // In case of fetch instruction, we update some flag here to save one clock cycle
                     if (bit_counter == 32) begin
                         spi_clk_en <= 1'b0;
-                        bit_counter <= 8'b0;
+                        bit_counter <= 6'b0;
                         done <= 1'b1;
                         data_out <= shift_reg_in;  // Output the received data
                     end
@@ -304,7 +303,7 @@ module spi_master (
                     spi_io_oe <= 4'b0000;
                     spi_io_out <= 4'b0000;
                     spi_clk_en <= 1'b0;
-                    bit_counter <= 8'b0;
+                    bit_counter <= 6'b0;
                     shift_reg_in <= 32'b0;
                     shift_reg_out <= 32'b0;
                     is_write_op <= 1'b0;
@@ -325,7 +324,7 @@ module spi_master (
                     done <= 1'b1;
                     spi_cs_n <= 1'b1;
                     spi_clk_en <= 1'b0;
-                    bit_counter <= 8'b0;
+                    bit_counter <= 6'b0;
                     spi_io_oe <= 4'b0000;
                     spi_io_out <= 4'b0000;
                     

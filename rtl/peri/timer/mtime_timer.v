@@ -28,6 +28,8 @@ module mtime_timer #(
     output wire timer_interrupt
 );
 
+    wire [3:0] _unused_mem_addr = mem_addr[7:4];
+
     // Timer registers
     reg [47:0] mtimecmp;   // Machine time compare register
 

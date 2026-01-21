@@ -119,9 +119,9 @@ always @(posedge clk) begin : p_bit_counter
     if(!resetn) begin
         bit_counter <= 4'b0;
     end else if(fsm_state != FSM_SEND && fsm_state != FSM_STOP) begin
-        bit_counter <= {COUNT_REG_LEN{1'b0}};
+        bit_counter <= 4'b0;
     end else if(fsm_state == FSM_SEND && n_fsm_state == FSM_STOP) begin
-        bit_counter <= {COUNT_REG_LEN{1'b0}};
+        bit_counter <= 4'b0;
     end else if(fsm_state == FSM_STOP&& next_bit) begin
         bit_counter <= bit_counter + 1'b1;
     end else if(fsm_state == FSM_SEND && next_bit) begin

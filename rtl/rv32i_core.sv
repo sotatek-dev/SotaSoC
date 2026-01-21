@@ -37,10 +37,24 @@ module rv32i_core #(
     output wire o_error_flag            // Error flag
 );
 
+    localparam INSTR_NOP = 32'h00000013;
     localparam PC_FLUSH_ADDR = 32'h00FFFFFF;
     localparam MASK_MCAUSE = 32'h8000000F;
     localparam MASK_ADDR = 32'h00FFFFFF;
     localparam INT_CAUSE_TIMER = 32'h80000007;
+
+    // RISC-V Opcodes
+    localparam OPCODE_R        = 7'b0110011;  // R-type: ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND
+    localparam OPCODE_I        = 7'b0010011;  // I-type ALU: ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI
+    localparam OPCODE_L        = 7'b0000011;  // I-type Load: LB, LH, LW, LBU, LHU
+    localparam OPCODE_S        = 7'b0100011;  // S-type Store: SB, SH, SW
+    localparam OPCODE_B        = 7'b1100011;  // B-type Branch: BEQ, BNE, BLT, BGE, BLTU, BGEU
+    localparam OPCODE_JAL      = 7'b1101111;  // J-type: JAL
+    localparam OPCODE_JALR     = 7'b1100111;  // I-type: JALR
+    localparam OPCODE_LUI      = 7'b0110111;  // U-type: LUI
+    localparam OPCODE_AUIPC    = 7'b0010111;  // U-type: AUIPC
+    localparam OPCODE_SYSTEM   = 7'b1110011;  // I-type System: ECALL, EBREAK, MRET, CSR*
+    localparam OPCODE_FENCE    = 7'b0001111;  // I-type: FENCE
 
     // Pipeline registers
     reg [31:0] if_instr, if_pc;
@@ -55,7 +69,7 @@ module rv32i_core #(
     reg [31:0] pc;
     wire [31:0] pc_next;
 
-    reg [31:0] mem_instr, mem_pc, mem_alu_result, mem_rs1_data, mem_rs2_data;
+    reg [31:0] mem_instr, mem_alu_result, mem_rs1_data, mem_rs2_data;
     reg [4:0] mem_rd_addr;
     reg mem_mem_we, mem_mem_re, mem_reg_we;
 
@@ -68,11 +82,12 @@ module rv32i_core #(
     reg mem_stall;
 
     // Instruction type signals
-    wire if_is_r_type, if_is_i_type, if_is_s_type, if_is_b_type, if_is_j_type, if_is_u_type, if_is_risb_type, if_is_rsb_type;
+    wire if_is_i_type, if_is_s_type, if_is_b_type, if_is_j_type, if_is_u_type;
 
     // Instruction fields
     wire [6:0] if_opcode;
     wire [2:0] if_funct3;
+    /* verilator lint_off UNUSEDSIGNAL */
     wire [6:0] if_funct7;
     wire [11:0] if_imm12;
     wire [31:0] if_imm, imm_i, imm_s, imm_b, imm_u, imm_j;
@@ -99,6 +114,7 @@ module rv32i_core #(
 
     // Writeback result selection
     wire [6:0] mem_opcode;
+    wire [4:0] _unused_mem_rd_addr;
     wire [2:0] mem_funct3;
     wire [31:0] mem_reg_wdata;
     wire [31:0] mem_value;
@@ -145,6 +161,12 @@ module rv32i_core #(
     assign if_rs1_addr = if_instr[19:15];
     assign if_rs2_addr = if_instr[24:20];
 
+    assign if_is_i_type = (if_opcode == OPCODE_I) || (if_opcode == OPCODE_L) || (if_opcode == OPCODE_JALR);
+    assign if_is_s_type = (if_opcode == OPCODE_S);
+    assign if_is_b_type = (if_opcode == OPCODE_B);
+    assign if_is_j_type = (if_opcode == OPCODE_JAL);
+    assign if_is_u_type = (if_opcode == OPCODE_LUI) || (if_opcode == OPCODE_AUIPC);
+
     // Immediate generation
     assign if_imm12 = if_instr[31:20];
     assign imm_i = {{20{if_imm12[11]}}, if_imm12};
@@ -153,11 +175,11 @@ module rv32i_core #(
     assign imm_u = {if_instr[31:12], 12'b0};
     assign imm_j = {{12{if_instr[31]}}, if_instr[19:12], if_instr[20], if_instr[30:21], 1'b0};
 
-    assign if_imm = (if_opcode == 7'b0010011) || (if_opcode == 7'b0000011) || (if_opcode == 7'b1100111) ? imm_i :
-                    (if_opcode == 7'b0100011) ? imm_s :
-                    (if_opcode == 7'b1100011) ? imm_b :
-                    (if_opcode == 7'b1101111) ? imm_j :
-                    (if_opcode == 7'b0110111) || (if_opcode == 7'b0010111) ? imm_u :
+    assign if_imm = if_is_i_type ? imm_i :
+                    if_is_s_type ? imm_s :
+                    if_is_b_type ? imm_b :
+                    if_is_j_type ? imm_j :
+                    if_is_u_type ? imm_u :
                     32'd0;
 
 
@@ -172,6 +194,7 @@ module rv32i_core #(
 
     assign mem_opcode = mem_instr[6:0];
     assign mem_funct3 = mem_instr[14:12];
+    assign _unused_mem_rd_addr = mem_instr[11:7];
 
     // Instruction address
     assign o_instr_addr = pc;
@@ -250,90 +273,81 @@ module rv32i_core #(
                                 // && !exception_trigger;
     assign int_pc_next = id_pc;  // PC of instruction that would execute next
 
-    assign ex_is_valid_opcode = (ex_opcode == 7'b0110011)  // R-type
-                            || (ex_opcode == 7'b0010011)  // I-type ALU
-                            || (ex_opcode == 7'b0000011)  // I-type Load
-                            || (ex_opcode == 7'b0100011)  // S-type Store
-                            || (ex_opcode == 7'b1100011)  // B-type Branch
-                            || (ex_opcode == 7'b1101111)  // J-type JAL
-                            || (ex_opcode == 7'b1100111)  // I-type JALR
-                            || (ex_opcode == 7'b0110111)  // U-type LUI
-                            || (ex_opcode == 7'b0010111)  // U-type AUIPC
-                            || (ex_opcode == 7'b1110011)  // I-type System (CSR, ECALL, EBREAK, MRET)
-                            || (ex_opcode == 7'b0001111); // I-type FENCE
+    assign ex_is_valid_opcode = (ex_opcode == OPCODE_R)       // R-type
+                            || (ex_opcode == OPCODE_I)       // I-type ALU
+                            || (ex_opcode == OPCODE_L)       // I-type Load
+                            || (ex_opcode == OPCODE_S)       // S-type Store
+                            || (ex_opcode == OPCODE_B)       // B-type Branch
+                            || (ex_opcode == OPCODE_JAL)     // J-type JAL
+                            || (ex_opcode == OPCODE_JALR)    // I-type JALR
+                            || (ex_opcode == OPCODE_LUI)     // U-type LUI
+                            || (ex_opcode == OPCODE_AUIPC)   // U-type AUIPC
+                            || (ex_opcode == OPCODE_SYSTEM)  // I-type System (CSR, ECALL, EBREAK, MRET)
+                            || (ex_opcode == OPCODE_FENCE);  // I-type FENCE
 
     assign o_error_flag = error_flag_reg;
 
-    assign if_is_r_type = (if_opcode == 7'b0110011);
-    assign if_is_i_type = (if_opcode == 7'b0010011) || (if_opcode == 7'b0000011) || (if_opcode == 7'b1100111);
-    assign if_is_s_type = (if_opcode == 7'b0100011);
-    assign if_is_b_type = (if_opcode == 7'b1100011);
-    assign if_is_j_type = (if_opcode == 7'b1101111);
-    assign if_is_u_type = (if_opcode == 7'b0110111) || (if_opcode == 7'b0010111);
-    assign if_is_risb_type = if_is_r_type || if_is_i_type || if_is_s_type || if_is_b_type;
-    assign if_is_rsb_type = if_is_r_type || if_is_s_type || if_is_b_type;
-
-    // ECALL detection (opcode 7'b1110011, funct3 == 3'b000, imm12 == 12'h000)
-    assign id_is_ecall = (id_opcode == 7'b1110011) && (id_funct3 == 3'b000) && (id_imm12 == 12'h000);
+    // ECALL detection (opcode OPCODE_SYSTEM, funct3 == 3'b000, imm12 == 12'h000)
+    assign id_is_ecall = (id_opcode == OPCODE_SYSTEM) && (id_funct3 == 3'b000) && (id_imm12 == 12'h000);
     
-    // EBREAK detection (opcode 7'b1110011, funct3 == 3'b000, imm12 == 12'h001)
-    assign id_is_ebreak = (id_opcode == 7'b1110011) && (id_funct3 == 3'b000) && (id_imm12 == 12'h001);
+    // EBREAK detection (opcode OPCODE_SYSTEM, funct3 == 3'b000, imm12 == 12'h001)
+    assign id_is_ebreak = (id_opcode == OPCODE_SYSTEM) && (id_funct3 == 3'b000) && (id_imm12 == 12'h001);
     
-    // MRET detection (opcode 7'b1110011, funct3 == 3'b000, imm12 == 12'h302)
-    assign id_is_mret = (id_opcode == 7'b1110011) && (id_funct3 == 3'b000) && (id_imm12 == 12'h302);
+    // MRET detection (opcode OPCODE_SYSTEM, funct3 == 3'b000, imm12 == 12'h302)
+    assign id_is_mret = (id_opcode == OPCODE_SYSTEM) && (id_funct3 == 3'b000) && (id_imm12 == 12'h302);
 
     // CSR instruction detection
-    assign id_csr_we = (id_opcode == 7'b1110011) && (id_funct3 != 3'b000); // CSR instructions (not ECALL/EBREAK)
-    assign mem_csr_we = (mem_opcode == 7'b1110011) && (mem_funct3 != 3'b000); // CSR instructions (not ECALL/EBREAK)
+    assign id_csr_we = (id_opcode == OPCODE_SYSTEM) && (id_funct3 != 3'b000); // CSR instructions (not ECALL/EBREAK)
+    assign mem_csr_we = (mem_opcode == OPCODE_SYSTEM) && (mem_funct3 != 3'b000); // CSR instructions (not ECALL/EBREAK)
     assign mem_csr_addr = mem_instr[31:20];  // CSR address (12 bits)
     assign mem_csr_op = mem_funct3;  // CSR operation type
 
     // Control unit
     wire alu_i_type_bit;
     assign alu_i_type_bit = (if_funct3 == 3'b101) ? if_funct7[5] : 1'b0;
-    assign if_alu_op = (if_opcode == 7'b0110011) ? {if_funct7[5], if_funct3} :  // R-type
-                    (if_opcode == 7'b0010011) ? {alu_i_type_bit, if_funct3} :   // I-type (ALU)
-                    (if_opcode == 7'b0000011) ? 4'b0000 :                       // I-type (Load) - ADD for address
-                    (if_opcode == 7'b0100011) ? 4'b0000 :                       // S-type (Store) - ADD for address
-                    (if_opcode == 7'b1101111) ? 4'b0000 :                       // J-type (JAL)
-                    (if_opcode == 7'b1100111) ? 4'b0000 :                       // I-type (JALR)
-                    (if_opcode == 7'b0110111) ? 4'b0000 :                       // U-type (LUI)
-                    (if_opcode == 7'b0010111) ? 4'b0000 :                       // U-type (AUIPC) - ADD
-                    4'b1111; // default (NOP)
+    assign if_alu_op = (if_opcode == OPCODE_R     ) ? {if_funct7[5], if_funct3} :    // R-type
+                        (if_opcode == OPCODE_I    ) ? {alu_i_type_bit, if_funct3} :  // I-type (ALU)
+                        (if_opcode == OPCODE_L    ) ? 4'b0000 :                      // I-type (Load) - ADD for address
+                        (if_opcode == OPCODE_S    ) ? 4'b0000 :                      // S-type (Store) - ADD for address
+                        (if_opcode == OPCODE_JAL  ) ? 4'b0000 :                      // J-type (JAL)
+                        (if_opcode == OPCODE_JALR ) ? 4'b0000 :                      // I-type (JALR)
+                        (if_opcode == OPCODE_LUI  ) ? 4'b0000 :                      // U-type (LUI)
+                        (if_opcode == OPCODE_AUIPC) ? 4'b0000 :                      // U-type (AUIPC) - ADD
+                        4'b1111; // default (NOP)
 
     // ALU operand A selection
-    assign if_alu_a = (if_opcode == 7'b0110011) ? if_rs1_data :          // R-type (ALU)
-                        (if_opcode == 7'b0010011) ? if_rs1_data :        // I-type (ALU)
-                        (if_opcode == 7'b0000011) ? if_rs1_data :        // I-type (Load)
-                        (if_opcode == 7'b0100011) ? if_rs1_data :        // S-type (Store)
-                        (if_opcode == 7'b1101111) ? if_pc :              // J-type (JAL)
-                        (if_opcode == 7'b1100111) ? if_pc :              // I-type (JALR)
-                        (if_opcode == 7'b0110111) ? 32'd0 :              // U-type (LUI)
-                        (if_opcode == 7'b0010111) ? if_pc :              // U-type (AUIPC)
+    assign if_alu_a = (if_opcode == OPCODE_R      ) ? if_rs1_data :      // R-type (ALU)
+                        (if_opcode == OPCODE_I    ) ? if_rs1_data :      // I-type (ALU)
+                        (if_opcode == OPCODE_L    ) ? if_rs1_data :      // I-type (Load)
+                        (if_opcode == OPCODE_S    ) ? if_rs1_data :      // S-type (Store)
+                        (if_opcode == OPCODE_JAL  ) ? if_pc :            // J-type (JAL)
+                        (if_opcode == OPCODE_JALR ) ? if_pc :            // I-type (JALR)
+                        (if_opcode == OPCODE_LUI  ) ? 32'd0 :            // U-type (LUI)
+                        (if_opcode == OPCODE_AUIPC) ? if_pc :            // U-type (AUIPC)
                         32'd0;
 
     // ALU operand B selection
-    assign if_alu_b = (if_opcode == 7'b0110011) ? if_rs2_data :           // R-type (ALU)
-                        (if_opcode == 7'b0010011) ? if_imm :              // I-type (ALU)
-                        (if_opcode == 7'b0000011) ? if_imm :              // I-type (Load)
-                        (if_opcode == 7'b0100011) ? if_imm :              // S-type (Store)
-                        (if_opcode == 7'b1101111) ? 32'd4 :               // J-type (JAL)
-                        (if_opcode == 7'b1100111) ? 32'd4 :               // I-type (JALR)
-                        (if_opcode == 7'b0110111) ? if_imm :              // U-type (LUI)
-                        (if_opcode == 7'b0010111) ? if_imm :              // U-type (AUIPC)
+    assign if_alu_b = (if_opcode == OPCODE_R      ) ? if_rs2_data :      // R-type (ALU)
+                        (if_opcode == OPCODE_I    ) ? if_imm :           // I-type (ALU)
+                        (if_opcode == OPCODE_L    ) ? if_imm :           // I-type (Load)
+                        (if_opcode == OPCODE_S    ) ? if_imm :           // S-type (Store)
+                        (if_opcode == OPCODE_JAL  ) ? 32'd4 :            // J-type (JAL)
+                        (if_opcode == OPCODE_JALR ) ? 32'd4 :            // I-type (JALR)
+                        (if_opcode == OPCODE_LUI  ) ? if_imm :           // U-type (LUI)
+                        (if_opcode == OPCODE_AUIPC) ? if_imm :           // U-type (AUIPC)
                         32'd0;
 
-    assign id_mem_we = (id_opcode == 7'b0100011) ? 1'b1 : 1'b0; // Only Store instructions write to memory
+    assign id_mem_we = (id_opcode == OPCODE_S) ? 1'b1 : 1'b0; // Only Store instructions write to memory
 
-    assign id_mem_re = (id_opcode == 7'b0000011) ? 1'b1 : 1'b0; // Only Load instructions read from memory
+    assign id_mem_re = (id_opcode == OPCODE_L) ? 1'b1 : 1'b0; // Only Load instructions read from memory
 
-    assign id_reg_we = (id_opcode == 7'b0110011) ? 1'b1 :    // R-type
-                         (id_opcode == 7'b0010011) ? 1'b1 :  // I-type (ALU)
-                         (id_opcode == 7'b0000011) ? 1'b1 :  // I-type (Load)
-                         (id_opcode == 7'b1101111) ? 1'b1 :  // J-type (JAL)
-                         (id_opcode == 7'b1100111) ? 1'b1 :  // I-type (JALR)
-                         (id_opcode == 7'b0110111) ? 1'b1 :  // U-type (LUI)
-                         (id_opcode == 7'b0010111) ? 1'b1 :  // U-type (AUIPC)
+    assign id_reg_we = (id_opcode == OPCODE_R      ) ? 1'b1 :  // R-type
+                         (id_opcode == OPCODE_I    ) ? 1'b1 :  // I-type (ALU)
+                         (id_opcode == OPCODE_L    ) ? 1'b1 :  // I-type (Load)
+                         (id_opcode == OPCODE_JAL  ) ? 1'b1 :  // J-type (JAL)
+                         (id_opcode == OPCODE_JALR ) ? 1'b1 :  // I-type (JALR)
+                         (id_opcode == OPCODE_LUI  ) ? 1'b1 :  // U-type (LUI)
+                         (id_opcode == OPCODE_AUIPC) ? 1'b1 :  // U-type (AUIPC)
                          (id_csr_we && (id_instr[11:7] != 5'd0)) ? 1'b1 :  // CSR instructions (if rd != 0)
                          1'b0; // default (Store, Branch, and others don't write to registers)
 
@@ -357,17 +371,17 @@ module rv32i_core #(
     assign mem_csr_wdata = (mem_csr_op[2]) ? {27'd0, mem_instr[19:15]} :  // Immediate versions (CSRRWI, CSRRSI, CSRRCI)
                             mem_rs1_data;  // Register versions (CSRRW, CSRRS, CSRRC) - uses rs1, not rs2
     
-    assign mem_reg_wdata = (mem_opcode == 7'b0000011) ? mem_value :            // Load: use memory data
-                            (mem_opcode == 7'b1101111) ? mem_alu_result :      // JAL: return address
-                            (mem_opcode == 7'b1100111) ? mem_alu_result :      // JALR: return address
-                            (mem_opcode == 7'b0110111) ? mem_alu_result :      // LUI: ALU result (immediate)
+    assign mem_reg_wdata = (mem_opcode == OPCODE_L    ) ? mem_value :          // Load: use memory data
+                            (mem_opcode == OPCODE_JAL ) ? mem_alu_result :     // JAL: return address
+                            (mem_opcode == OPCODE_JALR) ? mem_alu_result :     // JALR: return address
+                            (mem_opcode == OPCODE_LUI ) ? mem_alu_result :     // LUI: ALU result (immediate)
                             (mem_csr_we) ? csr_rdata :                         // CSR: use CSR read data
                             mem_alu_result;                                    // Others: ALU result
 
     // Branch hazard detection
-    assign ex_is_branch = (ex_opcode == 7'b1100011) ||    // B-Type (BEQ, BNE, BLT, BGE)
-                          (ex_opcode == 7'b1101111) ||     // JAL
-                          (ex_opcode == 7'b1100111);       // JALR
+    assign ex_is_branch = (ex_opcode == OPCODE_B) ||       // B-Type (BEQ, BNE, BLT, BGE)
+                          (ex_opcode == OPCODE_JAL) ||     // JAL
+                          (ex_opcode == OPCODE_JALR);      // JALR
 
 
     wire        id_sign_rs1 = id_rs1_data[31];
@@ -387,7 +401,7 @@ module rv32i_core #(
 
     reg [31:0] ex_branch_target;
     // PC update logic
-    wire [31:0] id_branch_target = (id_opcode == 7'b1100011) ? ( // Branch
+    wire [31:0] id_branch_target = (id_opcode == OPCODE_B) ? ( // Branch
                         (id_funct3 == 3'b000) ? ((id_eq) ? pc_branch_taken : pc_branch_not_taken) :   // BEQ
                         (id_funct3 == 3'b001) ? ((id_ne) ? pc_branch_taken : pc_branch_not_taken) :   // BNE
                         (id_funct3 == 3'b100) ? ((id_lt_s) ? pc_branch_taken : pc_branch_not_taken) : // BLT
@@ -396,8 +410,8 @@ module rv32i_core #(
                         (id_funct3 == 3'b111) ? ((id_ge) ? pc_branch_taken : pc_branch_not_taken) :   // BGEU
                         pc_branch_not_taken // default
                      ) :
-                     (id_opcode == 7'b1101111) ? pc_branch_taken : // JAL
-                     (id_opcode == 7'b1100111) ? (id_rs1_data + id_imm) & ~1 : // JALR
+                     (id_opcode == OPCODE_JAL) ? pc_branch_taken : // JAL
+                     (id_opcode == OPCODE_JALR) ? (id_rs1_data + id_imm) & ~1 : // JALR
                      32'd0;
     wire [31:0] pc_target = ex_is_branch ? ex_branch_target : pc + 4;
 
@@ -414,8 +428,8 @@ module rv32i_core #(
     // - LW/SW: address[1:0] must be 00 (4-byte aligned)
     // - LH/SH: address[0] must be 0 (2-byte aligned)
     // - LB/SB: no alignment requirement
-    wire ex_is_load = (ex_opcode == 7'b0000011);
-    wire ex_is_store = (ex_opcode == 7'b0100011);
+    wire ex_is_load = (ex_opcode == OPCODE_L);
+    wire ex_is_store = (ex_opcode == OPCODE_S);
 
     // Check alignment for load instructions
     wire ex_load_misaligned = ex_is_load && (
@@ -464,14 +478,15 @@ module rv32i_core #(
 
 
     // Pipeline stages
+    /* verilator lint_off SYNCASYNCNET */
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset all pipeline registers
             pc <= RESET_ADDR & MASK_ADDR;
-            if_instr <= 32'h00000013; // NOP instruction
+            if_instr <= INSTR_NOP;
             if_pc <= RESET_ADDR & MASK_ADDR;
 
-            id_instr <= 32'h00000013;
+            id_instr <= INSTR_NOP;
             id_pc <= RESET_ADDR & MASK_ADDR;
             id_rs1_data <= 32'd0;
             id_rs2_data <= 32'd0;
@@ -481,7 +496,7 @@ module rv32i_core #(
             id_alu_b <= 32'd0;
             id_int_is_interrupt <= 1'b0;
 
-            ex_instr <= 32'h00000013;
+            ex_instr <= INSTR_NOP;
             ex_rs1_data <= 32'd0;
             ex_rs2_data <= 32'd0;
             ex_alu_result <= 32'd0;
@@ -497,8 +512,7 @@ module rv32i_core #(
             mem_alu_result <= 32'd0;
             mem_rs1_data <= 32'd0;
             mem_rs2_data <= 32'd0;
-            mem_pc <= RESET_ADDR & MASK_ADDR;
-            mem_instr <= 32'h00000013;
+            mem_instr <= INSTR_NOP;
             mem_rd_addr <= 5'd0;
             mem_mem_we <= 1'b0;
             mem_mem_re <= 1'b0;
@@ -543,7 +557,7 @@ module rv32i_core #(
                     // keep the same instruction in IF/ID stage, don't increment PC
                     // `DEBUG_PRINT(("Time %0t: Keep current IF/ID stage, i_instr_ready=%b, ex_is_branch=%b, ex_is_exception=%b, id_int_is_interrupt=%b, ex_is_mret=%b",
                     //             $time, i_instr_ready, ex_is_branch, ex_is_exception, id_int_is_interrupt, ex_is_mret));
-                    if_instr <= 32'h00000013; // NOP instruction
+                    if_instr <= INSTR_NOP;
                     if_pc <= PC_FLUSH_ADDR & MASK_ADDR;
 
                     if (ex_is_branch || ex_is_exception || id_int_is_interrupt || ex_is_mret) begin
@@ -578,7 +592,7 @@ module rv32i_core #(
                 // If exception, interrupt, or mret is detected, flush ID/EX stage with NOP
                 if (int_is_interrupt) begin
                     `DEBUG_PRINT(("Time %0t: ID - Flushing with NOP, int_is_interrupt=%b", $time, int_is_interrupt));
-                    id_instr <= 32'h00000013;
+                    id_instr <= INSTR_NOP;
                     // Don't flush PC here, because it is used as exception PC
                     // It will be flushed in the Execute stage
                     // id_pc <= PC_FLUSH_ADDR;
@@ -612,7 +626,6 @@ module rv32i_core #(
                 mem_alu_result <= ex_alu_result;
                 mem_rs1_data <= ex_rs1_data;
                 mem_rs2_data <= ex_rs2_data;
-                mem_pc <= ex_pc & MASK_ADDR;
                 mem_instr <= ex_instr;
                 mem_rd_addr <= ex_rd_addr;
                 // Disable memory write/read when exception occurs (for store/load misalignment)
@@ -660,7 +673,7 @@ module rv32i_core #(
         
         // Decode based on opcode
         case (opcode)
-            7'b0110011: begin // R-type instructions
+            OPCODE_R: begin // R-type instructions
                 case ({funct7[5], funct3})
                     4'b0000: result = $sformatf("ADD x%0d, x%0d, x%0d", rd, rs1, rs2);
                     4'b1000: result = $sformatf("SUB x%0d, x%0d, x%0d", rd, rs1, rs2);
@@ -676,7 +689,7 @@ module rv32i_core #(
                 endcase
             end
             
-            7'b0010011: begin // I-type ALU instructions
+            OPCODE_I: begin // I-type ALU instructions
                 case (funct3)
                     3'b000: result = $sformatf("ADDI x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
                     3'b001: result = $sformatf("SLLI x%0d, x%0d, 0x%0h", rd, rs1, imm_i[4:0]);
@@ -695,7 +708,7 @@ module rv32i_core #(
                 endcase
             end
             
-            7'b0000011: begin // Load instructions
+            OPCODE_L: begin // Load instructions
                 case (funct3)
                     3'b000: result = $sformatf("LB x%0d, 0x%0h(x%0d)", rd, $signed(imm_i), rs1);
                     3'b001: result = $sformatf("LH x%0d, 0x%0h(x%0d)", rd, $signed(imm_i), rs1);
@@ -706,7 +719,7 @@ module rv32i_core #(
                 endcase
             end
             
-            7'b0100011: begin // Store instructions
+            OPCODE_S: begin // Store instructions
                 case (funct3)
                     3'b000: result = $sformatf("SB x%0d, 0x%0h(x%0d)", rs2, $signed(imm_s), rs1);
                     3'b001: result = $sformatf("SH x%0d, 0x%0h(x%0d)", rs2, $signed(imm_s), rs1);
@@ -715,7 +728,7 @@ module rv32i_core #(
                 endcase
             end
             
-            7'b1100011: begin // Branch instructions
+            OPCODE_B: begin // Branch instructions
                 case (funct3)
                     3'b000: result = $sformatf("BEQ x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
                     3'b001: result = $sformatf("BNE x%0d, x%0d, 0x%0h", rs1, rs2, $signed(imm_b));
@@ -727,23 +740,23 @@ module rv32i_core #(
                 endcase
             end
             
-            7'b1101111: begin // JAL
+            OPCODE_JAL: begin // JAL
                 result = $sformatf("JAL x%0d, 0x%0h", rd, $signed(imm_j));
             end
             
-            7'b1100111: begin // JALR
+            OPCODE_JALR: begin // JALR
                 result = $sformatf("JALR x%0d, x%0d, 0x%0h", rd, rs1, $signed(imm_i));
             end
             
-            7'b0110111: begin // LUI
+            OPCODE_LUI: begin // LUI
                 result = $sformatf("LUI x%0d, 0x%h", rd, imm_u);
             end
             
-            7'b0010111: begin // AUIPC
+            OPCODE_AUIPC: begin // AUIPC
                 result = $sformatf("AUIPC x%0d, 0x%h", rd, imm_u);
             end
             
-            7'b1110011: begin // System instructions
+            OPCODE_SYSTEM: begin // System instructions
                 case (funct3)
                     3'b000: begin
                         case (imm12)
@@ -775,7 +788,7 @@ module rv32i_core #(
                 endcase
             end
             
-            7'b0001111: begin // FENCE
+            OPCODE_FENCE: begin // FENCE
                 result = "FENCE";
             end
             
@@ -794,7 +807,7 @@ module rv32i_core #(
         mem_instr_str = decode_instruction(mem_instr);
 
         // if (!mem_stall) begin
-        if (if_pc != PC_FLUSH_ADDR || id_pc != PC_FLUSH_ADDR || ex_pc != PC_FLUSH_ADDR || mem_pc != PC_FLUSH_ADDR) begin
+        if (if_pc != PC_FLUSH_ADDR || id_pc != PC_FLUSH_ADDR || ex_pc != PC_FLUSH_ADDR || mem_instr != INSTR_NOP) begin
 
         if (if_pc != PC_FLUSH_ADDR) begin
             // Log instruction fetch
@@ -821,9 +834,9 @@ module rv32i_core #(
                         $time, ex_pc, ex_instr, ex_instr_str));
         end
 
-        if (mem_pc != PC_FLUSH_ADDR) begin
-            `DEBUG_PRINT(("Time %0t: MEM - PC=0x%h, Instr=0x%h (%s)", 
-                        $time, mem_pc, mem_instr, mem_instr_str));
+        if (mem_instr != INSTR_NOP) begin
+            `DEBUG_PRINT(("Time %0t: MEM - PC=0x________, Instr=0x%h (%s)", 
+                        $time, mem_instr, mem_instr_str));
 
             // Log memory operations
             if (mem_mem_we) begin
@@ -847,7 +860,7 @@ module rv32i_core #(
         end
         
         // Log branches and jumps
-        if (ex_opcode == 7'b1100011) begin
+        if (ex_opcode == OPCODE_B) begin
             case (ex_funct3)
                 3'b000: `DEBUG_PRINT(("Time %0t: BRANCH - BEQ: rs1=0x%h, rs2=0x%h, taken=%b", 
                                   $time, id_rs1_data, id_rs2_data, id_eq));

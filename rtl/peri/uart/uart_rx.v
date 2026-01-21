@@ -27,7 +27,7 @@ parameter   PAYLOAD_BITS    = 8;
 
 //
 // Number of stop bits indicating the end of a packet.
-parameter   STOP_BITS       = 1;
+// parameter   STOP_BITS       = 1;
 
 // -------------------------------------------------------------------------- 
 // Internal parameters.
@@ -136,7 +136,7 @@ always @(posedge clk) begin : p_bit_counter
     if(!resetn) begin
         bit_counter <= 4'b0;
     end else if(fsm_state != FSM_RECV) begin
-        bit_counter <= {COUNT_REG_LEN{1'b0}};
+        bit_counter <= 4'b0;
     end else if(fsm_state == FSM_RECV && next_bit) begin
         bit_counter <= bit_counter + 1'b1;
     end

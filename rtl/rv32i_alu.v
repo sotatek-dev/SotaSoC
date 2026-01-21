@@ -26,7 +26,7 @@ module rv32i_alu (
 
     // Internal signals
     wire [31:0] add_result, sub_result;
-    wire [31:0] shift_amount;
+    wire [4:0] shift_amount;
     wire [31:0] sll_result, srl_result, sra_result;
     // wire add_overflow, sub_overflow;
     
