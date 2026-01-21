@@ -7,19 +7,16 @@ from test_utils import (
     encode_lui,
     encode_jal,
     encode_csrrw,
+    TIMER_BASE_ADDR,
+    TIMER_MTIME_LO,
+    TIMER_MTIME_HI,
+    TIMER_MTIMECMP_LO,
+    TIMER_MTIMECMP_HI,
 )
 from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
 )
-
-
-# Timer base address
-TIMER_BASE_ADDR = 0x40002000
-TIMER_MTIME_LO = TIMER_BASE_ADDR + 0x0
-TIMER_MTIME_HI = TIMER_BASE_ADDR + 0x4
-TIMER_MTIMECMP_LO = TIMER_BASE_ADDR + 0x8
-TIMER_MTIMECMP_HI = TIMER_BASE_ADDR + 0xC
 
 
 # CSR addresses

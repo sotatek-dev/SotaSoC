@@ -6,25 +6,21 @@ from test_utils import (
     encode_addi,
     encode_lui,
     encode_jal,
+    GPIO_BASE_ADDR,
+    PWM_BASE_ADDR,
+    PWM_CH0_CTRL,
+    PWM_CH0_PERIOD,
+    PWM_CH0_DUTY,
+    PWM_CH0_COUNTER,
+    PWM_CH1_CTRL,
+    PWM_CH1_PERIOD,
+    PWM_CH1_DUTY,
+    PWM_CH1_COUNTER,
 )
 from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
 )
-
-
-PWM_BASE_ADDR = 0x40003000
-
-# Register offsets per channel (16 bytes per channel)
-PWM_CH0_CTRL    = PWM_BASE_ADDR + 0x00
-PWM_CH0_PERIOD  = PWM_BASE_ADDR + 0x04
-PWM_CH0_DUTY    = PWM_BASE_ADDR + 0x08
-PWM_CH0_COUNTER = PWM_BASE_ADDR + 0x0C
-
-PWM_CH1_CTRL    = PWM_BASE_ADDR + 0x10
-PWM_CH1_PERIOD  = PWM_BASE_ADDR + 0x14
-PWM_CH1_DUTY    = PWM_BASE_ADDR + 0x18
-PWM_CH1_COUNTER = PWM_BASE_ADDR + 0x1C
 
 
 @cocotb.test()
@@ -250,7 +246,7 @@ async def test_pwm_output_behavior(dut):
             assert duty_reg == duty, f"DUTY should be {duty}, got {duty_reg}"
             
             # Check PWM output logic
-            pwm_out_value = int(dut.soc_inst.pwm_out.value)
+            pwm_out_value = int(dut.pwm_out.value)
             pwm_out = (pwm_out_value >> 0) & 0x1
             if counter < duty:
                 assert pwm_out == 1, f"PWM output should be HIGH when counter ({counter}) < duty ({duty})"
@@ -290,7 +286,7 @@ async def test_pwm_disable_output_low(dut):
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0"
             
             # PWM output should be LOW when disabled
-            pwm_out_value = int(dut.soc_inst.pwm_out.value)
+            pwm_out_value = int(dut.pwm_out.value)
             pwm_out = (pwm_out_value >> 0) & 0x1
             assert pwm_out == 0, f"PWM output should be LOW when disabled, got {pwm_out}"
             
@@ -361,7 +357,7 @@ async def test_pwm_multiple_channels(dut):
             assert ch1_duty == duty_ch1, f"Channel 1 DUTY should be {duty_ch1}, got {ch1_duty}"
             
             # Check both outputs exist
-            pwm_out_value = int(dut.soc_inst.pwm_out.value)
+            pwm_out_value = int(dut.pwm_out.value)
             pwm_out_0 = (pwm_out_value >> 0) & 0x1
             pwm_out_1 = (pwm_out_value >> 1) & 0x1
             # Outputs should be valid (0 or 1)
@@ -404,7 +400,7 @@ async def test_pwm_duty_zero_always_low(dut):
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0"
             
             # PWM output should be LOW when duty = 0
-            pwm_out_value = int(dut.soc_inst.pwm_out.value)
+            pwm_out_value = int(dut.pwm_out.value)
             pwm_out = (pwm_out_value >> 0) & 0x1
             assert pwm_out == 0, f"PWM output should be LOW when duty=0, got {pwm_out}"
             
@@ -521,7 +517,7 @@ async def test_pwm_duty_cycle_ratio_long_run(dut):
         ch1_enable = (channel_enable_value >> 1) & 0x1
 
         # Sample PWM outputs
-        pwm_out_value = int(dut.soc_inst.pwm_out.value)
+        pwm_out_value = int(dut.pwm_out.value)
         pwm_out_0 = (pwm_out_value >> 0) & 0x1
         pwm_out_1 = (pwm_out_value >> 1) & 0x1
 
@@ -564,3 +560,200 @@ async def test_pwm_duty_cycle_ratio_long_run(dut):
     
     await test_spi_memory(dut, memory, max_cycles, callback)
 
+
+@cocotb.test()
+async def test_pwm_priority_over_gpio(dut):
+    """Test that PWM has priority over GPIO when enabled (shared pins)
+    
+    Pin sharing:
+    - uo_out[7] = pwm_ena[0] ? pwm_out[0] : gpio_out[2]
+    - uio_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_bidir_out[3]
+    
+    When PWM is enabled, PWM output should override GPIO output.
+    """
+    
+    period = 100
+    duty = 50
+    
+    hex_memory = {
+        0x00000000: NOP_INSTR,
+        # Setup PWM channel 0
+        0x00000004: encode_lui(1, (PWM_CH0_CTRL >> 12) & 0xFFFFF),
+        0x00000008: encode_addi(1, 1, PWM_CH0_CTRL & 0xFFF),
+        0x0000000C: encode_addi(2, 0, period),
+        0x00000010: encode_store(1, 2, 4),                            # CH0 PERIOD = 100
+        0x00000014: encode_addi(2, 0, duty),
+        0x00000018: encode_store(1, 2, 8),                            # CH0 DUTY = 50
+        0x0000001C: encode_addi(2, 0, 1),
+        0x00000020: encode_store(1, 2, 0),                            # CH0 CTRL = 1 (enable)
+        
+        # Setup PWM channel 1
+        0x00000024: encode_addi(2, 0, period),
+        0x00000028: encode_store(1, 2, 20),                           # CH1 PERIOD = 100
+        0x0000002C: encode_addi(2, 0, duty),
+        0x00000030: encode_store(1, 2, 24),                           # CH1 DUTY = 50
+        0x00000034: encode_addi(2, 0, 1),
+        0x00000038: encode_store(1, 2, 16),                           # CH1 CTRL = 1 (enable)
+        
+        # Setup GPIO - try to set gpio_out[2]=0 and gpio_bidir_out[3]=0
+        # This should NOT affect PWM output since PWM is enabled
+        0x0000003C: encode_lui(3, (GPIO_BASE_ADDR >> 12) & 0xFFFFF),
+        0x00000040: encode_addi(3, 3, GPIO_BASE_ADDR & 0xFFF),
+        0x00000044: encode_addi(4, 0, 0x0F),
+        0x00000048: encode_store(3, 4, 0),                            # GPIO DIR = 0x0F (output)
+        0x0000004C: encode_store(3, 0, 4),                            # GPIO OUT = 0x00 (all LOW)
+        
+        # Loop to let PWM run
+        0x00000050: NOP_INSTR,
+        0x00000054: encode_jal(0, 0x00000050 - 0x00000054),           # Loop
+        0x00000058: NOP_INSTR,
+    }
+    memory = convert_hex_memory_to_byte_memory(hex_memory)
+    
+    max_cycles = 50000
+    
+    # Counters for PWM output sampling
+    total_samples_ch0 = 0
+    high_samples_ch0 = 0
+    total_samples_ch1 = 0
+    high_samples_ch1 = 0
+    cycle_count = 0
+    
+    def callback(dut, memory):
+        nonlocal total_samples_ch0, high_samples_ch0
+        nonlocal total_samples_ch1, high_samples_ch1
+        nonlocal cycle_count
+        
+        cycle_count += 1
+        
+        pwm_inst = dut.soc_inst.pwm_inst
+        channel_enable_value = int(pwm_inst.channel_enable.value)
+        ch0_enable = (channel_enable_value >> 0) & 0x1
+        ch1_enable = (channel_enable_value >> 1) & 0x1
+        
+        # Sample PWM outputs from testbench (shared pins)
+        pwm_out_value = int(dut.pwm_out.value)
+        pwm_out_0 = (pwm_out_value >> 0) & 0x1  # uo_out[7]
+        pwm_out_1 = (pwm_out_value >> 1) & 0x1  # uio_out[7]
+        
+        if ch0_enable == 1:
+            total_samples_ch0 += 1
+            if pwm_out_0 == 1:
+                high_samples_ch0 += 1
+        
+        if ch1_enable == 1:
+            total_samples_ch1 += 1
+            if pwm_out_1 == 1:
+                high_samples_ch1 += 1
+        
+        # Verify after enough cycles
+        if cycle_count >= 40000:
+            assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0"
+            
+            # Verify GPIO OUT is set to 0 (which would make output LOW if GPIO had priority)
+            gpio_inst = dut.soc_inst.gpio_inst
+            out_reg = int(gpio_inst.out_reg.value)
+            assert out_reg == 0, f"GPIO OUT should be 0, got {out_reg:#x}"
+            
+            # Calculate duty cycle ratios
+            ratio_ch0 = high_samples_ch0 / total_samples_ch0 if total_samples_ch0 > 0 else 0
+            ratio_ch1 = high_samples_ch1 / total_samples_ch1 if total_samples_ch1 > 0 else 0
+            
+            expected_ratio = duty / period  # 0.5
+            tolerance = 0.01
+            
+            # PWM should still have ~50% duty cycle despite GPIO OUT = 0
+            # If GPIO had priority, duty cycle would be 0%
+            assert abs(ratio_ch0 - expected_ratio) <= tolerance, \
+                f"PWM CH0 should override GPIO: expected duty ratio {expected_ratio:.2f}, got {ratio_ch0:.4f}"
+            
+            assert abs(ratio_ch1 - expected_ratio) <= tolerance, \
+                f"PWM CH1 should override GPIO: expected duty ratio {expected_ratio:.2f}, got {ratio_ch1:.4f}"
+            
+            return True
+        return False
+    
+    await test_spi_memory(dut, memory, max_cycles, callback)
+
+
+@cocotb.test()
+async def test_pwm_disabled_gpio_controls_pin(dut):
+    """Test that GPIO controls pin when PWM is disabled
+    
+    When PWM is disabled, GPIO should control the shared pins.
+    """
+    
+    hex_memory = {
+        0x00000000: NOP_INSTR,
+        # Disable PWM (default state, but explicitly disable)
+        0x00000004: encode_lui(1, (PWM_CH0_CTRL >> 12) & 0xFFFFF),
+        0x00000008: encode_addi(1, 1, PWM_CH0_CTRL & 0xFFF),
+        0x0000000C: encode_store(1, 0, 0),                            # CH0 CTRL = 0 (disable)
+        0x00000010: encode_store(1, 0, 16),                           # CH1 CTRL = 0 (disable)
+        
+        # Setup GPIO
+        0x00000014: encode_lui(3, (GPIO_BASE_ADDR >> 12) & 0xFFFFF),
+        0x00000018: encode_addi(3, 3, GPIO_BASE_ADDR & 0xFFF),
+        0x0000001C: encode_addi(4, 0, 0x0F),
+        0x00000020: encode_store(3, 4, 0),                            # GPIO DIR = 0x0F (output)
+        
+        # Set GPIO OUT = 0x7F (all HIGH including shared pins)
+        0x00000024: encode_addi(4, 0, 0x7F),
+        0x00000028: encode_store(3, 4, 4),                            # GPIO OUT = 0x7F
+        0x0000002C: NOP_INSTR,
+        0x00000030: NOP_INSTR,
+        
+        # Set GPIO OUT = 0x00 (all LOW)
+        0x00000034: encode_store(3, 0, 4),                            # GPIO OUT = 0x00
+        0x00000038: NOP_INSTR,
+        0x0000003C: NOP_INSTR,
+        0x00000040: NOP_INSTR,
+    }
+    memory = convert_hex_memory_to_byte_memory(hex_memory)
+    
+    max_cycles = 15000
+    
+    checked_high = False
+    checked_low = False
+    
+    def callback(dut, memory):
+        nonlocal checked_high, checked_low
+        
+        current_pc = dut.soc_inst.cpu_core.o_instr_addr.value.to_unsigned()
+        
+        # Check when GPIO OUT = 0x7F
+        if current_pc == 0x00000030 and not checked_high:
+            checked_high = True
+            
+            # PWM is disabled, so shared pins should follow GPIO
+            # gpio_out[2] = OUT[6] = 1 -> uo_out[7] should be 1
+            # gpio_bidir_out[3] = OUT[3] = 1 -> uio_out[7] should be 1
+            pwm_out_value = int(dut.pwm_out.value)
+            pwm_out_0 = (pwm_out_value >> 0) & 0x1
+            pwm_out_1 = (pwm_out_value >> 1) & 0x1
+            
+            assert pwm_out_0 == 1, \
+                f"When PWM disabled, uo_out[7] should follow GPIO (HIGH), got {pwm_out_0}"
+            assert pwm_out_1 == 1, \
+                f"When PWM disabled, uio_out[7] should follow GPIO (HIGH), got {pwm_out_1}"
+        
+        # Check when GPIO OUT = 0x00
+        if current_pc == 0x0000003C and not checked_low:
+            checked_low = True
+            
+            pwm_out_value = int(dut.pwm_out.value)
+            pwm_out_0 = (pwm_out_value >> 0) & 0x1
+            pwm_out_1 = (pwm_out_value >> 1) & 0x1
+            
+            assert pwm_out_0 == 0, \
+                f"When PWM disabled, uo_out[7] should follow GPIO (LOW), got {pwm_out_0}"
+            assert pwm_out_1 == 0, \
+                f"When PWM disabled, uio_out[7] should follow GPIO (LOW), got {pwm_out_1}"
+        
+        if current_pc == 0x00000040:
+            assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0"
+            assert checked_high and checked_low, "Both checks should have passed"
+            return True
+        return False
+    
+    await test_spi_memory(dut, memory, max_cycles, callback)

@@ -39,14 +39,14 @@ async def test_uart_rx(dut):
             if uart_cycles % uart_cycles_per_bit == 0:
                 bit_index += 1;
                 if bit_index < len(bits):
-                    dut.soc_inst.uart_rx.value = bits[bit_index];
+                    dut.uart0_rx.value = bits[bit_index];
             uart_cycles -= 1;
 
         if dut.soc_inst.uart_instances[0].uart_inst.uart_receiver.uart_rx_en.value == 1:
             if uart_cycles < 0:
                 uart_cycles = uart_cycles_per_bit * 20 - 1;
                 bit_index = 0;
-                dut.soc_inst.uart_rx.value = bits[bit_index];
+                dut.uart0_rx.value = bits[bit_index];
             # print(f"UART RX: {dut.soc_inst.mem_ctrl.uart_rx_data.value}")
 
         if dut.soc_inst.cpu_core.i_instr_data.value == 0x00000073:
