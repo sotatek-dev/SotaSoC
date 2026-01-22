@@ -126,6 +126,15 @@ async def test_spi_bin_file(dut):
     # The makefile passes this via PLUSARGS which cocotb makes available as environment variable
     bin_file_path = os.environ.get('BIN_FILE', None)
     
+    # Check if bin file path is provided and exists
+    if bin_file_path is None:
+        print("WARNING: BIN_FILE environment variable not set, skipping test")
+        return
+    
+    if not os.path.exists(bin_file_path):
+        print(f"WARNING: Bin file not found: {bin_file_path}, skipping test")
+        return
+    
     # Load memory from bin file
     memory = load_bin_file(bin_file_path)
 

@@ -26,7 +26,9 @@ module pwm #(
     input wire [31:0] mem_wdata,
     input wire mem_we,
     input wire mem_re,
-    output reg [31:0] mem_rdata,
+    output wire [31:0] mem_rdata,
+
+    output wire [PWM_NUM-1:0] ena,
 
     // PWM outputs
     output wire [PWM_NUM-1:0] pwm_out
@@ -100,30 +102,14 @@ module pwm #(
         end
     endgenerate
 
-    // Memory read logic
-    always @(*) begin
-        if (pwm_request && mem_re && channel_valid) begin
-            case (reg_offset)
-                ADDR_CTRL: begin
-                    mem_rdata = {{31{1'b0}}, channel_enable[channel_idx]};
-                end
-                ADDR_PERIOD: begin
-                    mem_rdata = {{(32-COUNTER_WIDTH){1'b0}}, channel_period[channel_idx]};
-                end
-                ADDR_DUTY: begin
-                    mem_rdata = {{(32-COUNTER_WIDTH){1'b0}}, channel_duty[channel_idx]};
-                end
-                ADDR_COUNTER: begin
-                    mem_rdata = {{(32-COUNTER_WIDTH){1'b0}}, channel_counter[channel_idx]};
-                end
-                default: begin
-                    mem_rdata = 32'h0;
-                end
-            endcase
-        end else begin
-            mem_rdata = 32'h0;
-        end
-    end
+    assign ena[PWM_NUM-1:0] = channel_enable[PWM_NUM-1:0];
+
+    wire [31:0] pwm_mem_rdata = (reg_offset == ADDR_CTRL) ? {{31'b0}, channel_enable[channel_idx]} :
+                                (reg_offset == ADDR_PERIOD) ? {{(32-COUNTER_WIDTH){1'b0}}, channel_period[channel_idx]} :
+                                (reg_offset == ADDR_DUTY) ? {{(32-COUNTER_WIDTH){1'b0}}, channel_duty[channel_idx]} :
+                                (reg_offset == ADDR_COUNTER) ? {{(32-COUNTER_WIDTH){1'b0}}, channel_counter[channel_idx]} :
+                                32'h0;
+    assign mem_rdata = (pwm_request && mem_re && channel_valid) ? pwm_mem_rdata : 32'h0;
 
     // Memory write logic
     integer j;

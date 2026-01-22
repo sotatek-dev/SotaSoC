@@ -4,37 +4,73 @@ module test_soc_tb;
     // Clock and reset
     reg clk;
     reg rst_n;
-    
+
+    wire error_flag;
     // Shared SPI interface
     wire flash_cs_n;
     wire ram_cs_n;
-    wire spi_sclk;
-    reg [3:0] spi_io_in;
-    wire [3:0] spi_io_out;
-    wire error_flag;
+    wire bus_sclk;
+    wire uart0_tx;
+    wire[2:0] gpio_out;
+
+    reg [3:0] bus_io_in;
+    wire [3:0] bus_io_out;
+    wire [3:0] gpio_io_out;
+
+    reg uart0_rx;
+    reg spi_miso;
+    reg [5:0] gpio_in;
+    reg [3:0] gpio_io_in;
+
+    wire [1:0] pwm_out;
+
+    wire [7:0] ui_in;
+    wire [7:0] uo_out;
+    wire [7:0] uio_in;
+    wire [7:0] uio_out;
+    wire [7:0] uio_oe;
+
+    assign ui_in[0] = uart0_rx;
+    assign ui_in[1] = spi_miso;
+    assign ui_in[7:2] = gpio_in;
+
+    assign error_flag = uo_out[0];
+    assign flash_cs_n = uo_out[1];
+    assign ram_cs_n = uo_out[2];
+    assign bus_sclk = uo_out[3];
+    assign uart0_tx = uo_out[4];
+    assign gpio_out = uo_out[7:5];
+
+    assign bus_io_out = uio_out[3:0];
+    assign gpio_io_out = uio_out[7:4];
+
+    assign uio_in[3:0] = bus_io_in;
+    assign uio_in[7:4] = gpio_io_in;
+    
+    assign pwm_out[0] = uo_out[7];
+    assign pwm_out[1] = uio_out[7];
 
     `ifndef FLASH_BASE_ADDR  
     `define FLASH_BASE_ADDR 32'h00000000
     `endif
-    
+
     `ifndef PSRAM_BASE_ADDR
     `define PSRAM_BASE_ADDR 32'h01000000
     `endif
-    
+
     // Instantiate the SoC
     soc#(
-        .RESET_ADDR(32'h00000000),
         .FLASH_BASE_ADDR(`FLASH_BASE_ADDR),
         .PSRAM_BASE_ADDR(`PSRAM_BASE_ADDR)
     ) soc_inst (
+        .ui_in(ui_in),
+        .uo_out(uo_out),
+        .uio_in(uio_in),
+        .uio_out(uio_out),
+        .uio_oe(uio_oe),
+        .ena(1'b1),
         .clk(clk),
-        .rst_n(rst_n),
-        .flash_cs_n(flash_cs_n),
-        .ram_cs_n(ram_cs_n),
-        .spi_sclk(spi_sclk),
-        .spi_io_in(spi_io_in),
-        .spi_io_out(spi_io_out),
-        .error_flag(error_flag)
+        .rst_n(rst_n)
     );
 
     // Monitor signals for debugging

@@ -8,6 +8,37 @@ CYCLES_PER_INSTRUCTION = 8
 MEMORY_CYCLES = 7
 NOP_INSTR = 0x00000013
 
+# Memory base addresses
+FLASH_BASE_ADDR = 0x00000000
+PSRAM_BASE_ADDR = 0x01000000
+
+# Peripheral base addresses
+GPIO_BASE_ADDR  = 0x40001000
+TIMER_BASE_ADDR = 0x40002000
+PWM_BASE_ADDR   = 0x40003000
+
+# GPIO register offsets
+GPIO_DIR = GPIO_BASE_ADDR + 0x00  # Direction register (bidirectional pins)
+GPIO_OUT = GPIO_BASE_ADDR + 0x04  # Output data register
+GPIO_IN  = GPIO_BASE_ADDR + 0x08  # Input data register (read-only)
+
+# Timer register offsets
+TIMER_MTIME_LO    = TIMER_BASE_ADDR + 0x00
+TIMER_MTIME_HI    = TIMER_BASE_ADDR + 0x04
+TIMER_MTIMECMP_LO = TIMER_BASE_ADDR + 0x08
+TIMER_MTIMECMP_HI = TIMER_BASE_ADDR + 0x0C
+
+# PWM register offsets per channel (16 bytes per channel)
+PWM_CH0_CTRL    = PWM_BASE_ADDR + 0x00
+PWM_CH0_PERIOD  = PWM_BASE_ADDR + 0x04
+PWM_CH0_DUTY    = PWM_BASE_ADDR + 0x08
+PWM_CH0_COUNTER = PWM_BASE_ADDR + 0x0C
+
+PWM_CH1_CTRL    = PWM_BASE_ADDR + 0x10
+PWM_CH1_PERIOD  = PWM_BASE_ADDR + 0x14
+PWM_CH1_DUTY    = PWM_BASE_ADDR + 0x18
+PWM_CH1_COUNTER = PWM_BASE_ADDR + 0x1C
+
 # RISC-V Instruction Encoding Functions
 
 def encode_load(rd, rs1, imm12):

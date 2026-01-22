@@ -18,34 +18,58 @@ module soc #(
     parameter PWM_BASE_ADDR    = 32'h40003000,
     parameter UART_NUM         = 1,  // Maximum 4 instances
     parameter UART_SPACING     = 32'h100,
-    parameter GPIO_SIZE        = 5,
+    parameter GPIO_NUM_BIDIR   = 4,
+    parameter GPIO_NUM_OUT     = 3,
+    parameter GPIO_NUM_IN      = 6,
     parameter PWM_NUM          = 2
 ) (
-    input wire clk,
-    input wire rst_n,
-    
-    // Shared SPI interface
-    output wire flash_cs_n,
-    output wire ram_cs_n,
-    output wire spi_sclk,
-    input wire [3:0] spi_io_in,
-    output wire [3:0] spi_io_out,
-    output wire [3:0] spi_io_oe,
-    
-    // UART interface
-    output wire [UART_NUM-1:0] uart_tx,
-    input wire [UART_NUM-1:0] uart_rx,
-
-    // GPIO interface
-    output wire [GPIO_SIZE-1:0] gpio_out,
-
-    // PWM interface
-    output wire [PWM_NUM-1:0] pwm_out,
-
-    // Error flag
-    output wire error_flag
+    input  wire [7:0] ui_in,    // Dedicated inputs
+    output wire [7:0] uo_out,   // Dedicated outputs
+    input  wire [7:0] uio_in,   // IOs: Input path
+    output wire [7:0] uio_out,  // IOs: Output path
+    output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
+    input  wire       ena,      // always 1 when the design is powered, so you can ignore it
+    input  wire       clk,      // clock
+    input  wire       rst_n     // reset_n - low to reset
 );
 
+    wire _unused_ena = ena;
+
+    localparam UIO_OE_OUT = 1'b1;
+
+    // ============ External wires ============
+    // Shared SPI interface
+    wire flash_cs_n;
+    wire ram_cs_n;
+    wire bus_spi_sclk;
+    wire [3:0] bus_io_in;
+    wire [3:0] bus_io_out;
+    wire [3:0] bus_io_oe;
+
+    // GPIO bidirectional interface
+    wire [GPIO_NUM_BIDIR-1:0] gpio_bidir_in;
+    wire [GPIO_NUM_BIDIR-1:0] gpio_bidir_out;
+    wire [GPIO_NUM_BIDIR-1:0] gpio_bidir_oe;
+
+    // GPIO output-only interface
+    wire [GPIO_NUM_OUT-1:0] gpio_out;
+
+    // GPIO input-only interface
+    wire [GPIO_NUM_IN-1:0] gpio_in;
+
+    // PWM interface
+    wire [PWM_NUM-1:0] pwm_ena;
+    wire [PWM_NUM-1:0] pwm_out;
+
+    // UART interface
+    wire [UART_NUM-1:0] uart_tx;
+    wire [UART_NUM-1:0] uart_rx;
+
+    // Error flag
+    wire error_flag;
+    // ============ External wires ============
+
+    // ============ Internal wires ============
     // Core to Memory Controller connections
     wire [31:0] core_instr_addr;
     wire [31:0] core_instr_data;
@@ -62,15 +86,19 @@ module soc #(
     wire mem_instr_ready;
     wire mem_data_ready;
 
-    // UART connections
-    wire [UART_NUM*32-1:0] uart_mem_rdata;
-
     // Timer connections
     wire timer_interrupt;
     wire [31:0] timer_mem_rdata;
 
+    // GPIO connections
+    wire [31:0] gpio_mem_rdata;
+
     // PWM connections
     wire [31:0] pwm_mem_rdata;
+
+    // UART connections
+    wire [UART_NUM*32-1:0] uart_mem_rdata;
+    // ============ Internal wires ============
 
     // RV32I Core instantiation
     rv32i_core #(
@@ -109,18 +137,17 @@ module soc #(
         .UART_BASE_ADDR(UART_BASE_ADDR),
         .UART_NUM(UART_NUM),
         .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
-        .GPIO_SIZE(GPIO_SIZE),
         .TIMER_BASE_ADDR(TIMER_BASE_ADDR),
         .PWM_BASE_ADDR(PWM_BASE_ADDR)
     ) mem_ctrl (
         .clk(clk),
         .rst_n(rst_n),
-        
+
         // Core instruction interface
         .instr_addr(core_instr_addr),
         .instr_data(core_instr_data),
         .instr_ready(mem_instr_ready),
-        
+
         // Core data interface
         .mem_addr(core_mem_addr),
         .mem_wdata(core_mem_wdata),
@@ -129,26 +156,86 @@ module soc #(
         .mem_re(core_mem_re),
         .mem_rdata(core_mem_rdata),
         .mem_ready(mem_data_ready),
-        
-        // UART interface
-        .uart_mem_rdata(uart_mem_rdata),
-        
-        // GPIO interface
-        .gpio_out(gpio_out),
 
         // Timer interface
         .timer_mem_rdata(timer_mem_rdata),
 
+        // GPIO interface
+        .gpio_mem_rdata(gpio_mem_rdata),
+
         // PWM interface
         .pwm_mem_rdata(pwm_mem_rdata),
-        
+
+        // UART interface
+        .uart_mem_rdata(uart_mem_rdata),
+
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),
         .ram_cs_n(ram_cs_n),
-        .spi_sclk(spi_sclk),
-        .spi_io_in(spi_io_in),
-        .spi_io_out(spi_io_out),
-        .spi_io_oe(spi_io_oe)
+        .spi_sclk(bus_spi_sclk),
+        .spi_io_in(bus_io_in),
+        .spi_io_out(bus_io_out),
+        .spi_io_oe(bus_io_oe)
+    );
+
+    // Timer module
+    mtime_timer #(
+        .TIMER_BASE_ADDR(TIMER_BASE_ADDR)
+    ) timer_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(timer_mem_rdata),
+
+        .mtime(mtime),
+
+        .timer_interrupt(timer_interrupt)
+    );
+
+    // GPIO module
+    gpio #(
+        .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
+        .NUM_BIDIR(GPIO_NUM_BIDIR),
+        .NUM_OUT(GPIO_NUM_OUT),
+        .NUM_IN(GPIO_NUM_IN)
+    ) gpio_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(gpio_mem_rdata),
+
+        .gpio_bidir_in(gpio_bidir_in),
+        .gpio_bidir_out(gpio_bidir_out),
+        .gpio_bidir_oe(gpio_bidir_oe),
+        .gpio_out(gpio_out),
+        .gpio_in(gpio_in)
+    );
+
+    // PWM module
+    pwm #(
+        .PWM_BASE_ADDR(PWM_BASE_ADDR),
+        .PWM_NUM(PWM_NUM),
+        .COUNTER_WIDTH(16)
+    ) pwm_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(pwm_mem_rdata),
+
+        .ena(pwm_ena),
+        .pwm_out(pwm_out)
     );
 
     // UART Controller module instantiation
@@ -173,40 +260,29 @@ module soc #(
         end
     endgenerate
 
-    // Timer module
-    mtime_timer #(
-        .TIMER_BASE_ADDR(TIMER_BASE_ADDR)
-    ) timer_inst (
-        .clk(clk),
-        .rst_n(rst_n),
+    assign uart_rx[0] = ui_in[0];
+    // spi_miso
+    assign gpio_in[GPIO_NUM_IN-1:0] = ui_in[7:2];
 
-        .mem_addr(core_mem_addr),
-        .mem_wdata(core_mem_wdata),
-        .mem_we(core_mem_we),
-        .mem_re(core_mem_re),
-        .mem_rdata(timer_mem_rdata),
+    assign uo_out[0] = error_flag;
+    assign uo_out[1] = flash_cs_n;
+    assign uo_out[2] = ram_cs_n;
+    assign uo_out[3] = bus_spi_sclk;
+    assign uo_out[4] = uart_tx[0];
+    assign uo_out[5] = gpio_out[0];
+    assign uo_out[6] = gpio_out[1];
+    assign uo_out[7] = pwm_ena[0] ? pwm_out[0] : gpio_out[2];
 
-        .mtime(mtime),
+    assign bus_io_in[3:0] = uio_in[3:0];
+    assign gpio_bidir_in[2:0] = uio_in[6:4];
 
-        .timer_interrupt(timer_interrupt)
-    );
+    assign uio_out[3:0] = bus_io_out[3:0];
+    assign uio_out[6:4] = gpio_bidir_out[2:0];
 
-    // PWM module
-    pwm #(
-        .PWM_BASE_ADDR(PWM_BASE_ADDR),
-        .PWM_NUM(PWM_NUM),
-        .COUNTER_WIDTH(16)
-    ) pwm_inst (
-        .clk(clk),
-        .rst_n(rst_n),
+    assign uio_oe[3:0] = bus_io_oe[3:0];
+    assign uio_oe[6:4] = gpio_bidir_oe[2:0];
 
-        .mem_addr(core_mem_addr),
-        .mem_wdata(core_mem_wdata),
-        .mem_we(core_mem_we),
-        .mem_re(core_mem_re),
-        .mem_rdata(pwm_mem_rdata),
-
-        .pwm_out(pwm_out)
-    );
-
+    assign gpio_bidir_in[3] = uio_in[7];
+    assign uio_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_bidir_out[3];
+    assign uio_oe[7] = pwm_ena[1] ? UIO_OE_OUT : gpio_bidir_oe[3];
 endmodule

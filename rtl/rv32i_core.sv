@@ -132,6 +132,9 @@ module rv32i_core #(
     wire [31:0] csr_rdata;
     wire csr_illegal;
 
+    // Interrupt detection signals from CSR
+    wire [31:0] csr_mip, csr_mie, csr_mstatus;
+
     // Exception handling signals
     wire id_is_ecall, id_is_ebreak, id_is_mret;
     reg ex_is_ecall, ex_is_ebreak, ex_is_mret;
@@ -244,9 +247,6 @@ module rv32i_core #(
         .mie_out(csr_mie),
         .mstatus_out(csr_mstatus)
     );
-
-    // Interrupt detection signals from CSR
-    wire [31:0] csr_mip, csr_mie, csr_mstatus;
 
     // Interrupt detection logic
     // Interrupts are taken when:

@@ -2,10 +2,7 @@ import cocotb
 import os
 from cocotb.triggers import Timer, RisingEdge, FallingEdge
 from cocotb.clock import Clock
-from test_utils import NOP_INSTR, CLK_HZ
-
-FLASH_BASE_ADDR = 0x00000000
-PSRAM_BASE_ADDR = 0x01000000
+from test_utils import NOP_INSTR, CLK_HZ, FLASH_BASE_ADDR, PSRAM_BASE_ADDR
 
 FSM_IDLE = 0
 FSM_SEND_CMD = 1
@@ -112,25 +109,25 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
 
     spi_clk_high = True
 
-    dut.soc_inst.spi_io_in.value = 0;
+    dut.bus_io_in.value = 0;
 
     for _ in range(max_cycles):
         if fsm_state == FSM_IDLE:
             await FallingEdge(dut.clk)
-            if dut.soc_inst.flash_cs_n.value == 0:
+            if dut.flash_cs_n.value == 0:
                 is_instr = True
                 fsm_state = FSM_SEND_CMD
                 bit_counter = 0
-                dut.soc_inst.spi_io_in.value = 0;
+                dut.bus_io_in.value = 0;
                 command = 0
                 addr = 0
                 data = 0
                 # print(f"SPI_IDLE: start flash access")
-            if dut.soc_inst.ram_cs_n.value == 0:
+            if dut.ram_cs_n.value == 0:
                 is_instr = False
                 fsm_state = FSM_SEND_CMD
                 bit_counter = 0
-                dut.soc_inst.spi_io_in.value = 0;
+                dut.bus_io_in.value = 0;
                 command = 0
                 addr = 0
                 data = 0
@@ -138,10 +135,10 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
         else:
             await RisingEdge(dut.clk)
             await Timer(1, unit="ns")
-            if dut.soc_inst.spi_sclk.value == 1:
+            if dut.bus_sclk.value == 1:
                 spi_clk_high = True
 
-            if (is_instr == True and dut.soc_inst.flash_cs_n.value == 1) or (is_instr == False and dut.soc_inst.ram_cs_n.value == 1):
+            if (is_instr == True and dut.flash_cs_n.value == 1) or (is_instr == False and dut.ram_cs_n.value == 1):
                 # print(f"SPI_: is_instr={is_instr} fsm_state={fsm_state}, command={command}, bit_counter={bit_counter}, addr=0x{addr:08x}, data=0x{data:08x}")
                 if not is_instr and command == 0x38:
                     if bit_counter > 0:
@@ -158,21 +155,21 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 fsm_state = FSM_IDLE
                 
             if fsm_state == FSM_SEND_CMD:
-                # await RisingEdge(dut.soc_inst.spi_sclk)
-                if dut.soc_inst.spi_sclk.value == 1:
-                    # print(f"SPI1: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
-                    if dut.soc_inst.spi_sclk.value == 1:
-                        command = (command << 1) | get_packed_bit(dut.soc_inst.spi_io_out, 0)
+                # await RisingEdge(dut.spi_sclk)
+                if dut.bus_sclk.value == 1:
+                    # print(f"SPI1: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
+                    if dut.bus_sclk.value == 1:
+                        command = (command << 1) | get_packed_bit(dut.bus_io_out, 0)
                         bit_counter += 1
                         if bit_counter == 8:
                             fsm_state = FSM_SEND_ADDR
                             bit_counter = 0
             elif fsm_state == FSM_SEND_ADDR:
-                # await RisingEdge(dut.soc_inst.spi_sclk)
-                if dut.soc_inst.spi_sclk.value == 1:
-                    # print(f"SPI2: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
-                    if dut.soc_inst.spi_sclk.value == 1:
-                        addr = (addr << 4) | int(dut.soc_inst.spi_io_out.value)
+                # await RisingEdge(dut.spi_sclk)
+                if dut.bus_sclk.value == 1:
+                    # print(f"SPI2: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
+                    if dut.bus_sclk.value == 1:
+                        addr = (addr << 4) | int(dut.bus_io_out.value)
                         bit_counter += 4
                         if bit_counter == 24:
                             bit_counter = 0
@@ -194,10 +191,10 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                                     print(f"SPI: Writing to data memory: addr=0x{addr:08x}")
                                     data = 0
             elif fsm_state == FSM_DUMMY:
-                # await RisingEdge(dut.soc_inst.spi_sclk)
-                if dut.soc_inst.spi_sclk.value == 1:
-                    # print(f"SPI3: is_instr={is_instr} fsm_state=DUMMY, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
-                    if dut.soc_inst.spi_sclk.value == 1:
+                # await RisingEdge(dut.spi_sclk)
+                if dut.bus_sclk.value == 1:
+                    # print(f"SPI3: is_instr={is_instr} fsm_state=DUMMY, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
+                    if dut.bus_sclk.value == 1:
                         bit_counter += 1
                         if bit_counter == 6:
                             fsm_state = FSM_DATA_TRANSFER
@@ -205,14 +202,14 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             print(f"SPI: End dummy phase")
             else:
                 if is_instr or (not is_instr and command == 0xEB):
-                    # await FallingEdge(dut.soc_inst.spi_sclk)
-                    if dut.soc_inst.spi_sclk.value == 0 and spi_clk_high == True:
+                    # await FallingEdge(dut.spi_sclk)
+                    if dut.bus_sclk.value == 0 and spi_clk_high == True:
                         spi_clk_high = False
-                        # print(f"SPI4: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
+                        # print(f"SPI4: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
                         if fsm_state == FSM_DATA_TRANSFER:
-                            if dut.soc_inst.spi_sclk.value == 0:
+                            if dut.bus_sclk.value == 0:
                                 # print(f"SPI MISO: bit_counter={bit_counter}, spi_io_in[1]={data & 1}, instr_data=0x{data:08x}")
-                                dut.soc_inst.spi_io_in.value = ((data & 0xFFFFFFFF) >> (28 - bit_counter)) & 0xF
+                                dut.bus_io_in.value = ((data & 0xFFFFFFFF) >> (28 - bit_counter)) & 0xF
                                 bit_counter += 4
                                 if bit_counter == 32:
                                     bit_counter = 0
@@ -224,15 +221,15 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                         elif fsm_state == FSM_DONE:
                             fsm_state = FSM_IDLE
                             # if is_instr:
-                            #     await RisingEdge(dut.soc_inst.flash_cs_n)
+                            #     await RisingEdge(dut.flash_cs_n)
                             # else:
-                            #     await RisingEdge(dut.soc_inst.ram_cs_n)
+                            #     await RisingEdge(dut.ram_cs_n)
                 else:
-                    # await RisingEdge(dut.soc_inst.spi_sclk)
-                    if dut.soc_inst.spi_sclk.value == 0:
-                        # print(f"SPI5: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.soc_inst.spi_sclk.value}, spi_io_in={dut.soc_inst.spi_io_in.value}, addr=0x{addr:08x}")
+                    # await RisingEdge(dut.spi_sclk)
+                    if dut.bus_sclk.value == 0:
+                        # print(f"SPI5: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
                         if fsm_state == FSM_DATA_TRANSFER:
-                            data = (data << 4) | int(dut.soc_inst.spi_io_out.value)
+                            data = (data << 4) | int(dut.bus_io_out.value)
                             bit_counter += 4
                             if bit_counter == 32:
                                 print(f"SPI: Write data: addr=0x{addr:08x}, data=0x{data:08x}")

@@ -15,7 +15,6 @@ module mem_ctl #(
     parameter UART_BASE_ADDR,
     parameter UART_NUM = 1,
     parameter GPIO_BASE_ADDR,
-    parameter GPIO_SIZE,
     parameter TIMER_BASE_ADDR,
     parameter PWM_BASE_ADDR
 ) (
@@ -39,7 +38,7 @@ module mem_ctl #(
     input wire [UART_NUM*32-1:0] uart_mem_rdata,
 
     // GPIO interface
-    output wire [GPIO_SIZE-1:0] gpio_out,
+    input wire [31:0] gpio_mem_rdata,
 
     // Timer interface
     input wire [31:0] timer_mem_rdata,
@@ -83,11 +82,6 @@ module mem_ctl #(
 
     reg [5:0] spi_data_len;
     reg spi_is_instr;
-
-    reg [GPIO_SIZE-1:0] gpio_reg;
-
-    assign gpio_out = gpio_reg;
-    wire [31:0] gpio_mem_rdata = {{(32 - GPIO_SIZE){1'b0}}, gpio_reg};
 
     wire [1:0] uart_instance_sel = mem_addr[9:8];  // Select UART instance (0-3)
     wire uart_instance_valid = (uart_instance_sel < UART_NUM);
@@ -174,8 +168,6 @@ module mem_ctl #(
             next_instr_data <= 32'h00000000;
             next_instr_ready_reg <= 1'b0;
 
-            gpio_reg <= {GPIO_SIZE{1'b0}};
-
             spi_start <= 1'b0;
             spi_stop <= 1'b0;
             spi_cont <= 1'b0;
@@ -209,11 +201,9 @@ module mem_ctl #(
                     mem_rdata <= uart_mem_rdata_selected;
                     mem_ready <= 1'b1;
                 end else if (gpio_request) begin
-                    if (mem_we) begin
-                        gpio_reg <= mem_wdata[GPIO_SIZE-1:0];
-                    end else begin
-                        mem_rdata <= gpio_mem_rdata;
-                    end
+                    // GPIO requests are handled by gpio module
+                    // Just forward the response
+                    mem_rdata <= gpio_mem_rdata;
                     mem_ready <= 1'b1;
                 end else if (timer_request) begin
                     // Timer requests are handled by mtime_timer module
