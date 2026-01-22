@@ -1,25 +1,18 @@
 module top #(
-    parameter UART_NUM = 1,
-    parameter GPIO_SIZE = 5,
-    parameter PWM_NUM = 2
 )(
     input clk_p,
     input clk_n,
     input rst_n,
-    output flash_cs_n,
-    output ram_cs_n,
-    output spi_sclk,
-    inout wire [3:0] spi_io,
-    output [UART_NUM-1:0] uart_tx,
-    input wire [UART_NUM-1:0] uart_rx,
-    output wire [GPIO_SIZE-1:0] gpio_out,
-    output wire [PWM_NUM-1:0] pwm_out,
-    output wire error_flag
+    input  wire [7:0] ui_in,    // Dedicated inputs
+    output wire [7:0] uo_out,   // Dedicated outputs
+    inout  wire [7:0] uio       // IOs
 );
 
-wire [3:0] spi_io_in;
-wire [3:0] spi_io_out;
-wire [3:0] spi_io_oe;
+wire [3:0] uio_in;
+wire [3:0] uio_out;
+wire [3:0] uio_oe;
+
+wire ena = 1'b1;
 
 wire clk_200m;
 wire clk;
@@ -40,33 +33,26 @@ clk_wiz_0 clk_ins(
 
 genvar i;
 generate
-    for (i = 0; i < 4; i = i + 1) begin : spi_buf
+    for (i = 0; i < 8; i = i + 1) begin : io_buf
         IOBUF iobuf_inst (
-            .I  (spi_io_out[i]),
-            .O  (spi_io_in[i]),
-            .IO (spi_io[i]),
-            .T  (~spi_io_oe[i])
+            .I  (uio_out[i]),
+            .O  (uio_in[i]),
+            .IO (uio[i]),
+            .T  (~uio_oe[i])
         );
     end
 endgenerate
 
 soc #(
 ) soc_ins(
+    .ui_in(ui_in),
+    .uo_out(uo_out),
+    .uio_in(uio_in),
+    .uio_out(uio_out),
+    .uio_oe(uio_oe),
+    .ena(ena),
     .clk(clk),
-    .rst_n(rst_n),
-
-    .flash_cs_n(flash_cs_n),
-    .ram_cs_n(ram_cs_n),
-    .spi_sclk(spi_sclk),
-    .spi_io_in(spi_io_in),
-    .spi_io_out(spi_io_out),
-    .spi_io_oe(spi_io_oe),
-
-    .uart_tx(uart_tx),
-    .uart_rx(uart_rx),
-    .gpio_out(gpio_out),
-    
-    .error_flag(error_flag)
+    .rst_n(rst_n)
 );
 
 
