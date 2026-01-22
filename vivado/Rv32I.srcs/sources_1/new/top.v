@@ -8,9 +8,9 @@ module top #(
     inout  wire [7:0] uio       // IOs
 );
 
-wire [3:0] uio_in;
-wire [3:0] uio_out;
-wire [3:0] uio_oe;
+wire [7:0] uio_in;
+wire [7:0] uio_out;
+wire [7:0] uio_oe;
 
 wire ena = 1'b1;
 
