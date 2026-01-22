@@ -24,6 +24,12 @@ module test_soc_tb;
 
     wire [1:0] pwm_out;
 
+    // I2C interface signals
+    wire i2c_sda_out;
+    wire i2c_sda_oe;
+    wire i2c_scl_out;
+    wire i2c_scl_oe;
+
     wire [7:0] ui_in;
     wire [7:0] uo_out;
     wire [7:0] uio_in;
@@ -49,6 +55,13 @@ module test_soc_tb;
     
     assign pwm_out[0] = uo_out[7];
     assign pwm_out[1] = uio_out[7];
+
+    // I2C signal assignments
+    // I2C SDA is on uio[4], SCL is on uio[5]
+    assign i2c_sda_out = uio_out[4];
+    assign i2c_sda_oe  = uio_oe[4];
+    assign i2c_scl_out = uio_out[5];
+    assign i2c_scl_oe  = uio_oe[5];
 
     `ifndef FLASH_BASE_ADDR  
     `define FLASH_BASE_ADDR 32'h00000000

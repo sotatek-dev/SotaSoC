@@ -14,12 +14,13 @@ VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_csr.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/mem_ctl.sv
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/soc.sv
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/spi/qspi_master.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/timer/mtime_timer.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/gpio/gpio.v
-VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/pwm/pwm.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_ctl.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_tx.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/uart/uart_rx.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/gpio/gpio.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/timer/mtime_timer.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/pwm/pwm.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/i2c/i2c_master.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 -I$(PROJECT_ROOT)/rtl -DSIMULATION

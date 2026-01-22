@@ -16,6 +16,7 @@ module soc #(
     parameter GPIO_BASE_ADDR   = 32'h40001000,
     parameter TIMER_BASE_ADDR  = 32'h40002000,
     parameter PWM_BASE_ADDR    = 32'h40003000,
+    parameter I2C_BASE_ADDR    = 32'h40004000,
     parameter UART_NUM         = 1,  // Maximum 4 instances
     parameter UART_SPACING     = 32'h100,
     parameter GPIO_NUM_BIDIR   = 4,
@@ -46,6 +47,10 @@ module soc #(
     wire [3:0] bus_io_out;
     wire [3:0] bus_io_oe;
 
+    // UART interface
+    wire [UART_NUM-1:0] uart_tx;
+    wire [UART_NUM-1:0] uart_rx;
+
     // GPIO bidirectional interface
     wire [GPIO_NUM_BIDIR-1:0] gpio_bidir_in;
     wire [GPIO_NUM_BIDIR-1:0] gpio_bidir_out;
@@ -61,9 +66,14 @@ module soc #(
     wire [PWM_NUM-1:0] pwm_ena;
     wire [PWM_NUM-1:0] pwm_out;
 
-    // UART interface
-    wire [UART_NUM-1:0] uart_tx;
-    wire [UART_NUM-1:0] uart_rx;
+    // I2C interface
+    wire i2c_ena;
+    wire i2c_sda_in;
+    wire i2c_sda_out;
+    wire i2c_sda_oe;
+    wire i2c_scl_in;
+    wire i2c_scl_out;
+    wire i2c_scl_oe;
 
     // Error flag
     wire error_flag;
@@ -98,6 +108,9 @@ module soc #(
 
     // UART connections
     wire [UART_NUM*32-1:0] uart_mem_rdata;
+
+    // I2C connections
+    wire [31:0] i2c_mem_rdata;
     // ============ Internal wires ============
 
     // RV32I Core instantiation
@@ -138,7 +151,8 @@ module soc #(
         .UART_NUM(UART_NUM),
         .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
         .TIMER_BASE_ADDR(TIMER_BASE_ADDR),
-        .PWM_BASE_ADDR(PWM_BASE_ADDR)
+        .PWM_BASE_ADDR(PWM_BASE_ADDR),
+        .I2C_BASE_ADDR(I2C_BASE_ADDR)
     ) mem_ctrl (
         .clk(clk),
         .rst_n(rst_n),
@@ -157,17 +171,20 @@ module soc #(
         .mem_rdata(core_mem_rdata),
         .mem_ready(mem_data_ready),
 
-        // Timer interface
-        .timer_mem_rdata(timer_mem_rdata),
+        // UART interface
+        .uart_mem_rdata(uart_mem_rdata),
 
         // GPIO interface
         .gpio_mem_rdata(gpio_mem_rdata),
 
+        // Timer interface
+        .timer_mem_rdata(timer_mem_rdata),
+
         // PWM interface
         .pwm_mem_rdata(pwm_mem_rdata),
 
-        // UART interface
-        .uart_mem_rdata(uart_mem_rdata),
+        // I2C interface
+        .i2c_mem_rdata(i2c_mem_rdata),
 
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),
@@ -176,66 +193,6 @@ module soc #(
         .spi_io_in(bus_io_in),
         .spi_io_out(bus_io_out),
         .spi_io_oe(bus_io_oe)
-    );
-
-    // Timer module
-    mtime_timer #(
-        .TIMER_BASE_ADDR(TIMER_BASE_ADDR)
-    ) timer_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-
-        .mem_addr(core_mem_addr),
-        .mem_wdata(core_mem_wdata),
-        .mem_we(core_mem_we),
-        .mem_re(core_mem_re),
-        .mem_rdata(timer_mem_rdata),
-
-        .mtime(mtime),
-
-        .timer_interrupt(timer_interrupt)
-    );
-
-    // GPIO module
-    gpio #(
-        .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
-        .NUM_BIDIR(GPIO_NUM_BIDIR),
-        .NUM_OUT(GPIO_NUM_OUT),
-        .NUM_IN(GPIO_NUM_IN)
-    ) gpio_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-
-        .mem_addr(core_mem_addr),
-        .mem_wdata(core_mem_wdata),
-        .mem_we(core_mem_we),
-        .mem_re(core_mem_re),
-        .mem_rdata(gpio_mem_rdata),
-
-        .gpio_bidir_in(gpio_bidir_in),
-        .gpio_bidir_out(gpio_bidir_out),
-        .gpio_bidir_oe(gpio_bidir_oe),
-        .gpio_out(gpio_out),
-        .gpio_in(gpio_in)
-    );
-
-    // PWM module
-    pwm #(
-        .PWM_BASE_ADDR(PWM_BASE_ADDR),
-        .PWM_NUM(PWM_NUM),
-        .COUNTER_WIDTH(16)
-    ) pwm_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-
-        .mem_addr(core_mem_addr),
-        .mem_wdata(core_mem_wdata),
-        .mem_we(core_mem_we),
-        .mem_re(core_mem_re),
-        .mem_rdata(pwm_mem_rdata),
-
-        .ena(pwm_ena),
-        .pwm_out(pwm_out)
     );
 
     // UART Controller module instantiation
@@ -260,6 +217,88 @@ module soc #(
         end
     endgenerate
 
+    // GPIO module
+    gpio #(
+        .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
+        .NUM_BIDIR(GPIO_NUM_BIDIR),
+        .NUM_OUT(GPIO_NUM_OUT),
+        .NUM_IN(GPIO_NUM_IN)
+    ) gpio_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(gpio_mem_rdata),
+
+        .gpio_bidir_in(gpio_bidir_in),
+        .gpio_bidir_out(gpio_bidir_out),
+        .gpio_bidir_oe(gpio_bidir_oe),
+        .gpio_out(gpio_out),
+        .gpio_in(gpio_in)
+    );
+
+    // Timer module
+    mtime_timer #(
+        .TIMER_BASE_ADDR(TIMER_BASE_ADDR)
+    ) timer_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(timer_mem_rdata),
+
+        .mtime(mtime),
+
+        .timer_interrupt(timer_interrupt)
+    );
+
+    // PWM module
+    pwm #(
+        .PWM_BASE_ADDR(PWM_BASE_ADDR),
+        .PWM_NUM(PWM_NUM),
+        .COUNTER_WIDTH(16)
+    ) pwm_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(pwm_mem_rdata),
+
+        .ena(pwm_ena),
+        .pwm_out(pwm_out)
+    );
+
+    // I2C Master module
+    i2c_master #(
+        .I2C_BASE_ADDR(I2C_BASE_ADDR)
+    ) i2c_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(i2c_mem_rdata),
+
+        .ena(i2c_ena),
+        .i2c_sda_in(i2c_sda_in),
+        .i2c_sda_out(i2c_sda_out),
+        .i2c_sda_oe(i2c_sda_oe),
+        .i2c_scl_in(i2c_scl_in),
+        .i2c_scl_out(i2c_scl_out),
+        .i2c_scl_oe(i2c_scl_oe)
+    );
+
     assign uart_rx[0] = ui_in[0];
     // spi_miso
     assign gpio_in[GPIO_NUM_IN-1:0] = ui_in[7:2];
@@ -274,15 +313,24 @@ module soc #(
     assign uo_out[7] = pwm_ena[0] ? pwm_out[0] : gpio_out[2];
 
     assign bus_io_in[3:0] = uio_in[3:0];
-    assign gpio_bidir_in[2:0] = uio_in[6:4];
+
+    assign gpio_bidir_in[0] = uio_in[4];  // Shared with I2C SDA
+    assign gpio_bidir_in[1] = uio_in[5];  // Shared with I2C SCL
+    assign gpio_bidir_in[2] = uio_in[6];
+    assign gpio_bidir_in[3] = uio_in[7];
+
+    assign i2c_sda_in = uio_in[4];
+    assign i2c_scl_in = uio_in[5];
 
     assign uio_out[3:0] = bus_io_out[3:0];
-    assign uio_out[6:4] = gpio_bidir_out[2:0];
+    assign uio_out[4] = i2c_ena ? i2c_sda_out : gpio_bidir_out[0];
+    assign uio_out[5] = i2c_ena ? i2c_scl_out : gpio_bidir_out[1];
+    assign uio_out[6] = gpio_bidir_out[2];
+    assign uio_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_bidir_out[3];
 
     assign uio_oe[3:0] = bus_io_oe[3:0];
-    assign uio_oe[6:4] = gpio_bidir_oe[2:0];
-
-    assign gpio_bidir_in[3] = uio_in[7];
-    assign uio_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_bidir_out[3];
+    assign uio_oe[4] = i2c_ena ? i2c_sda_oe : gpio_bidir_oe[0];
+    assign uio_oe[5] = i2c_ena ? i2c_scl_oe : gpio_bidir_oe[1];
+    assign uio_oe[6] = gpio_bidir_oe[2];
     assign uio_oe[7] = pwm_ena[1] ? UIO_OE_OUT : gpio_bidir_oe[3];
 endmodule
