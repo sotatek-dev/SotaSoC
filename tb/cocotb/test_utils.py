@@ -39,6 +39,31 @@ PWM_CH1_PERIOD  = PWM_BASE_ADDR + 0x14
 PWM_CH1_DUTY    = PWM_BASE_ADDR + 0x18
 PWM_CH1_COUNTER = PWM_BASE_ADDR + 0x1C
 
+# I2C base address and register offsets
+I2C_BASE_ADDR   = 0x40004000
+I2C_CTRL        = I2C_BASE_ADDR + 0x00
+I2C_STATUS      = I2C_BASE_ADDR + 0x04
+I2C_DATA        = I2C_BASE_ADDR + 0x08
+I2C_PRESCALE    = I2C_BASE_ADDR + 0x0C
+
+# I2C Control register bits
+I2C_CTRL_ENABLE  = 0x01  # bit 0: Enable module
+I2C_CTRL_START   = 0x02  # bit 1: Generate START condition
+I2C_CTRL_STOP    = 0x04  # bit 2: Generate STOP condition
+I2C_CTRL_READ    = 0x08  # bit 3: Read mode (1=read, 0=write)
+I2C_CTRL_ACK_EN  = 0x10  # bit 4: ACK enable (1=send ACK, 0=send NACK)
+
+# I2C Status register bits
+I2C_STATUS_BUSY      = 0x01  # bit 0: Transfer in progress
+I2C_STATUS_ACK       = 0x02  # bit 1: ACK received (1=ACK, 0=NACK)
+I2C_STATUS_ARB_LOST  = 0x04  # bit 2: Arbitration lost
+I2C_STATUS_DONE      = 0x08  # bit 3: Transfer complete
+I2C_STATUS_ERROR     = 0x10  # bit 4: Bus error
+
+# I2C Prescaler values for common frequencies @ 64MHz clock
+I2C_PRESCALE_100KHZ = 159  # 64MHz / (4 * 160) = 100kHz
+I2C_PRESCALE_400KHZ = 39   # 64MHz / (4 * 40) = 400kHz
+
 # RISC-V Instruction Encoding Functions
 
 def encode_load(rd, rs1, imm12):

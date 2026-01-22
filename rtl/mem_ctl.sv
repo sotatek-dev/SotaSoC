@@ -16,7 +16,8 @@ module mem_ctl #(
     parameter UART_NUM = 1,
     parameter GPIO_BASE_ADDR,
     parameter TIMER_BASE_ADDR,
-    parameter PWM_BASE_ADDR
+    parameter PWM_BASE_ADDR,
+    parameter I2C_BASE_ADDR
 ) (
     input wire clk,
     input wire rst_n,
@@ -45,6 +46,9 @@ module mem_ctl #(
 
     // PWM interface
     input wire [31:0] pwm_mem_rdata,
+
+    // I2C interface
+    input wire [31:0] i2c_mem_rdata,
 
     // Shared SPI interface
     output wire flash_cs_n,
@@ -144,11 +148,12 @@ module mem_ctl #(
     // Request signals
     wire data_request = mem_write_request || mem_read_request;
     wire instr_request = instr_addr_changed || !instr_ready_reg;
-    wire uart_request = data_request && mem_addr[31:8] == UART_BASE_ADDR[31:8] && uart_instance_valid;
-    wire gpio_request = data_request && mem_addr[31:8] == GPIO_BASE_ADDR[31:8];
-    wire timer_request = data_request && mem_addr[31:8] == TIMER_BASE_ADDR[31:8];
-    wire pwm_request = data_request && mem_addr[31:8] == PWM_BASE_ADDR[31:8];
-    wire peripheral_request = uart_request || gpio_request || timer_request || pwm_request;
+    wire uart_request = mem_addr[31:8] == UART_BASE_ADDR[31:8] && uart_instance_valid;
+    wire gpio_request = mem_addr[31:8] == GPIO_BASE_ADDR[31:8];
+    wire timer_request = mem_addr[31:8] == TIMER_BASE_ADDR[31:8];
+    wire pwm_request = mem_addr[31:8] == PWM_BASE_ADDR[31:8];
+    wire i2c_request = mem_addr[31:8] == I2C_BASE_ADDR[31:8];
+    wire peripheral_request = data_request && (uart_request || gpio_request || timer_request || pwm_request || i2c_request);
 
     // Priority logic: data has higher priority
     wire start_data_access = data_request;
@@ -214,6 +219,11 @@ module mem_ctl #(
                     // PWM requests are handled by pwm module
                     // Just forward the response
                     mem_rdata <= pwm_mem_rdata;
+                    mem_ready <= 1'b1;
+                end else if (i2c_request) begin
+                    // I2C requests are handled by i2c_master module
+                    // Just forward the response
+                    mem_rdata <= i2c_mem_rdata;
                     mem_ready <= 1'b1;
                 end
             end else
