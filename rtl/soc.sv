@@ -9,6 +9,7 @@
  */
 
 module soc #(
+    parameter REG_NUM          = 16,
     parameter RESET_ADDR       = 32'h00000000 ,
     parameter FLASH_BASE_ADDR  = 32'h00000000,
     parameter PSRAM_BASE_ADDR  = 32'h01000000,
@@ -115,6 +116,7 @@ module soc #(
 
     // RV32I Core instantiation
     rv32i_core #(
+        .REG_NUM(REG_NUM),
         .RESET_ADDR(RESET_ADDR)
     ) cpu_core (
         .clk(clk),

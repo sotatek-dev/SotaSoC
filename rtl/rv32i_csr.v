@@ -69,7 +69,7 @@ module rv32i_csr (
         case (csr_addr)
             // Machine-level CSRs
             12'h300: csr_rdata = mstatus;                     // MSTATUS
-            12'h301: csr_rdata = 32'h40000104;                // MISA - read-only constant (RV32IC, MXL=1)
+            12'h301: csr_rdata = 32'h40000014;                // MISA - read-only constant (RV32EC, MXL=1)
             12'h302: csr_rdata = 32'd0;                       // MEDELEG
             12'h303: csr_rdata = 32'd0;                       // MIDELEG
             12'h304: csr_rdata = mie & MASK_MIE;              // MIE

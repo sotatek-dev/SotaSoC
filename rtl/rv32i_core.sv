@@ -12,6 +12,7 @@
 `include "debug_defines.vh"
 
 module rv32i_core #(
+    parameter REG_NUM = 16,
     parameter RESET_ADDR = 32'h00000000
 ) (
     input wire clk,
@@ -215,7 +216,9 @@ module rv32i_core #(
     );
 
     // Register file instantiation
-    rv32i_register register_file (
+    rv32i_register #(
+        .REG_NUM(REG_NUM)
+    ) register_file (
         .clk(clk),
         .rst_n(rst_n),
         .rs1_addr(if_rs1_addr),
