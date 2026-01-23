@@ -159,7 +159,8 @@ module mem_ctl #(
     wire start_data_access = data_request;
     wire start_instr_access = instr_request && (access_state == ACCESS_IDLE) && !data_request;
 
-    wire [23:0] next_instr_addr = spi_addr[23:0] + 4;
+    wire is_compressed_instr = instr_data[1:0] == 2'b11;
+    wire [23:0] next_instr_addr = spi_addr[23:0] + (is_compressed_instr ? 4 : 2);
 
     // SPI access handling
     always @(posedge clk or negedge rst_n) begin
@@ -284,7 +285,7 @@ module mem_ctl #(
                             spi_start <= 1'b1;
                             spi_addr <= instr_addr[23:0];
                             spi_data_in <= 32'h0;
-                            spi_data_len <= 6'h20;
+                            spi_data_len <= 6'h00; // qspi will detect data length automatically
                             spi_write_enable <= 1'b0;
                             spi_is_instr <= 1'b1;
                             access_state <= ACCESS_ACTIVE;

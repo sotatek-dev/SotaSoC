@@ -41,7 +41,6 @@ module rv32i_csr (
     // CSR register definitions
     // Machine-level CSRs
     reg [31:0] mstatus;      // 0x300 - Machine status register
-    // Note: misa (0x301) is read-only constant, returns 0x40000100 (RV32I, MXL=1)
     reg [31:0] mie;          // 0x304 - Machine interrupt enable
     reg [31:0] mtvec;        // 0x305 - Machine trap vector base address
     reg [31:0] mscratch;     // 0x340 - Machine scratch register
@@ -70,7 +69,7 @@ module rv32i_csr (
         case (csr_addr)
             // Machine-level CSRs
             12'h300: csr_rdata = mstatus;                     // MSTATUS
-            12'h301: csr_rdata = 32'h40000100;                // MISA - read-only constant (RV32I, MXL=1)
+            12'h301: csr_rdata = 32'h40000104;                // MISA - read-only constant (RV32IC, MXL=1)
             12'h302: csr_rdata = 32'd0;                       // MEDELEG
             12'h303: csr_rdata = 32'd0;                       // MIDELEG
             12'h304: csr_rdata = mie & MASK_MIE;              // MIE

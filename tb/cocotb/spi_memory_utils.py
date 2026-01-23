@@ -184,7 +184,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                         if fsm_state == FSM_DATA_TRANSFER:
                             if dut.bus_sclk.value == 0:
                                 # print(f"SPI MISO: bit_counter={bit_counter}, spi_io_in[1]={data & 1}, instr_data=0x{data:08x}")
-                                set_packed_bit(dut.spi_io_in, 1, ((data & 0xFFFFFFFF) >> (31 - bit_counter)) & 1)
+                                set_packed_bit(dut.bus_io_in, 1, ((data & 0xFFFFFFFF) >> (31 - bit_counter)) & 1)
                                 bit_counter += 1
                                 if bit_counter == 32:
                                     bit_counter = 0

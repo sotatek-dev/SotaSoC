@@ -58,10 +58,12 @@ module rv32i_core #(
 
     // Pipeline registers
     reg [31:0] if_instr, if_pc;
+    reg if_is_compressed;
 
     reg [31:0] id_instr, id_pc, id_rs1_data, id_rs2_data, id_imm;
     reg [3:0] id_alu_op;
     reg [31:0] id_alu_a, id_alu_b;
+    reg id_is_compressed;
 
     reg [31:0] ex_instr, ex_pc, ex_rs1_data, ex_rs2_data, ex_alu_result;
     reg ex_mem_we, ex_mem_re, ex_reg_we;
@@ -122,6 +124,9 @@ module rv32i_core #(
     // Control signals
     wire [31:0] alu_result;
 
+    // Decompressed instruction signals
+    wire [31:0] decompressed_instr;
+    wire decompressed_is_valid;
 
     // CSR signals
     wire id_csr_we;
@@ -202,6 +207,12 @@ module rv32i_core #(
     // Instruction address
     assign o_instr_addr = pc;
     assign o_mtime = mtime_counter;
+
+    rv32c_decompress decompress_unit (
+        .instr_16bit(i_instr_data[15:0]),
+        .instr_32bit(decompressed_instr),
+        .is_valid(decompressed_is_valid)
+    );
 
     // Register file instantiation
     rv32i_register register_file (
@@ -326,15 +337,16 @@ module rv32i_core #(
                         (if_opcode == OPCODE_AUIPC) ? if_pc :            // U-type (AUIPC)
                         32'd0;
 
+    wire [31:0] if_jump_next_pc_offset = if_is_compressed ? 32'h2 : 32'h4;
     // ALU operand B selection
-    assign if_alu_b = (if_opcode == OPCODE_R      ) ? if_rs2_data :      // R-type (ALU)
-                        (if_opcode == OPCODE_I    ) ? if_imm :           // I-type (ALU)
-                        (if_opcode == OPCODE_L    ) ? if_imm :           // I-type (Load)
-                        (if_opcode == OPCODE_S    ) ? if_imm :           // S-type (Store)
-                        (if_opcode == OPCODE_JAL  ) ? 32'd4 :            // J-type (JAL)
-                        (if_opcode == OPCODE_JALR ) ? 32'd4 :            // I-type (JALR)
-                        (if_opcode == OPCODE_LUI  ) ? if_imm :           // U-type (LUI)
-                        (if_opcode == OPCODE_AUIPC) ? if_imm :           // U-type (AUIPC)
+    assign if_alu_b = (if_opcode == OPCODE_R      ) ? if_rs2_data :             // R-type (ALU)
+                        (if_opcode == OPCODE_I    ) ? if_imm :                  // I-type (ALU)
+                        (if_opcode == OPCODE_L    ) ? if_imm :                  // I-type (Load)
+                        (if_opcode == OPCODE_S    ) ? if_imm :                  // S-type (Store)
+                        (if_opcode == OPCODE_JAL  ) ? if_jump_next_pc_offset :  // J-type (JAL)
+                        (if_opcode == OPCODE_JALR ) ? if_jump_next_pc_offset :  // I-type (JALR)
+                        (if_opcode == OPCODE_LUI  ) ? if_imm :                  // U-type (LUI)
+                        (if_opcode == OPCODE_AUIPC) ? if_imm :                  // U-type (AUIPC)
                         32'd0;
 
     assign id_mem_we = (id_opcode == OPCODE_S) ? 1'b1 : 1'b0; // Only Store instructions write to memory
@@ -396,8 +408,11 @@ module rv32i_core #(
     wire id_lt = (id_rs1_data < id_rs2_data);
     wire id_ge = ~id_lt;
 
+    wire [31:0] id_next_pc_offset = id_is_compressed ? 32'h2 : 32'h4;
+    wire [31:0] pc_next_pc_offset = decompressed_is_valid ? 32'h2 : 32'h4;
+
     wire [31:0] pc_branch_taken = id_pc + id_imm;
-    wire [31:0] pc_branch_not_taken = id_pc + 4;
+    wire [31:0] pc_branch_not_taken = id_pc + id_next_pc_offset;
 
     reg [31:0] ex_branch_target;
     // PC update logic
@@ -413,7 +428,7 @@ module rv32i_core #(
                      (id_opcode == OPCODE_JAL) ? pc_branch_taken : // JAL
                      (id_opcode == OPCODE_JALR) ? (id_rs1_data + id_imm) & ~1 : // JALR
                      32'd0;
-    wire [31:0] pc_target = ex_is_branch ? ex_branch_target : pc + 4;
+    wire [31:0] pc_target = ex_is_branch ? ex_branch_target : pc + pc_next_pc_offset;
 
     // Exception handling logic
     // Priority: misaligned address > ECALL > MRET
@@ -421,7 +436,7 @@ module rv32i_core #(
     // Check for instruction address misalignment
     // Instruction addresses must be aligned (divisible by 4, i.e., bits [1:0] must be 00)
 
-    wire ex_is_misaligned = ex_is_branch && ex_branch_target[1:0] != 2'b00;
+    wire ex_is_misaligned = ex_is_branch && ex_branch_target[0] != 1'b0;
 
     // Check for load/store address misalignment in EX stage
     // Alignment requirements:
@@ -485,6 +500,7 @@ module rv32i_core #(
             pc <= RESET_ADDR & MASK_ADDR;
             if_instr <= INSTR_NOP;
             if_pc <= RESET_ADDR & MASK_ADDR;
+            if_is_compressed <= 1'b0;
 
             id_instr <= INSTR_NOP;
             id_pc <= RESET_ADDR & MASK_ADDR;
@@ -495,6 +511,7 @@ module rv32i_core #(
             id_alu_a <= 32'd0;
             id_alu_b <= 32'd0;
             id_int_is_interrupt <= 1'b0;
+            id_is_compressed <= 1'b0;
 
             ex_instr <= INSTR_NOP;
             ex_rs1_data <= 32'd0;
@@ -567,7 +584,8 @@ module rv32i_core #(
                 end else begin
                     // Normal execution: update pc and instruction
                     pc <= pc_next & MASK_ADDR;
-                    if_instr <= i_instr_data;
+                    if_instr <= decompressed_is_valid ? decompressed_instr : i_instr_data;
+                    if_is_compressed <= decompressed_is_valid;
                     if_pc <= pc & MASK_ADDR;
                 end
 
@@ -588,6 +606,7 @@ module rv32i_core #(
                 id_alu_a <= if_alu_a;
                 id_alu_b <= if_alu_b;
                 id_int_is_interrupt <= int_is_interrupt;
+                id_is_compressed <= if_is_compressed;
 
                 // If exception, interrupt, or mret is detected, flush ID/EX stage with NOP
                 if (int_is_interrupt) begin
@@ -602,6 +621,7 @@ module rv32i_core #(
                     id_alu_op <= 4'b0000;
                     id_alu_a <= 32'd0;
                     id_alu_b <= 32'd0;
+                    id_is_compressed <= 1'b0;
                 end
 
                 // Pipeline stage 3: Execute

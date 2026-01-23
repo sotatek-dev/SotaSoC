@@ -50,6 +50,10 @@ module spi_master (
     wire [7:0] cmd = write_enable ? 8'h02 : 8'h03;
     wire [31:0] cmd_addr = {cmd, addr};
 
+    wire is_compressed_instr = (bit_counter == 16) && (shift_reg_in[9:8] != 2'b11);
+    wire is_normal_instr = (bit_counter == 32);
+    wire is_instr_complete = is_instr && (fsm_state == FSM_DATA_TRANSFER) && (is_compressed_instr || is_normal_instr);
+
     // State machine
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -92,14 +96,19 @@ module spi_master (
             end
 
             FSM_DATA_TRANSFER: begin
-                if (bit_counter == data_len)
-                    if (is_instr) begin
+                if (is_instr) begin
+                    if (is_instr_complete) begin
                         fsm_next_state = FSM_PAUSE;
                     end else begin
-                        fsm_next_state = FSM_DONE;
+                        fsm_next_state = FSM_DATA_TRANSFER;
                     end
-                else
-                    fsm_next_state = FSM_DATA_TRANSFER;
+                end else begin
+                    if (bit_counter == data_len) begin
+                        fsm_next_state = FSM_DONE;
+                    end else begin
+                        fsm_next_state = FSM_DATA_TRANSFER;
+                    end
+                end
             end
 
             FSM_PAUSE: begin
@@ -229,11 +238,15 @@ module spi_master (
                     end
 
                     // In case of fetch instruction, we update some flag here to save one clock cycle
-                    if (bit_counter == 32) begin
+                    if (is_instr_complete) begin
                         spi_clk_en <= 1'b0;
                         bit_counter <= 6'b0;
                         done <= 1'b1;
-                        data_out <= shift_reg_in;  // Output the received data
+                        if (bit_counter == 16) begin
+                            data_out <= {shift_reg_in[15:0], 16'b0};
+                        end else begin
+                            data_out <= shift_reg_in;
+                        end
                     end
 
                     write_mosi <= ~write_mosi;

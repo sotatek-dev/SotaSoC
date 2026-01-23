@@ -11,6 +11,7 @@ VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_core.sv
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_alu.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_register.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_csr.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32c_decompress.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/mem_ctl.sv
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/soc.sv
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/spi/qspi_master.v
