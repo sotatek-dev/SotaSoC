@@ -143,14 +143,61 @@ def get_mem_vars():
     """Get the current memory variables (for testing)"""
     return mem_addr, mem_wdata, mem_flag
 
+def convert_word_memory_to_byte_memory(word_memory):
+    """Convert word-aligned memory dictionary to byte-addressed memory dictionary
+    
+    Args:
+        word_memory: Dictionary with word-aligned addresses (keys are multiples of 4) as keys
+                    and 32-bit values
+        
+    Returns:
+        Dictionary with byte addresses as keys and byte values (0-255)
+    """
+    byte_memory = {}
+    for word_addr, word_value in word_memory.items():
+        # Ensure address is word-aligned
+        if word_addr % 4 != 0:
+            raise ValueError(f"Memory address 0x{word_addr:08x} is not word-aligned")
+        
+        # Store bytes in little-endian format
+        byte_memory[word_addr] = word_value & 0xFF
+        byte_memory[word_addr + 1] = (word_value >> 8) & 0xFF
+        byte_memory[word_addr + 2] = (word_value >> 16) & 0xFF
+        byte_memory[word_addr + 3] = (word_value >> 24) & 0xFF
+    
+    return byte_memory
+
+def read_word_from_byte_memory(byte_memory, addr):
+    """Read a 32-bit word from byte-addressed memory (little-endian)
+    
+    Args:
+        byte_memory: Dictionary with byte addresses as keys
+        addr: Byte address (can be any byte address, not necessarily word-aligned)
+    
+    Returns:
+        32-bit word value
+    """
+    # Read 4 bytes starting from addr, defaulting to 0 if not present
+    byte0 = byte_memory.get(addr, 0)
+    byte1 = byte_memory.get(addr + 1, 0)
+    byte2 = byte_memory.get(addr + 2, 0)
+    byte3 = byte_memory.get(addr + 3, 0)
+    
+    # Combine in little-endian format
+    return (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0
+
 async def do_test(dut, memory, cycles, mem_data=0x00000000):
     """Do test"""
     global mem_addr, mem_wdata, mem_flag
 
+    # Convert word-aligned memory to byte-addressed memory internally
+    byte_memory = convert_word_memory_to_byte_memory(memory)
+
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
     
-    dut.instr_data.value = memory[0x00000000]
+    # Read initial instruction from byte memory
+    dut.instr_data.value = read_word_from_byte_memory(byte_memory, 0x00000000)
     dut.mem_data.value = mem_data
     dut.instr_ready.value = 0
     dut.mem_ready.value = 0
@@ -196,9 +243,11 @@ async def do_test(dut, memory, cycles, mem_data=0x00000000):
         if mem_wait_cycles == 0 and instr_wait_cycles > 0:
             instr_wait_cycles -= 1
             if instr_wait_cycles == 0:
-                dut.instr_data.value = memory[dut.instr_addr.value.to_unsigned()]
+                # Read instruction from byte-addressed memory
+                instr_addr = dut.instr_addr.value.to_unsigned()
+                dut.instr_data.value = read_word_from_byte_memory(byte_memory, instr_addr)
                 dut.instr_ready.value = 1
 
         # print(f"mem_wait_cycles={mem_wait_cycles}, instr_wait_cycles={instr_wait_cycles}")
-        # print(f"Cycle {_}: PC={dut.instr_addr.value.to_unsigned():08x}, Instr={memory[dut.instr_addr.value.to_unsigned()]:08x}")
-        # print(f"Cycle {_}: mem_addr={dut.mem_addr.value.integer:08x}, mem_data={dut.mem_data.value.integer:08x}, mem_wdata={dut.mem_wdata.value.integer:08x}, mem_flag={dut.mem_flag.value.integer:08x}") 
+        # print(f"Cycle {_}: PC={dut.instr_addr.value.to_unsigned():08x}, Instr={read_word_from_byte_memory(byte_memory, dut.instr_addr.value.to_unsigned()):08x}")
+        # print(f"Cycle {_}: mem_addr={dut.mem_addr.value.integer:08x}, mem_data={dut.mem_data.value.integer:08x}, mem_wdata={dut.mem_wdata.value.integer:08x}, mem_flag={dut.mem_flag.value.integer:08x}")

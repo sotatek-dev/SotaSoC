@@ -29,7 +29,7 @@ do
     then
         # compile and link using gcc and ld;
         # then generate dump and $readmemh hex file
-        riscv64-unknown-elf-gcc     -c $eachfile -I"$TEST_INCLUDE" -I"$TEST_MACROS" -o "$eachfile.o" -march=rv32i_zicsr -mabi=ilp32
+        riscv64-unknown-elf-gcc     -c $eachfile -I"$TEST_INCLUDE" -I"$TEST_MACROS" -o "$eachfile.o" -march=rv32ic_zicsr -mabi=ilp32
         # find a solution to link rv32i from:
         # https://github.com/riscv-collab/riscv-gnu-toolchain/issues/409
         riscv64-unknown-elf-ld      "$eachfile.o" -Ttext 0x00000000 -Tdata 0x01000000 -o $eachfile.v2 -m elf32lriscv
