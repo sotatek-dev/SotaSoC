@@ -5,7 +5,6 @@ module spi_master (
     // CPU interface
     input wire start,                    // Start SPI transaction
     input wire stop,                     // Stop SPI transaction
-    input wire cont,                     // Continue sequential read without sending command+address
     input wire write_enable,             // 1 = write operation, 0 = read operation
     input wire is_instr,                 // 1 = instruction, 0 = data
     input wire [23:0] addr,              // 24-bit input: address
@@ -255,6 +254,8 @@ module spi_master (
                         data_out <= 32'h00000000;  // Write confirmation or status
                     end
                 end
+
+                default: ;
             endcase
 
             if (stop) begin // force stop SPI transaction no matter what state we are in

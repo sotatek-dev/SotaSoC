@@ -74,7 +74,6 @@ module mem_ctl #(
     // SPI signals
     reg spi_start;
     reg spi_stop;
-    reg spi_cont;
     reg spi_write_enable;
     reg spi_read_enable;
     reg [23:0] spi_addr;
@@ -108,7 +107,6 @@ module mem_ctl #(
         // CPU interface
         .start(spi_start),
         .stop(spi_stop),
-        .cont(spi_cont),
         .write_enable(spi_write_enable),
         .is_instr(spi_is_instr),
         .addr(spi_addr),
@@ -176,7 +174,6 @@ module mem_ctl #(
 
             spi_start <= 1'b0;
             spi_stop <= 1'b0;
-            spi_cont <= 1'b0;
             spi_write_enable <= 1'b0;
             spi_read_enable <= 1'b0;
             spi_addr <= 24'h0;
@@ -187,7 +184,6 @@ module mem_ctl #(
         end else begin
             spi_start <= 1'b0;
             spi_stop <= 1'b0;
-            spi_cont <= 1'b0;
 
             // `DEBUG_PRINT(("Time %0t: SPI_MEM - access_state: %d, start_data_access: %d, mem_we %d", $time, access_state, start_data_access, mem_we));
 
@@ -301,7 +297,6 @@ module mem_ctl #(
                         next_instr_ready_reg <= 1'b0;
                         mem_ready <= 1'b0;
                         spi_start <= 1'b0;
-                        spi_cont <= 1'b0;
                         spi_addr <= 24'h0;
                         spi_data_in <= 32'h0;
                         spi_data_len <= 6'b0;
@@ -321,7 +316,6 @@ module mem_ctl #(
 
                                 // Fetch next instruction automatically
                                 next_instr_ready_reg <= 1'b0;
-                                spi_cont <= 1'b1;
                                 access_state <= ACCESS_NEXT_INSTR;
                                 // access_state <= ACCESS_PAUSE;
                                 
@@ -392,7 +386,6 @@ module mem_ctl #(
                                 spi_addr <= instr_addr[23:0];
 
                                 next_instr_ready_reg <= 1'b0;
-                                spi_cont <= 1'b1;
                                 access_state <= ACCESS_NEXT_INSTR;
                             end else begin
                                 `DEBUG_PRINT(("Time %0t: SPI_MEM - It should not happen: next_instr_ready_reg=0, instr_addr=0x%h, next_instr_addr=0x%h", 

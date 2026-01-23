@@ -21,12 +21,10 @@ module rv32c_decompress (
     wire [2:0] funct3 = instr_16bit[15:13];
     wire [2:0] funct3_sub1 = instr_16bit[12:10];
     wire [1:0] funct2 = instr_16bit[6:5];
-    wire [3:0] funct4 = instr_16bit[15:12];
 
     wire [4:0] cr_rs2 = instr_16bit[6:2];
     wire [4:0] cr_rs1 = instr_16bit[11:7];
     wire [4:0] cr_rd = instr_16bit[11:7];
-    wire [3:0] cr_funct4 = instr_16bit[15:12];
 
     wire [5:0] ci_imm = {instr_16bit[12], instr_16bit[6:2]};
     wire [4:0] ci_rs1 = instr_16bit[11:7];
@@ -47,7 +45,6 @@ module rv32c_decompress (
 
     wire [6:0] cs_imm = {instr_16bit[5], instr_16bit[12:10], instr_16bit[6], 2'b00};
     wire [2:0] cs_rd = instr_16bit[9:7];
-    wire [2:0] cs_rs1 = instr_16bit[9:7];
     wire [2:0] cs_rs2 = instr_16bit[4:2];
 
     wire [8:0] cb_imm = {instr_16bit[12], instr_16bit[6:5], instr_16bit[2], instr_16bit[11:10], instr_16bit[4:3], 1'b0};
@@ -56,6 +53,8 @@ module rv32c_decompress (
     wire [5:0] cb_imm6 = {instr_16bit[12], instr_16bit[6:2]};
 
     wire [11:0] cj_imm = {instr_16bit[12], instr_16bit[8], instr_16bit[10:9], instr_16bit[6], instr_16bit[7], instr_16bit[2], instr_16bit[11], instr_16bit[5:3], 1'b0};
+
+    wire [1:0] _unused = {cb_imm[0], cj_imm[0]};
 
     // Decompression logic
     always @(*) begin
@@ -68,7 +67,7 @@ module rv32c_decompress (
                     // C.ADDI4SPN: Add immediate to stack pointer (nzuimm[9:2])
                     // Decompresses to: ADDI rd', sp, 4*imm
                     3'b000: begin
-                        if (ciw_nzuimm == 8'b0) begin
+                        if (ciw_nzuimm == 10'b0) begin
                             // Reserved: nzuimm = 0
                             instr_32bit = INSTR_INVALID;
                             is_valid = 1'b0;
@@ -189,7 +188,7 @@ module rv32c_decompress (
                         end else begin
                             // C.ADDI16SP
                             // Decompresses to: ADDI x2, x2, nzimm[9:4]
-                            if (ci_nzimm == 6'b0) begin
+                            if (ci_nzimm == 10'b0) begin
                                 // Reserved: nzimm = 0
                                 instr_32bit = INSTR_INVALID;
                                 is_valid = 1'b0;
@@ -443,7 +442,7 @@ module rv32c_decompress (
                                     // C.JALR: Jump and link register
                                     // Decompresses to: JALR x1, 0(rs1)
                                     instr_32bit = {
-                                        7'b0000000,             // funct7
+                                        12'b0000000,            //
                                         cr_rs1[4:0],            // rs1
                                         3'b000,                 // funct3 = ADD
                                         5'd1,                   // rd = x1
