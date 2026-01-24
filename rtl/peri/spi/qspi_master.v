@@ -24,11 +24,12 @@ module spi_master (
     // Parameters
     parameter FSM_IDLE = 3'b000;
     parameter FSM_INIT = 3'b001;
-    parameter FSM_SEND_CMD = 3'b010;
-    parameter FSM_SEND_ADDR = 3'b011;
-    parameter FSM_DUMMY = 3'b100;
-    parameter FSM_DATA_TRANSFER = 3'b101;
-    parameter FSM_DONE = 3'b110;
+    parameter FSM_RESET = 3'b010;
+    parameter FSM_SEND_CMD = 3'b011;
+    parameter FSM_SEND_ADDR = 3'b100;
+    parameter FSM_DUMMY = 3'b101;
+    parameter FSM_DATA_TRANSFER = 3'b110;
+    parameter FSM_DONE = 3'b111;
 
     localparam INIT_CYCLES = 12'd4095;
 
@@ -87,11 +88,18 @@ module spi_master (
             end
 
             FSM_INIT: begin
-                if (initialized) begin
-                    fsm_next_state = FSM_SEND_CMD;
+                if (init_cnt == INIT_CYCLES) begin
+                    fsm_next_state = FSM_RESET;
                 end else begin
                     fsm_next_state = FSM_INIT;
                 end
+            end
+
+            FSM_RESET: begin
+                if (bit_counter == 15)
+                    fsm_next_state = FSM_SEND_CMD;
+                else
+                    fsm_next_state = FSM_RESET;
             end
 
             FSM_SEND_CMD: begin
@@ -203,8 +211,52 @@ module spi_master (
 
                 FSM_INIT: begin
                     init_cnt <= init_cnt + 1;
-                    if (init_cnt == INIT_CYCLES) begin
+                end
+
+                FSM_RESET: begin
+                    if (bit_counter == 0) begin
+                        // Start reset transaction
+                        spi_cs_n <= 1'b0;
+                        spi_io_oe <= 4'b1111;       // All IOs are outputs
+                        spi_io_out <= 4'b0000;
+                        spi_clk_en <= 1'b0;
+
+                        write_mosi <= 1'b1;
+
+                        bit_counter <= bit_counter + 1;
+                    end else if (bit_counter < 9) begin
+                        // Send 8 0x0 nibbles to make sure flash quit continuous mode
+                        // If flash is not in continuous mode, it receives the 0x00 command => do nothing
+                        // If flash is in continuous mode, it receives the 0x000000 address
+                        // and 0x00 for M[7:0] => quit continuous mode
+                        spi_cs_n <= 1'b0;
+                        spi_clk_en <= 1'b1;
+
+                        spi_io_oe <= 4'b1111;       // All IOs are outputs
+                        spi_io_out <= 4'b0000;
+
+                        if (write_mosi == 1'b1) begin
+                            bit_counter <= bit_counter + 1;
+                        end
+                        write_mosi <= ~write_mosi;
+                    end else if (bit_counter < 14) begin
+                        // Release bus and wait for some cycles
+                        spi_cs_n <= 1'b0;
+                        spi_clk_en <= 1'b1;
+                        spi_io_oe <= 4'b0000;       // Release bus
+
+                        if (write_mosi == 1'b1) begin
+                            bit_counter <= bit_counter + 1;
+                        end
+                        write_mosi <= ~write_mosi;
+                    end else if (bit_counter == 14) begin
+                        // Finish reset transaction
                         initialized <= 1'b1;
+                        spi_cs_n <= 1'b1;
+                        spi_clk_en <= 1'b0;
+                        bit_counter <= bit_counter + 1;
+                    end else if (bit_counter == 15) begin
+                        // Prepare for fetch instruction
                         spi_cs_n <= 1'b0;
                         spi_io_oe <= 4'b1111;       // All IOs are outputs for command/address
                         if (is_instr && in_continuous_mode) begin
@@ -214,6 +266,10 @@ module spi_master (
                         end
                         shift_reg_in <= 32'b0;
                         is_write_op <= write_enable; // Store operation type
+
+                        spi_clk_en <= 1'b0;
+                        bit_counter <= 6'b0;
+                        spi_io_out <= 4'b0000;
 
                         write_mosi <= 1'b1;
                     end
