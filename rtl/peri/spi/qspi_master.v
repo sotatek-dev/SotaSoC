@@ -46,6 +46,8 @@ module spi_master (
     reg initialized;
     reg [11:0] init_cnt;
 
+    reg in_continuous_mode;
+
     wire [7:0] cmd = write_enable ? 8'h38 : 8'hEB;
     wire [31:0] cmd_addr = {cmd, addr};
 
@@ -69,7 +71,11 @@ module spi_master (
             FSM_IDLE: begin
                 if (start) begin
                     if (initialized) begin
-                        fsm_next_state = FSM_SEND_CMD;
+                        if (is_instr && in_continuous_mode) begin
+                            fsm_next_state = FSM_SEND_ADDR;
+                        end else begin
+                            fsm_next_state = FSM_SEND_CMD;
+                        end
 //                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
                     end else begin
                         fsm_next_state = FSM_INIT;
@@ -157,6 +163,8 @@ module spi_master (
 
             initialized <= 1'b0;
             init_cnt <= 12'b0;
+
+            in_continuous_mode <= 1'b0;
         end else begin
 
             if (spi_clk_en) begin
@@ -179,7 +187,11 @@ module spi_master (
                         if (initialized) begin
                             spi_cs_n <= 1'b0;
                             spi_io_oe <= 4'b1111;       // All IOs are outputs for command/address
-                            shift_reg_out <= cmd_addr;   // Load command and address
+                            if (is_instr && in_continuous_mode) begin
+                                shift_reg_out <= {addr, 8'h00};   // Load address
+                            end else begin
+                                shift_reg_out <= cmd_addr;   // Load command and address
+                            end
                             shift_reg_in <= 32'b0;
                             is_write_op <= write_enable; // Store operation type
 
@@ -195,7 +207,11 @@ module spi_master (
                         initialized <= 1'b1;
                         spi_cs_n <= 1'b0;
                         spi_io_oe <= 4'b1111;       // All IOs are outputs for command/address
-                        shift_reg_out <= cmd_addr;   // Load command and address
+                        if (is_instr && in_continuous_mode) begin
+                            shift_reg_out <= {addr, 8'h00};   // Load address
+                        end else begin
+                            shift_reg_out <= cmd_addr;   // Load command and address
+                        end
                         shift_reg_in <= 32'b0;
                         is_write_op <= write_enable; // Store operation type
 
@@ -245,7 +261,7 @@ module spi_master (
                     if (write_mosi == 1'b1) begin
                         if (bit_counter == 0) begin
                             spi_io_oe <= 4'b1111;      // IOs become outputs for write M7-M0
-                            spi_io_out <= 4'hF;        // 4 first bits are 1 for M7-M0
+                            spi_io_out <= 4'hA;        // Send 4'hA to enter continuous mode
                         end else begin
                             spi_io_oe <= 4'b0000;      // IOs become inputs for read
                             spi_io_out <= 4'h0;        // Clear for read phase
@@ -256,6 +272,7 @@ module spi_master (
 
                     if (bit_counter == 6) begin
                         bit_counter <= 6'b0;
+                        in_continuous_mode <= 1'b1;
                     end
 
                     write_mosi <= ~write_mosi;

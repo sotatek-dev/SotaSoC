@@ -99,6 +99,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
     dut.rst_n.value = 1
 
     is_instr = False
+    in_continuous_mode = False
     command = 0x00
     fsm_state = FSM_IDLE
     bit_counter = 0
@@ -115,15 +116,21 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
         if fsm_state == FSM_IDLE:
             await FallingEdge(dut.clk)
             if dut.flash_cs_n.value == 0:
+                # print(f"SPI_IDLE: start flash access, in_continuous_mode={in_continuous_mode}")
                 is_instr = True
-                fsm_state = FSM_SEND_CMD
+                if in_continuous_mode:
+                    command = 0xEB
+                    fsm_state = FSM_SEND_ADDR
+                else:
+                    command = 0
+                    fsm_state = FSM_SEND_CMD
+                in_continuous_mode = True
                 bit_counter = 0
                 dut.bus_io_in.value = 0;
-                command = 0
                 addr = 0
                 data = 0
-                # print(f"SPI_IDLE: start flash access")
             if dut.ram_cs_n.value == 0:
+                # print(f"SPI_IDLE: start ram access")
                 is_instr = False
                 fsm_state = FSM_SEND_CMD
                 bit_counter = 0
@@ -131,7 +138,6 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 command = 0
                 addr = 0
                 data = 0
-                # print(f"SPI_IDLE: start ram access")
         else:
             await RisingEdge(dut.clk)
             await Timer(1, unit="ns")
