@@ -60,7 +60,8 @@ module spi_master (
     reg flash_in_cont_mode;
     reg ram_in_quad_mode;
 
-    wire[7:0] cmd_enter_quad_mode = 8'hAC;
+    // We send quad command by bit counter index, so LSB is the first bit
+    wire[0:7] cmd_enter_quad_mode = 8'h35;
 
     wire [7:0] cmd = write_enable ? 8'h38 : 8'hEB;
     wire [31:0] cmd_addr = {cmd, addr};
@@ -150,7 +151,7 @@ module spi_master (
             end
 
             FSM_RESET_RAM1: begin
-                if (bit_counter == 8)
+                if (bit_counter == 9)
                     fsm_next_state = FSM_RESET_RAM2;
                 else
                     fsm_next_state = FSM_RESET_RAM1;
@@ -354,15 +355,26 @@ module spi_master (
                 end
 
                 FSM_RESET_RAM1: begin
-                    if (bit_counter == 8) begin
+                    if (bit_counter == 9) begin
+                        // Wait for 2 cycles to make sure clk is low before starting new transaction
                         spi_cs_n <= 1'b1;
                         spi_clk_en <= 1'b0;
+                        spi_io_out <= 4'b0000;
                         ram_in_quad_mode <= 1'b1;
                     end else begin
+                        // Send command to enter quad mode
                         spi_cs_n <= 1'b0;
                         spi_clk_en <= 1'b1;
                         if (write_mosi == 1'b1) begin  // Falling edge of SPI clock
-                            spi_io_out <= {3{cmd_enter_quad_mode[bit_counter]}};
+                            if (bit_counter == 8) begin
+                                spi_cs_n <= 1'b1;
+                                spi_clk_en <= 1'b0;
+                                spi_io_out <= 4'b0000;
+                            end else begin
+                                // If the RAM is not in quad mode, it will receive the command of 0x35
+                                // If the RAM is in quad mode, it will receive the command of 0x00 => do nothing
+                                spi_io_out <= {4{cmd_enter_quad_mode[bit_counter]}};
+                            end
                             bit_counter <= bit_counter + 1;
                         end
 
