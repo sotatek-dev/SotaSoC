@@ -22,6 +22,7 @@ VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/gpio/gpio.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/timer/mtime_timer.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/pwm/pwm.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/i2c/i2c_master.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/spi/spi_master.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 -I$(PROJECT_ROOT)/rtl -DSIMULATION

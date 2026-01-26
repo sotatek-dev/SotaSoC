@@ -218,8 +218,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                             bit_counter = 0
                             print(f"SPI: End dummy phase")
             else:
-                if is_instr or (not is_instr and command == 0xEB):
-                    # await FallingEdge(dut.spi_sclk)
+                if is_instr:
                     if dut.bus_sclk.value == 0 and spi_clk_high == True:
                         spi_clk_high = False
                         print_debug(f"SPI5: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
@@ -238,10 +237,20 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
 
                         elif fsm_state == FSM_DONE:
                             fsm_state = FSM_IDLE
-                            # if is_instr:
-                            #     await RisingEdge(dut.flash_cs_n)
-                            # else:
-                            #     await RisingEdge(dut.ram_cs_n)
+                elif not is_instr and command == 0xEB:
+                    if dut.bus_sclk.value == 0 and spi_clk_high == True:
+                        spi_clk_high = False
+                        print_debug(f"SPI5: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
+                        if fsm_state == FSM_DATA_TRANSFER:
+                            if dut.bus_sclk.value == 0:
+                                dut.bus_io_in.value = ((data & 0xFFFFFFFF) >> (28 - bit_counter)) & 0xF
+                                bit_counter += 4
+                                if bit_counter == 32:
+                                    bit_counter = 0
+                                    addr = addr + 4
+
+                        elif fsm_state == FSM_DONE:
+                            fsm_state = FSM_IDLE
                 else:
                     # await RisingEdge(dut.spi_sclk)
                     if dut.bus_sclk.value == 0:
