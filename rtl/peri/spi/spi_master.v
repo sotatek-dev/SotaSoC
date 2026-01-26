@@ -7,6 +7,7 @@ module spi_master (
     input wire stop,                     // Stop SPI transaction
     input wire write_enable,             // 1 = write operation, 0 = read operation
     input wire is_instr,                 // 1 = instruction, 0 = data
+    input wire use_flash_chip,           // 1 = flash chip, 0 = RAM chip
     input wire [23:0] addr,              // 24-bit input: address
     input wire [5:0] data_len,           // 5-bit input: data length (0-31)
     input wire [31:0] data_in,           // 32-bit data input for write operations

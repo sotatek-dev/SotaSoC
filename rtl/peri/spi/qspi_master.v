@@ -7,6 +7,7 @@ module spi_master (
     input wire stop,                     // Stop QSPI transaction
     input wire write_enable,             // 1 = write operation, 0 = read operation
     input wire is_instr,                 // 1 = instruction, 0 = data
+    input wire use_flash_chip,           // 1 = flash chip, 0 = RAM chip
     input wire [23:0] addr,              // 24-bit input: address
     input wire [5:0] data_len,           // 6-bit input: data length in bits (0-63)
     input wire [31:0] data_in,           // 32-bit data input for write operations
@@ -72,7 +73,7 @@ module spi_master (
             FSM_IDLE: begin
                 if (start) begin
                     if (initialized) begin
-                        if (is_instr && in_continuous_mode) begin
+                        if (use_flash_chip) begin
                             fsm_next_state = FSM_SEND_ADDR;
                         end else begin
                             fsm_next_state = FSM_SEND_CMD;
@@ -195,7 +196,7 @@ module spi_master (
                         if (initialized) begin
                             spi_cs_n <= 1'b0;
                             spi_io_oe <= 4'b1111;       // All IOs are outputs for command/address
-                            if (is_instr && in_continuous_mode) begin
+                            if (use_flash_chip) begin
                                 shift_reg_out <= {addr, 8'h00};   // Load address
                             end else begin
                                 shift_reg_out <= cmd_addr;   // Load command and address

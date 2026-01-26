@@ -124,7 +124,6 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                 else:
                     command = 0
                     fsm_state = FSM_SEND_CMD
-                in_continuous_mode = True
                 bit_counter = 0
                 dut.bus_io_in.value = 0;
                 addr = 0
@@ -217,6 +216,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                                 # print(f"SPI MISO: bit_counter={bit_counter}, spi_io_in[1]={data & 1}, instr_data=0x{data:08x}")
                                 dut.bus_io_in.value = ((data & 0xFFFFFFFF) >> (28 - bit_counter)) & 0xF
                                 bit_counter += 4
+                                in_continuous_mode = True
                                 if bit_counter == 32:
                                     bit_counter = 0
                                     addr = addr + 4
