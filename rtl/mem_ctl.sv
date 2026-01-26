@@ -102,7 +102,7 @@ module mem_ctl #(
     wire use_flash_chip = (spi_is_instr == 1'b1 || (spi_is_instr == 1'b0 && mem_addr[31:24] == FLASH_BASE_ADDR[31:24]));
 
     // SPI Master instance
-    spi_master spi_master_inst (
+    spi_mem spi_mem_inst (
         .clk(clk),
         .rst_n(rst_n),
         

@@ -1,4 +1,4 @@
-module spi_master (
+module spi_mem (
     input wire clk,
     input wire rst_n,
     
@@ -102,10 +102,10 @@ module spi_master (
                             end
                             // fsm_next_state = FSM_SEND_CMD;
                         end
-//                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
+//                        `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
                     end else begin
                         fsm_next_state = FSM_INIT;
-//                        `DEBUG_PRINT(("Time %0t: QSPI_MASTER - Initializing QSPI", $time));
+//                        `DEBUG_PRINT(("Time %0t: QSPI_MEM - Initializing QSPI", $time));
                     end
                 end else begin
                     fsm_next_state = FSM_IDLE;

@@ -1,4 +1,4 @@
-module spi_master (
+module spi_mem (
     input wire clk,
     input wire rst_n,
     
@@ -70,10 +70,10 @@ module spi_master (
                 if (start) begin
                     if (initialized) begin
                         fsm_next_state = FSM_SEND_CMD_ADDR;
-                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
+                        `DEBUG_PRINT(("Time %0t: SPI_MEM - Starting SPI transaction: cmd_addr=0x%h", $time, cmd_addr));
                     end else begin
                         fsm_next_state = FSM_INIT;
-                        `DEBUG_PRINT(("Time %0t: SPI_MASTER - Initializing SPI", $time));
+                        `DEBUG_PRINT(("Time %0t: SPI_MEM - Initializing SPI", $time));
                     end
                 end else begin
                     fsm_next_state = FSM_IDLE;
@@ -147,7 +147,7 @@ module spi_master (
                 spi_clk <= 1'b0;
             end
 
-            // `DEBUG_PRINT(("Time %0t: SPI_MASTER - fsm_state=%d, bit_counter=%d, spi_clk=%b, spi_io_out[0]=%b, spi_io_in[1]=%b", $time, fsm_state, bit_counter, spi_clk, spi_io_out[0], spi_io_in[1]));
+            // `DEBUG_PRINT(("Time %0t: SPI_MEM - fsm_state=%d, bit_counter=%d, spi_clk=%b, spi_io_out[0]=%b, spi_io_in[1]=%b", $time, fsm_state, bit_counter, spi_clk, spi_io_out[0], spi_io_in[1]));
             case (fsm_state)
                 FSM_IDLE: begin
                     done <= 1'b0;
