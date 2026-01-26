@@ -60,8 +60,7 @@ module spi_master (
     reg flash_in_cont_mode;
     reg ram_in_quad_mode;
 
-    // We send quad command by bit counter index, so LSB is the first bit
-    wire[0:7] cmd_enter_quad_mode = 8'h35;
+    wire[7:0] cmd_enter_quad_mode = 8'hAC; // It is the command 0x35 (enter quad mode) in reverse order
 
     wire [7:0] cmd = write_enable ? 8'h38 : 8'hEB;
     wire [31:0] cmd_addr = {cmd, addr};
@@ -373,7 +372,7 @@ module spi_master (
                             end else begin
                                 // If the RAM is not in quad mode, it will receive the command of 0x35
                                 // If the RAM is in quad mode, it will receive the command of 0x00 => do nothing
-                                spi_io_out <= {4{cmd_enter_quad_mode[bit_counter]}};
+                                spi_io_out <= {4{cmd_enter_quad_mode[bit_counter[2:0]]}};
                             end
                             bit_counter <= bit_counter + 1;
                         end
