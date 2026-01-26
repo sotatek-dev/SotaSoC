@@ -532,6 +532,7 @@ module spi_master (
 
             if (stop) begin // force stop QSPI transaction no matter what state we are in
                 spi_cs_n <= 1'b1;
+                spi_clk_en <= 1'b0;
                 spi_io_oe <= 4'b0000;
             end
         end

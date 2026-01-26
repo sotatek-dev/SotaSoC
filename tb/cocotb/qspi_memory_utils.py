@@ -14,7 +14,8 @@ FSM_PAUSE = 6
 FSM_DONE = 7
 
 def print_debug(message):
-    print(message)
+    # print(message)
+    return 0
 
 def get_packed_bit(handle, bit_index):
     """Get a single bit from a packed array/struct handle"""
@@ -227,8 +228,8 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                                 # print(f"SPI MISO: bit_counter={bit_counter}, spi_io_in[1]={data & 1}, instr_data=0x{data:08x}")
                                 dut.bus_io_in.value = ((data & 0xFFFFFFFF) >> (28 - bit_counter)) & 0xF
                                 bit_counter += 4
+                                flash_in_cont_mode = True
                                 if bit_counter == 32:
-                                    flash_in_cont_mode = True
                                     bit_counter = 0
                                     addr = addr + 4
                                     print(f"SPI: Reading next instr from instr memory: addr=0x{addr:08x}")
