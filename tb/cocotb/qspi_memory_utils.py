@@ -222,7 +222,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
                     # await FallingEdge(dut.spi_sclk)
                     if dut.bus_sclk.value == 0 and spi_clk_high == True:
                         spi_clk_high = False
-                        print(f"SPI5: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
+                        print_debug(f"SPI5: is_instr={is_instr} fsm_state={fsm_state}, bit_counter={bit_counter}, spi_sclk={dut.bus_sclk.value}, spi_io_in={dut.bus_io_in.value}, addr=0x{addr:08x}")
                         if fsm_state == FSM_DATA_TRANSFER:
                             if dut.bus_sclk.value == 0:
                                 # print(f"SPI MISO: bit_counter={bit_counter}, spi_io_in[1]={data & 1}, instr_data=0x{data:08x}")
