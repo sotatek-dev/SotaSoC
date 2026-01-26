@@ -99,6 +99,8 @@ module mem_ctl #(
 
     wire [7:0] _unused_instr_addr = instr_addr[31:24];
 
+    wire use_flash_chip = (spi_is_instr == 1'b1 || (spi_is_instr == 1'b0 && mem_addr[31:24] == FLASH_BASE_ADDR[31:24]));
+
     // SPI Master instance
     spi_master spi_master_inst (
         .clk(clk),
@@ -128,8 +130,6 @@ module mem_ctl #(
     wire instr_addr_changed = !instr_addr_not_changed;
 
     assign instr_ready = instr_ready_reg && instr_addr_not_changed;
-
-    wire use_flash_chip = (spi_is_instr == 1'b1 || (spi_is_instr == 1'b0 && mem_addr[31:24] == FLASH_BASE_ADDR[31:24]));
 
     // we can access data in flash memory, like const data
     assign flash_cs_n = use_flash_chip && spi_stop == 1'b0 ? spi_cs_n : 1'b1;
