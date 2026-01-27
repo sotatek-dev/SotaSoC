@@ -17,7 +17,8 @@ module mem_ctl #(
     parameter GPIO_BASE_ADDR,
     parameter TIMER_BASE_ADDR,
     parameter PWM_BASE_ADDR,
-    parameter I2C_BASE_ADDR
+    parameter I2C_BASE_ADDR,
+    parameter SPI_BASE_ADDR
 ) (
     input wire clk,
     input wire rst_n,
@@ -49,6 +50,9 @@ module mem_ctl #(
 
     // I2C interface
     input wire [31:0] i2c_mem_rdata,
+
+    // SPI interface
+    input wire [31:0] spi_mem_rdata,
 
     // Shared SPI interface
     output wire flash_cs_n,
@@ -154,7 +158,8 @@ module mem_ctl #(
     wire timer_request = mem_addr[31:8] == TIMER_BASE_ADDR[31:8];
     wire pwm_request = mem_addr[31:8] == PWM_BASE_ADDR[31:8];
     wire i2c_request = mem_addr[31:8] == I2C_BASE_ADDR[31:8];
-    wire peripheral_request = data_request && (uart_request || gpio_request || timer_request || pwm_request || i2c_request);
+    wire spi_request = mem_addr[31:8] == SPI_BASE_ADDR[31:8];
+    wire peripheral_request = data_request && (uart_request || gpio_request || timer_request || pwm_request || i2c_request || spi_request);
 
     // Priority logic: data has higher priority
     wire start_data_access = data_request;
@@ -224,6 +229,11 @@ module mem_ctl #(
                     // I2C requests are handled by i2c_master module
                     // Just forward the response
                     mem_rdata <= i2c_mem_rdata;
+                    mem_ready <= 1'b1;
+                end else if (spi_request) begin
+                    // SPI requests are handled by spi_master module
+                    // Just forward the response
+                    mem_rdata <= spi_mem_rdata;
                     mem_ready <= 1'b1;
                 end
             end else

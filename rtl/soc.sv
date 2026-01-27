@@ -18,6 +18,7 @@ module soc #(
     parameter TIMER_BASE_ADDR  = 32'h40002000,
     parameter PWM_BASE_ADDR    = 32'h40003000,
     parameter I2C_BASE_ADDR    = 32'h40004000,
+    parameter SPI_BASE_ADDR    = 32'h40005000,
     parameter UART_NUM         = 1,  // Maximum 4 instances
     parameter UART_SPACING     = 32'h100,
     parameter GPIO_NUM_BIDIR   = 4,
@@ -76,6 +77,12 @@ module soc #(
     wire i2c_scl_out;
     wire i2c_scl_oe;
 
+    // SPI interface
+    wire spi_ena;
+    wire spi_sclk;
+    wire spi_mosi;
+    wire spi_miso;
+
     // Error flag
     wire error_flag;
     // ============ External wires ============
@@ -112,6 +119,9 @@ module soc #(
 
     // I2C connections
     wire [31:0] i2c_mem_rdata;
+
+    // SPI connections
+    wire [31:0] spi_mem_rdata;
     // ============ Internal wires ============
 
     // RV32I Core instantiation
@@ -154,7 +164,8 @@ module soc #(
         .GPIO_BASE_ADDR(GPIO_BASE_ADDR),
         .TIMER_BASE_ADDR(TIMER_BASE_ADDR),
         .PWM_BASE_ADDR(PWM_BASE_ADDR),
-        .I2C_BASE_ADDR(I2C_BASE_ADDR)
+        .I2C_BASE_ADDR(I2C_BASE_ADDR),
+        .SPI_BASE_ADDR(SPI_BASE_ADDR)
     ) mem_ctrl (
         .clk(clk),
         .rst_n(rst_n),
@@ -187,6 +198,9 @@ module soc #(
 
         // I2C interface
         .i2c_mem_rdata(i2c_mem_rdata),
+
+        // SPI Peripheral interface
+        .spi_mem_rdata(spi_mem_rdata),
 
         // Shared SPI interface
         .flash_cs_n(flash_cs_n),
@@ -301,8 +315,27 @@ module soc #(
         .i2c_scl_oe(i2c_scl_oe)
     );
 
+    // SPI Master module
+    spi_master #(
+        .SPI_BASE_ADDR(SPI_BASE_ADDR)
+    ) spi_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        .mem_addr(core_mem_addr),
+        .mem_wdata(core_mem_wdata),
+        .mem_we(core_mem_we),
+        .mem_re(core_mem_re),
+        .mem_rdata(spi_mem_rdata),
+
+        .ena(spi_ena),
+        .spi_sclk(spi_sclk),
+        .spi_mosi(spi_mosi),
+        .spi_miso(spi_miso)
+    );
+
     assign uart_rx[0] = ui_in[0];
-    // spi_miso
+    assign spi_miso = ui_in[1];
     assign gpio_in[GPIO_NUM_IN-1:0] = ui_in[7:2];
 
     assign uo_out[0] = error_flag;
@@ -311,15 +344,15 @@ module soc #(
     assign uo_out[3] = bus_spi_sclk;
     assign uo_out[4] = uart_tx[0];
     assign uo_out[5] = gpio_out[0];
-    assign uo_out[6] = gpio_out[1];
+    assign uo_out[6] = spi_ena ? spi_mosi : gpio_out[1];
     assign uo_out[7] = pwm_ena[0] ? pwm_out[0] : gpio_out[2];
 
     assign bus_io_in[3:0] = uio_in[3:0];
 
     assign gpio_bidir_in[0] = uio_in[4];  // Shared with I2C SDA
     assign gpio_bidir_in[1] = uio_in[5];  // Shared with I2C SCL
-    assign gpio_bidir_in[2] = uio_in[6];
-    assign gpio_bidir_in[3] = uio_in[7];
+    assign gpio_bidir_in[2] = uio_in[6];  // Shared with SPI SCLK
+    assign gpio_bidir_in[3] = uio_in[7];  // Shared with pwm[1]
 
     assign i2c_sda_in = uio_in[4];
     assign i2c_scl_in = uio_in[5];
@@ -327,12 +360,12 @@ module soc #(
     assign uio_out[3:0] = bus_io_out[3:0];
     assign uio_out[4] = i2c_ena ? i2c_sda_out : gpio_bidir_out[0];
     assign uio_out[5] = i2c_ena ? i2c_scl_out : gpio_bidir_out[1];
-    assign uio_out[6] = gpio_bidir_out[2];
+    assign uio_out[6] = spi_ena ? spi_sclk : gpio_bidir_out[2];
     assign uio_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_bidir_out[3];
 
     assign uio_oe[3:0] = bus_io_oe[3:0];
     assign uio_oe[4] = i2c_ena ? i2c_sda_oe : gpio_bidir_oe[0];
     assign uio_oe[5] = i2c_ena ? i2c_scl_oe : gpio_bidir_oe[1];
-    assign uio_oe[6] = gpio_bidir_oe[2];
+    assign uio_oe[6] = spi_ena ? UIO_OE_OUT : gpio_bidir_oe[2];
     assign uio_oe[7] = pwm_ena[1] ? UIO_OE_OUT : gpio_bidir_oe[3];
 endmodule

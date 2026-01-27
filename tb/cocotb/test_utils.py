@@ -64,6 +64,33 @@ I2C_STATUS_ERROR     = 0x10  # bit 4: Bus error
 I2C_PRESCALE_100KHZ = 159  # 64MHz / (4 * 160) = 100kHz
 I2C_PRESCALE_400KHZ = 39   # 64MHz / (4 * 40) = 400kHz
 
+# SPI base address and register offsets
+SPI_BASE_ADDR   = 0x40005000
+SPI_CTRL        = SPI_BASE_ADDR + 0x00
+SPI_STATUS      = SPI_BASE_ADDR + 0x04
+SPI_TX_DATA     = SPI_BASE_ADDR + 0x08
+SPI_RX_DATA     = SPI_BASE_ADDR + 0x0C
+SPI_CONFIG      = SPI_BASE_ADDR + 0x10
+
+# SPI Control register bits
+SPI_CTRL_START  = 0x01  # bit 0: Start transfer
+
+# SPI Status register bits
+SPI_STATUS_BUSY = 0x01  # bit 0: Transfer in progress
+SPI_STATUS_DONE = 0x02  # bit 1: Transfer complete
+
+# SPI Config register bits
+SPI_CONFIG_DIV_MASK  = 0xFF        # bits [7:0]: Clock divider
+
+# SPI Clock divider values for common frequencies @ 64MHz
+SPI_DIV_1MHZ  = 31   # 64MHz / (2 * 32) = 1MHz
+SPI_DIV_2MHZ  = 15   # 64MHz / (2 * 16) = 2MHz
+SPI_DIV_4MHZ  = 7    # 64MHz / (2 * 8) = 4MHz
+SPI_DIV_8MHZ  = 3    # 64MHz / (2 * 4) = 8MHz
+
+# SPI Mode 0 (only mode supported)
+SPI_MODE0 = 0x000  # CPOL=0, CPHA=0
+
 # RISC-V Instruction Encoding Functions
 
 def encode_load(rd, rs1, imm12):
@@ -81,6 +108,11 @@ def encode_store(rs1, rs2, imm12):
 def encode_addi(rd, rs1, imm12):
     """Encode ADDI instruction: rd = rs1 + imm12"""
     return (imm12 << 20) | (rs1 << 15) | (0x0 << 12) | (rd << 7) | 0x13
+
+
+def encode_andi(rd, rs1, imm12):
+    """Encode ANDI instruction: rd = rs1 & imm12"""
+    return (imm12 << 20) | (rs1 << 15) | (0x7 << 12) | (rd << 7) | 0x13
 
 
 def encode_lui(rd, imm20):
@@ -103,6 +135,42 @@ def encode_jal(rd, imm20):
     imm11_bit = (imm >> 11) & 0x1
     imm19_12 = (imm >> 12) & 0xFF  # bits [19:12]
     return (imm20_bit << 31) | (imm19_12 << 12) | (imm11_bit << 20) | (imm10_1 << 21) | (rd << 7) | 0x6F
+
+
+def encode_beq(rs1, rs2, imm13):
+    """Encode BEQ instruction: if rs1 == rs2, PC = PC + imm13
+    imm13 is the byte offset (must be multiple of 2, LSB is ignored)"""
+    # BEQ format: imm[12|10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode
+    # Sign-extend to 32 bits first
+    if imm13 & 0x1000:
+        imm = imm13 | 0xFFFFE000  # Sign extend negative
+    else:
+        imm = imm13 & 0x1FFF  # Positive, mask to 13 bits
+    # Extract bits from the immediate
+    imm12 = (imm >> 12) & 0x1
+    imm10_5 = (imm >> 5) & 0x3F  # bits [10:5]
+    imm4_1 = (imm >> 1) & 0xF  # bits [4:1]
+    imm11 = (imm >> 11) & 0x1
+    # Assemble instruction: imm[12|10:5] | rs2 | rs1 | funct3(0) | imm[4:1|11] | opcode(0x63)
+    return (imm12 << 31) | (imm10_5 << 25) | (rs2 << 20) | (rs1 << 15) | (0x0 << 12) | (imm4_1 << 8) | (imm11 << 7) | 0x63
+
+
+def encode_bne(rs1, rs2, imm13):
+    """Encode BNE instruction: if rs1 != rs2, PC = PC + imm13
+    imm13 is the byte offset (must be multiple of 2, LSB is ignored)"""
+    # BNE format: imm[12|10:5] | rs2 | rs1 | funct3 | imm[4:1|11] | opcode
+    # Sign-extend to 32 bits first
+    if imm13 & 0x1000:
+        imm = imm13 | 0xFFFFE000  # Sign extend negative
+    else:
+        imm = imm13 & 0x1FFF  # Positive, mask to 13 bits
+    # Extract bits from the immediate
+    imm12 = (imm >> 12) & 0x1
+    imm10_5 = (imm >> 5) & 0x3F  # bits [10:5]
+    imm4_1 = (imm >> 1) & 0xF  # bits [4:1]
+    imm11 = (imm >> 11) & 0x1
+    # Assemble instruction: imm[12|10:5] | rs2 | rs1 | funct3(1) | imm[4:1|11] | opcode(0x63)
+    return (imm12 << 31) | (imm10_5 << 25) | (rs2 << 20) | (rs1 << 15) | (0x1 << 12) | (imm4_1 << 8) | (imm11 << 7) | 0x63
 
 
 def encode_csrrw(rd, csr, rs1):

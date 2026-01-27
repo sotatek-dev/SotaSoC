@@ -18,11 +18,15 @@ module test_soc_tb;
     wire [3:0] gpio_io_out;
 
     reg uart0_rx;
-    reg spi_miso;
     reg [5:0] gpio_in;
     reg [3:0] gpio_io_in;
 
     wire [1:0] pwm_out;
+
+    wire spi_cs_n;
+    wire spi_sclk;
+    wire spi_mosi;
+    reg spi_miso;
 
     // I2C interface signals
     wire i2c_sda_out;
@@ -45,6 +49,8 @@ module test_soc_tb;
     assign ram_cs_n = uo_out[2];
     assign bus_sclk = uo_out[3];
     assign uart0_tx = uo_out[4];
+    assign spi_cs_n = uo_out[5];
+    assign spi_mosi = uo_out[6];
     assign gpio_out = uo_out[7:5];
 
     assign bus_io_out = uio_out[3:0];
@@ -52,9 +58,11 @@ module test_soc_tb;
 
     assign uio_in[3:0] = bus_io_in;
     assign uio_in[7:4] = gpio_io_in;
-    
+
     assign pwm_out[0] = uo_out[7];
     assign pwm_out[1] = uio_out[7];
+
+    assign spi_sclk = uio_out[6];
 
     // I2C signal assignments
     // I2C SDA is on uio[4], SCL is on uio[5]
