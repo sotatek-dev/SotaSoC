@@ -83,7 +83,7 @@ async def test_i2c_reset_values(dut):
     max_cycles = 10000
     
     # Initialize I2C input signals (release lines - pull-up)
-    dut.gpio_io_in.value = 0x0F  # SDA and SCL high (bits 0,1 for I2C)
+    dut.gpio_io_in.value = 0x01  # SDA and SCL high (bits 0,1 for I2C)
     
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000024:
@@ -146,7 +146,7 @@ async def test_i2c_read_write_ctrl(dut):
     
     max_cycles = 10000
     
-    dut.gpio_io_in.value = 0x0F
+    dut.gpio_io_in.value = 0x01
     
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000028:
@@ -210,7 +210,7 @@ async def test_i2c_read_write_prescale(dut):
     
     max_cycles = 12000
     
-    dut.gpio_io_in.value = 0x0F
+    dut.gpio_io_in.value = 0x01
     
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
@@ -272,7 +272,7 @@ async def test_i2c_status_read_only(dut):
     
     max_cycles = 12000
     
-    dut.gpio_io_in.value = 0x0F
+    dut.gpio_io_in.value = 0x01
     
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
@@ -340,7 +340,7 @@ async def test_i2c_data_register_write(dut):
     
     max_cycles = 15000
     
-    dut.gpio_io_in.value = 0x0F
+    dut.gpio_io_in.value = 0x01
     
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.o_instr_addr.value == 0x0000003C:
@@ -389,7 +389,7 @@ async def test_i2c_invalid_register_offset(dut):
     
     max_cycles = 10000
     
-    dut.gpio_io_in.value = 0x0F
+    dut.gpio_io_in.value = 0x01
     
     def callback(dut, memory):
         if dut.soc_inst.cpu_core.o_instr_addr.value == 0x0000001C:
@@ -471,19 +471,18 @@ async def test_i2c_send_data(dut):
     max_cycles = 50000  # Need more cycles for I2C transfer
 
     # Initialize I2C lines high (pulled up)
-    dut.gpio_io_in.value = 0x0F  # SDA and SCL high (bits 0,1 for I2C)
+    dut.gpio_io_in.value = 0x01  # SDA and SCL high (bits 0,1 for I2C)
 
     dut.i2c_ena.value = 1
 
     # Start I2C slave BFM (7-bit address 0x21, so address byte 0x42 for write)
-    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in/i2c_scl_in
+    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in
     # Note: i2c_sda_out and i2c_scl_out are already computed from uio_oe/uio_out
     i2c_bfm = start_i2c_slave_bfm(
         clk=dut.clk,
         sda_out=dut.i2c_sda_out,  # Already computed from testbench
         scl_out=dut.i2c_scl_out,   # Already computed from testbench
         sda_in=dut.i2c_sda_in,     # BFM drives this (feeds into SoC)
-        scl_in=dut.i2c_scl_in,     # BFM drives this (feeds into SoC)
         address=0x21,  # 7-bit address (matches slave_addr >> 1)
     )
 
@@ -551,19 +550,18 @@ async def test_i2c_read_write_1_byte(dut):
     max_cycles = 50000  # Need more cycles for I2C transfer
 
     # Initialize I2C lines high (pulled up)
-    dut.gpio_io_in.value = 0x0F  # SDA and SCL high (bits 0,1 for I2C)
+    dut.gpio_io_in.value = 0x01  # SDA and SCL high (bits 0,1 for I2C)
 
     dut.i2c_ena.value = 1
 
     # Start I2C slave BFM (7-bit address 0x21, so address byte 0x42 for write)
-    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in/i2c_scl_in
+    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in
     # Note: i2c_sda_out and i2c_scl_out are already computed from uio_oe/uio_out
     i2c_bfm = start_i2c_slave_bfm(
         clk=dut.clk,
         sda_out=dut.i2c_sda_out,  # Already computed from testbench
         scl_out=dut.i2c_scl_out,   # Already computed from testbench
         sda_in=dut.i2c_sda_in,     # BFM drives this (feeds into SoC)
-        scl_in=dut.i2c_scl_in,     # BFM drives this (feeds into SoC)
         address=0x21,  # 7-bit address (matches slave_addr >> 1)
         tx_data=tx_data,
     )
@@ -626,19 +624,18 @@ async def test_i2c_read_write_multiple_bytes(dut):
     max_cycles = 500000  # Need more cycles for I2C transfer
 
     # Initialize I2C lines high (pulled up)
-    dut.gpio_io_in.value = 0x0F  # SDA and SCL high (bits 0,1 for I2C)
+    dut.gpio_io_in.value = 0x01  # SDA and SCL high (bits 0,1 for I2C)
 
     dut.i2c_ena.value = 1
 
     # Start I2C slave BFM (7-bit address 0x21, so address byte 0x42 for write)
-    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in/i2c_scl_in
+    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in
     # Note: i2c_sda_out and i2c_scl_out are already computed from uio_oe/uio_out
     i2c_bfm = start_i2c_slave_bfm(
         clk=dut.clk,
         sda_out=dut.i2c_sda_out,  # Already computed from testbench
         scl_out=dut.i2c_scl_out,   # Already computed from testbench
         sda_in=dut.i2c_sda_in,     # BFM drives this (feeds into SoC)
-        scl_in=dut.i2c_scl_in,     # BFM drives this (feeds into SoC)
         address=0x21,  # 7-bit address (matches slave_addr >> 1)
         tx_data=tx_data,
     )
@@ -696,19 +693,18 @@ async def test_i2c_repeated_start(dut):
     max_cycles = 50000  # Need more cycles for I2C transfer
 
     # Initialize I2C lines high (pulled up)
-    dut.gpio_io_in.value = 0x0F  # SDA and SCL high (bits 0,1 for I2C)
+    dut.gpio_io_in.value = 0x01  # SDA and SCL high (bits 0,1 for I2C)
 
     dut.i2c_ena.value = 1
 
     # Start I2C slave BFM (7-bit address 0x21, so address byte 0x42 for write)
-    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in/i2c_scl_in
+    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in
     # Note: i2c_sda_out and i2c_scl_out are already computed from uio_oe/uio_out
     i2c_bfm = start_i2c_slave_bfm(
         clk=dut.clk,
         sda_out=dut.i2c_sda_out,  # Already computed from testbench
         scl_out=dut.i2c_scl_out,   # Already computed from testbench
         sda_in=dut.i2c_sda_in,     # BFM drives this (feeds into SoC)
-        scl_in=dut.i2c_scl_in,     # BFM drives this (feeds into SoC)
         address=0x21,  # 7-bit address (matches slave_addr >> 1)
         tx_data=tx_data,
     )
@@ -736,6 +732,62 @@ async def test_i2c_repeated_start(dut):
             assert rx_data[2] == tx_data[0], \
                 f"Slave should have received data {tx_data[0]:#x}, got {rx_data[2]:#x}"
             
+            return True
+        return False
+    
+    await test_spi_memory(dut, memory, max_cycles, callback)
+
+
+@cocotb.test()
+async def test_i2c_test_lcd(dut):
+    """Test: Send data via I2C
+    """
+    
+    slave_read_addr = 0x4F  # 7-bit address: 0x21, shifted left = 0x42 (read mode)
+    slave_write_addr = 0x4E  # 7-bit address: 0x21, shifted left = 0x42 (write mode)
+    tx_data = [0xAA]
+
+    bin_file_path = os.environ.get('BIN_FILE', None)
+
+    if bin_file_path is None:
+        print("WARNING: BIN_FILE environment variable not set, skipping test")
+        return
+
+    if not os.path.exists(bin_file_path):
+        print(f"WARNING: Bin file not found: {bin_file_path}, skipping test")
+        return
+
+    # Load memory from bin file
+    memory = load_bin_file(bin_file_path)
+
+    max_cycles = 5000000  # Need more cycles for I2C transfer
+
+    # Initialize I2C lines high (pulled up)
+    dut.gpio_io_in.value = 0x0F  # SDA and SCL high (bits 0,1 for I2C)
+
+    dut.i2c_ena.value = 1
+
+    # Start I2C slave BFM (7-bit address 0x21, so address byte 0x42 for write)
+    # The BFM will drive the bus SDA/SCL levels via i2c_sda_in
+    # Note: i2c_sda_out and i2c_scl_out are already computed from uio_oe/uio_out
+    i2c_bfm = start_i2c_slave_bfm(
+        clk=dut.clk,
+        sda_out=dut.i2c_sda_out,  # Already computed from testbench
+        scl_out=dut.i2c_scl_out,   # Already computed from testbench
+        sda_in=dut.i2c_sda_in,     # BFM drives this (feeds into SoC)
+        address=0x27,  # 7-bit address (matches slave_addr >> 1)
+        tx_data=tx_data,
+    )
+
+    def callback(dut, memory):
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000040:
+            registers = dut.soc_inst.cpu_core.register_file.registers
+            
+            assert int(dut.soc_inst.error_flag.value) == 0, "error_flag should be 0"
+
+            # Verify slave BFM received the data
+            rx_data = i2c_bfm.get_rx_data()
+            print(f"RX data: {rx_data}")
             return True
         return False
     

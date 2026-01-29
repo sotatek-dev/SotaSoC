@@ -62,10 +62,8 @@ module i2c_master #(
     output wire i2c_sda_out,  // SDA output (always 0 when driving)
     output wire i2c_sda_oe,   // SDA output enable (1=drive low, 0=release/high-z)
     
-    // I2C SCL interface (bidirectional, open-drain, supports clock stretching)
-    input  wire i2c_scl_in,   // SCL input (for clock stretching detection)
-    output wire i2c_scl_out,  // SCL output (always 0 when driving)
-    output wire i2c_scl_oe    // SCL output enable (1=drive low, 0=release/high-z)
+    // I2C SCL interface (not supports clock stretching)
+    output wire i2c_scl_out  // SCL output (always 0 when driving)
 
 );
 
@@ -208,13 +206,10 @@ module i2c_master #(
             STATE_DATA_SCL_H: begin
                 // SCL goes high, data is sampled at middle
                 if (clk_tick) begin
-                    // Check clock stretching
-                    if (i2c_scl_in) begin
-                        if (bit_cnt == 4'd8) begin
-                            next_state = STATE_ACK_BIT;
-                        end else begin
-                            next_state = STATE_DATA_SCL_L;
-                        end
+                    if (bit_cnt == 4'd8) begin
+                        next_state = STATE_ACK_BIT;
+                    end else begin
+                        next_state = STATE_DATA_SCL_L;
                     end
                     // else stay in this state (clock stretching)
                 end
@@ -230,9 +225,7 @@ module i2c_master #(
             STATE_ACK_SCL_H: begin
                 // SCL goes high, ACK is sampled
                 if (clk_tick) begin
-                    if (i2c_scl_in) begin
-                        next_state = STATE_WAIT;
-                    end
+                    next_state = STATE_WAIT;
                 end
             end
 
@@ -392,7 +385,7 @@ module i2c_master #(
                     
                     // Sample data on rising edge of SCL (standard I2C timing)
                     // Sample when SCL is confirmed high (handles clock stretching)
-                    if (i2c_scl_in && clk_cnt == 8'd0) begin
+                    if (clk_cnt == 8'd0) begin
                         // Sample on rising edge (first cycle after SCL goes high)
                         if (read_mode) begin
                             shift_reg <= {shift_reg[6:0], i2c_sda_in};
@@ -405,7 +398,7 @@ module i2c_master #(
                     end
                     
                     // SCL goes low at end of period (if not clock stretching)
-                    if (clk_tick && i2c_scl_in) begin
+                    if (clk_tick) begin
                         scl_out_reg <= 1'b0;
                     end
                 end
@@ -430,7 +423,7 @@ module i2c_master #(
                     // SCL goes high, sample ACK
                     scl_out_reg <= 1'b1;
                     
-                    if (clk_tick && i2c_scl_in) begin
+                    if (clk_tick) begin
                         if (!read_mode) begin
                             // Sample ACK from slave (ACK=0, NACK=1)
                             ack_received <= !i2c_sda_in;
@@ -566,8 +559,7 @@ module i2c_master #(
     assign i2c_sda_out = 1'b0;  // Always drive low when enabled
     assign i2c_sda_oe = !sda_out_reg;  // Enable driver when we want low
     
-    assign i2c_scl_out = 1'b0;  // Always drive low when enabled
-    assign i2c_scl_oe = !scl_out_reg;  // Enable driver when we want low
+    assign i2c_scl_out = scl_out_reg;
 
     // Module enable output for pin muxing (active when busy)
     assign ena = busy;

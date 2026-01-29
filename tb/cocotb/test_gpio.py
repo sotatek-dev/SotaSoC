@@ -17,8 +17,8 @@ from qspi_memory_utils import (
 
 
 # GPIO parameters (must match soc.sv)
-NUM_BIDIR = 4
-NUM_OUT = 3
+NUM_BIDIR = 1
+NUM_OUT = 6
 NUM_IN = 6
 
 
@@ -30,7 +30,7 @@ NUM_IN = 6
 async def test_gpio_read_write_dir(dut):
     """Test reading and writing GPIO DIR register"""
     
-    test_dir_value = 0x0F  # All bidirectional pins as output
+    test_dir_value = (1 << NUM_BIDIR) - 1  # All bidirectional pins as output
     
     hex_memory = {
         0x00000000: NOP_INSTR,
@@ -74,7 +74,7 @@ async def test_gpio_read_write_out(dut):
     """Test reading and writing GPIO OUT register"""
     
     # OUT register holds both bidirectional output and output-only pins
-    # Total bits = NUM_BIDIR + NUM_OUT = 4 + 3 = 7
+    # Total bits = NUM_BIDIR + NUM_OUT
     test_out_value = 0x5A  # Test pattern
     num_out_total = NUM_BIDIR + NUM_OUT
     
@@ -115,16 +115,13 @@ async def test_gpio_read_write_out(dut):
                 f"OUT should be {0x25 & mask:#x}, got {out_read_2:#x}"
             
             # Validate gpio_out (output-only pins) from testbench
-            # OUT register bits [6:4] -> gpio_out[2:0]
-            # Final value 0x25 = 0b0100101, bits [6:4] = 0b010 = 0x02
+            # OUT register: bits [NUM_BIDIR+NUM_OUT-1:NUM_BIDIR] -> gpio_out, bits [NUM_BIDIR-1:0] -> gpio_bidir_out
             expected_gpio_out = (0x25 >> NUM_BIDIR) & ((1 << NUM_OUT) - 1)
             gpio_out_val = int(dut.gpio_out.value)
             assert gpio_out_val == expected_gpio_out, \
                 f"gpio_out should be {expected_gpio_out:#x}, got {gpio_out_val:#x}"
             
             # Validate gpio_io_out (bidirectional output pins) from testbench
-            # OUT register bits [3:0] -> gpio_bidir_out[3:0] -> uio_out[7:4]
-            # Final value 0x25 = 0b0100101, bits [3:0] = 0b0101 = 0x05
             expected_gpio_io_out = 0x25 & ((1 << NUM_BIDIR) - 1)
             gpio_io_out_val = int(dut.gpio_io_out.value)
             assert gpio_io_out_val == expected_gpio_io_out, \
@@ -141,7 +138,7 @@ async def test_gpio_in_read_only(dut):
     """Test that IN register is read-only (writes are ignored)"""
 
     dut.gpio_in.value = 0x2A;
-    dut.gpio_io_in.value = 0x05;
+    dut.gpio_io_in.value = 0x01;
     
     hex_memory = {
         0x00000000: NOP_INSTR,
@@ -190,16 +187,17 @@ async def test_gpio_in_read_only(dut):
 async def test_gpio_bidir_output_mode(dut):
     """Test bidirectional pins in output mode"""
     
-    # Set all bidirectional pins as output (DIR = 0xF)
-    # Write a pattern to OUT register
-    test_pattern = 0x0A  # 0b1010 for lower 4 bits (bidirectional)
+    # Set all bidirectional pins as output (DIR = (1 << NUM_BIDIR) - 1)
+    # Write a pattern to OUT register (lower NUM_BIDIR bits for bidir)
+    dir_all_out = (1 << NUM_BIDIR) - 1
+    test_pattern = 0x01  # Drive bidir pin high
     
     hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: encode_lui(1, (GPIO_BASE_ADDR >> 12) & 0xFFFFF),
         0x00000008: encode_addi(1, 1, GPIO_BASE_ADDR & 0xFFF),   # x1 = GPIO_BASE_ADDR
-        0x0000000C: encode_addi(2, 0, 0x0F),                     # x2 = 0x0F (all output)
-        0x00000010: encode_store(1, 2, 0),                       # SW x2, 0(x1) - DIR = 0x0F
+        0x0000000C: encode_addi(2, 0, dir_all_out),              # x2 = all bidir as output
+        0x00000010: encode_store(1, 2, 0),                       # SW x2, 0(x1) - DIR
         0x00000014: encode_addi(2, 0, test_pattern),             # x2 = test_pattern
         0x00000018: encode_store(1, 2, 4),                       # SW x2, 4(x1) - OUT = test_pattern
         0x0000001C: NOP_INSTR,
@@ -218,7 +216,7 @@ async def test_gpio_bidir_output_mode(dut):
             
             # Check gpio_bidir_oe is all 1s (output enable)
             bidir_oe = int(gpio_inst.gpio_bidir_oe.value)
-            assert bidir_oe == 0x0F, f"gpio_bidir_oe should be 0x0F, got {bidir_oe:#x}"
+            assert bidir_oe == dir_all_out, f"gpio_bidir_oe should be {dir_all_out:#x}, got {bidir_oe:#x}"
             
             # Check gpio_bidir_out matches lower bits of test_pattern
             bidir_out = int(gpio_inst.gpio_bidir_out.value)
@@ -273,8 +271,8 @@ async def test_gpio_bidir_input_mode(dut):
 async def test_gpio_bidir_mixed_direction(dut):
     """Test bidirectional pins with mixed direction (some input, some output)"""
     
-    # DIR = 0b0101 = 0x05 (pins 0,2 output; pins 1,3 input)
-    dir_value = 0x05
+    # DIR: 1=output, 0=input for each bidir pin. With NUM_BIDIR=1, dir_value 0 or 1.
+    dir_value = 0x05  # Only lower NUM_BIDIR bits used (0x05 & 0x01 = 1 = output)
     out_value = 0x0F  # All bits set
     
     hex_memory = {
@@ -282,9 +280,9 @@ async def test_gpio_bidir_mixed_direction(dut):
         0x00000004: encode_lui(1, (GPIO_BASE_ADDR >> 12) & 0xFFFFF),
         0x00000008: encode_addi(1, 1, GPIO_BASE_ADDR & 0xFFF),
         0x0000000C: encode_addi(2, 0, dir_value),
-        0x00000010: encode_store(1, 2, 0),                       # DIR = 0x05
+        0x00000010: encode_store(1, 2, 0),                       # DIR
         0x00000014: encode_addi(2, 0, out_value),
-        0x00000018: encode_store(1, 2, 4),                       # OUT = 0x0F
+        0x00000018: encode_store(1, 2, 4),                       # OUT
         0x0000001C: encode_load(3, 1, 0),                        # Read DIR
         0x00000020: encode_load(4, 1, 4),                        # Read OUT
         0x00000024: NOP_INSTR,
@@ -301,10 +299,11 @@ async def test_gpio_bidir_mixed_direction(dut):
             
             gpio_inst = dut.soc_inst.gpio_inst
             
-            # Check gpio_bidir_oe matches DIR register
+            # Check gpio_bidir_oe matches DIR register (only NUM_BIDIR bits)
             bidir_oe = int(gpio_inst.gpio_bidir_oe.value)
-            assert bidir_oe == dir_value, \
-                f"gpio_bidir_oe should be {dir_value:#x}, got {bidir_oe:#x}"
+            expected_oe = dir_value & ((1 << NUM_BIDIR) - 1)
+            assert bidir_oe == expected_oe, \
+                f"gpio_bidir_oe should be {expected_oe:#x}, got {bidir_oe:#x}"
             
             # Check gpio_bidir_out matches lower bits of OUT
             bidir_out = int(gpio_inst.gpio_bidir_out.value)
@@ -324,11 +323,11 @@ async def test_gpio_bidir_mixed_direction(dut):
 
 @cocotb.test()
 async def test_gpio_output_only_pins(dut):
-    """Test output-only pins (bits [6:4] of OUT register -> gpio_out[2:0])"""
+    """Test output-only pins (OUT register bits [NUM_BIDIR+NUM_OUT-1:NUM_BIDIR] -> gpio_out)"""
     
-    # OUT register: [6:4] -> gpio_out[2:0], [3:0] -> gpio_bidir_out[3:0]
-    # Test pattern: set gpio_out to 0b101 (0x50 when shifted)
-    test_out = 0x50  # gpio_out = 0b101, gpio_bidir_out = 0b0000
+    # OUT register: upper NUM_OUT bits -> gpio_out, lower NUM_BIDIR bits -> gpio_bidir_out
+    # Test pattern: set gpio_out to 0x28 (6 bits), gpio_bidir = 0 (1 bit) -> test_out = 0x50
+    test_out = 0x50  # (0x28 << NUM_BIDIR) | 0
     
     hex_memory = {
         0x00000000: NOP_INSTR,
@@ -351,7 +350,7 @@ async def test_gpio_output_only_pins(dut):
             
             gpio_inst = dut.soc_inst.gpio_inst
             
-            # Check gpio_out matches bits [6:4] of OUT register
+            # Check gpio_out matches upper NUM_OUT bits of OUT register
             gpio_out = int(gpio_inst.gpio_out.value)
             expected_gpio_out = (test_out >> NUM_BIDIR) & ((1 << NUM_OUT) - 1)
             assert gpio_out == expected_gpio_out, \
@@ -422,13 +421,10 @@ async def test_gpio_output_toggle(dut):
 async def test_gpio_validate_output_pins(dut):
     """Test that output pins correctly reflect OUT register values"""
     
-    # OUT register: bits [6:4] -> gpio_out[2:0], bits [3:0] -> gpio_bidir_out[3:0]
-    # Test pattern: 0x5A = 0b1011010
-    # gpio_out = bits [6:4] = 0b101 = 0x05
-    # gpio_bidir_out = bits [3:0] = 0b1010 = 0x0A
+    # OUT register: upper NUM_OUT bits -> gpio_out, lower NUM_BIDIR bits -> gpio_bidir_out
     test_out_value = 0x5A
-    expected_gpio_out = (test_out_value >> NUM_BIDIR) & ((1 << NUM_OUT) - 1)  # 0x05
-    expected_gpio_io_out = test_out_value & ((1 << NUM_BIDIR) - 1)  # 0x0A
+    expected_gpio_out = (test_out_value >> NUM_BIDIR) & ((1 << NUM_OUT) - 1)
+    expected_gpio_io_out = test_out_value & ((1 << NUM_BIDIR) - 1)
     
     hex_memory = {
         0x00000000: NOP_INSTR,
@@ -468,21 +464,17 @@ async def test_gpio_validate_output_pins(dut):
 async def test_gpio_output_pins_all_patterns(dut):
     """Test output pins with multiple patterns: all 0s, all 1s, alternating"""
     
-    # Test patterns for OUT register (7 bits: [6:0])
-    patterns = [
-        (0x00, 0x00, 0x00),  # (OUT value, expected gpio_out, expected gpio_io_out)
-        (0x7F, 0x07, 0x0F),  # All 1s
-        (0x55, 0x05, 0x05),  # Alternating 0101...
-        (0x2A, 0x02, 0x0A),  # Alternating 1010...
-    ]
+    # Test patterns: OUT register values (NUM_BIDIR + NUM_OUT bits). Expected values computed in callback.
+    out_values = [0x00, 0x7F, 0x55, 0x2A]
+    dir_all_out = (1 << NUM_BIDIR) - 1  # All bidirectional pins as output
     
     hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: encode_lui(1, GPIO_BASE_ADDR >> 12),
         0x00000008: encode_addi(1, 1, GPIO_BASE_ADDR & 0xFFF),
-        # Set DIR = 0x0F (all bidirectional pins as output)
-        0x0000000C: encode_addi(2, 0, 0x0F),
-        0x00000010: encode_store(1, 2, 0),                       # DIR = 0x0F
+        # Set DIR = all bidir as output
+        0x0000000C: encode_addi(2, 0, dir_all_out),
+        0x00000010: encode_store(1, 2, 0),                       # DIR
         # Pattern 0: OUT = 0x00
         0x00000014: encode_store(1, 0, 4),                       # OUT = 0x00
         0x00000018: NOP_INSTR,
@@ -515,7 +507,9 @@ async def test_gpio_output_pins_all_patterns(dut):
         if pattern_idx < len(check_addresses) and current_pc - 8 == check_addresses[pattern_idx]:
             assert int(dut.soc_inst.error_flag.value) == 0, f"error_flag should be 0"
             
-            out_val, expected_gpio_out, expected_gpio_io_out = patterns[pattern_idx]
+            out_val = out_values[pattern_idx]
+            expected_gpio_out = (out_val >> NUM_BIDIR) & ((1 << NUM_OUT) - 1)
+            expected_gpio_io_out = out_val & ((1 << NUM_BIDIR) - 1)
             
             # Validate gpio_out
             gpio_out_val = int(dut.gpio_out.value)

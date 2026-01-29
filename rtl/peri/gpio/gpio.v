@@ -14,8 +14,8 @@
 
 module gpio #(
     parameter GPIO_BASE_ADDR = 32'h40001000,
-    parameter NUM_BIDIR = 4,   // Bidirectional pins
-    parameter NUM_OUT   = 3,   // Output-only pins
+    parameter NUM_BIDIR = 1,   // Bidirectional pins
+    parameter NUM_OUT   = 6,   // Output-only pins
     parameter NUM_IN    = 6    // Input-only pins
 ) (
     input wire clk,

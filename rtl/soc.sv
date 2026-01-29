@@ -21,8 +21,8 @@ module soc #(
     parameter SPI_BASE_ADDR    = 32'h40005000,
     parameter UART_NUM         = 1,  // Maximum 4 instances
     parameter UART_SPACING     = 32'h100,
-    parameter GPIO_NUM_BIDIR   = 4,
-    parameter GPIO_NUM_OUT     = 3,
+    parameter GPIO_NUM_BIDIR   = 1,
+    parameter GPIO_NUM_OUT     = 6,
     parameter GPIO_NUM_IN      = 6,
     parameter PWM_NUM          = 2
 ) (
@@ -73,9 +73,7 @@ module soc #(
     wire i2c_sda_in;
     wire i2c_sda_out;
     wire i2c_sda_oe;
-    wire i2c_scl_in;
     wire i2c_scl_out;
-    wire i2c_scl_oe;
 
     // SPI interface
     wire spi_ena;
@@ -310,9 +308,7 @@ module soc #(
         .i2c_sda_in(i2c_sda_in),
         .i2c_sda_out(i2c_sda_out),
         .i2c_sda_oe(i2c_sda_oe),
-        .i2c_scl_in(i2c_scl_in),
-        .i2c_scl_out(i2c_scl_out),
-        .i2c_scl_oe(i2c_scl_oe)
+        .i2c_scl_out(i2c_scl_out)
     );
 
     // SPI Master module
@@ -339,33 +335,34 @@ module soc #(
     assign gpio_in[GPIO_NUM_IN-1:0] = ui_in[7:2];
 
     assign uo_out[0] = error_flag;
-    assign uo_out[1] = flash_cs_n;
-    assign uo_out[2] = ram_cs_n;
-    assign uo_out[3] = bus_spi_sclk;
-    assign uo_out[4] = uart_tx[0];
-    assign uo_out[5] = gpio_out[0];
-    assign uo_out[6] = spi_ena ? spi_mosi : gpio_out[1];
-    assign uo_out[7] = pwm_ena[0] ? pwm_out[0] : gpio_out[2];
+    assign uo_out[1] = uart_tx[0];
+    assign uo_out[2] = i2c_ena ? i2c_scl_out : gpio_out[0];
+    assign uo_out[3] = gpio_out[1];
+    assign uo_out[4] = spi_ena ? spi_sclk : gpio_out[2];
+    assign uo_out[5] = spi_ena ? spi_mosi : gpio_out[3];
+    assign uo_out[6] = pwm_ena[0] ? pwm_out[0] : gpio_out[4];
+    assign uo_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_out[5];
 
-    assign bus_io_in[3:0] = uio_in[3:0];
+    wire _unused_uio_in0 = uio_in[0];
+    assign bus_io_in[1:0] = uio_in[2:1];
+    wire _unused_uio_in3 = uio_in[3];
+    assign bus_io_in[3:2] = uio_in[5:4];
+    wire _unused_uio_in6 = uio_in[6];
+    assign gpio_bidir_in[0] = uio_in[7];
 
-    assign gpio_bidir_in[0] = uio_in[4];  // Shared with I2C SDA
-    assign gpio_bidir_in[1] = uio_in[5];  // Shared with I2C SCL
-    assign gpio_bidir_in[2] = uio_in[6];  // Shared with SPI SCLK
-    assign gpio_bidir_in[3] = uio_in[7];  // Shared with pwm[1]
+    assign i2c_sda_in = uio_in[7];
 
-    assign i2c_sda_in = uio_in[4];
-    assign i2c_scl_in = uio_in[5];
+    assign uio_out[0] = flash_cs_n;
+    assign uio_out[2:1] = bus_io_out[1:0];
+    assign uio_out[3] = bus_spi_sclk;
+    assign uio_out[5:4] =  bus_io_out[3:2];
+    assign uio_out[6] = ram_cs_n;
+    assign uio_out[7] = i2c_ena ? i2c_sda_out :gpio_bidir_out[0];
 
-    assign uio_out[3:0] = bus_io_out[3:0];
-    assign uio_out[4] = i2c_ena ? i2c_sda_out : gpio_bidir_out[0];
-    assign uio_out[5] = i2c_ena ? i2c_scl_out : gpio_bidir_out[1];
-    assign uio_out[6] = spi_ena ? spi_sclk : gpio_bidir_out[2];
-    assign uio_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_bidir_out[3];
-
-    assign uio_oe[3:0] = bus_io_oe[3:0];
-    assign uio_oe[4] = i2c_ena ? i2c_sda_oe : gpio_bidir_oe[0];
-    assign uio_oe[5] = i2c_ena ? i2c_scl_oe : gpio_bidir_oe[1];
-    assign uio_oe[6] = spi_ena ? UIO_OE_OUT : gpio_bidir_oe[2];
-    assign uio_oe[7] = pwm_ena[1] ? UIO_OE_OUT : gpio_bidir_oe[3];
+    assign uio_oe[1] = UIO_OE_OUT;
+    assign uio_oe[2:1] = bus_io_oe[1:0];
+    assign uio_oe[3] = UIO_OE_OUT;
+    assign uio_oe[5:4] = bus_io_oe[3:2];
+    assign uio_oe[6] = UIO_OE_OUT;
+    assign uio_oe[7] = i2c_ena ? i2c_sda_oe : gpio_bidir_oe[0];
 endmodule

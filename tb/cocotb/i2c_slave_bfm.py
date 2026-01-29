@@ -65,7 +65,6 @@ class I2CSlaveBFM:
         sda_out,
         scl_out,
         sda_in,
-        scl_in,
         address=0x21,
     ):
         """
@@ -76,14 +75,12 @@ class I2CSlaveBFM:
             sda_out: I2C master SDA output value (always 0 when driving in this design)
             scl_out: I2C master SCL output value (always 0 when driving in this design)
             sda_in: Handle for bus SDA level (drives uio_in[4])
-            scl_in: Handle for bus SCL level (drives uio_in[5])
             address: 7-bit slave address (default 0x21, so address byte 0x42 for write)
         """
         self.clk = clk
         self.sda_out = sda_out
         self.scl_out = scl_out
         self.sda_in = sda_in
-        self.scl_in = scl_in
 
         self.address = address & 0x7F
 
@@ -131,7 +128,6 @@ class I2CSlaveBFM:
         self.running = True
 
         # Default: lines released (pulled up externally by testbench)
-        self.scl_in.value = 1
         self.sda_in.value = 1
 
         while self.running:
@@ -272,7 +268,6 @@ def start_i2c_slave_bfm(
     sda_out,
     scl_out,
     sda_in,
-    scl_in,
     address=0x21,
     tx_data=None,
 ):
@@ -284,7 +279,7 @@ def start_i2c_slave_bfm(
     Args:
         clk: System clock
         sda_oe, sda_out, scl_oe, scl_out: Master-side I2C control signals
-        sda_in, scl_in: Bus SDA/SCL level signals (drive into SoC inputs)
+        sda_in: Bus SDA level signals (drive into SoC inputs)
         address: 7-bit I2C slave address
         tx_data: Optional list of bytes to provide on read operations
 
@@ -296,7 +291,6 @@ def start_i2c_slave_bfm(
         sda_out=sda_out,
         scl_out=scl_out,
         sda_in=sda_in,
-        scl_in=scl_in,
         address=address,
     )
 
@@ -312,7 +306,6 @@ async def create_i2c_slave_bfm(
     sda_out,
     scl_out,
     sda_in,
-    scl_in,
     address=0x21,
     tx_data=None,
 ):
@@ -327,7 +320,6 @@ async def create_i2c_slave_bfm(
         sda_out=sda_out,
         scl_out=scl_out,
         sda_in=sda_in,
-        scl_in=scl_in,
         address=address,
         tx_data=tx_data,
     )
