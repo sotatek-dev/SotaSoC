@@ -5,11 +5,14 @@
  * 
  * Memory-mapped registers:
  * - CTRL    (0x00): Control register
- *                   bit 0: Enable (1=enabled, 0=disabled)
- *                   bit 1: Start condition (write 1 to generate START)
- *                   bit 2: Stop condition (write 1 to generate STOP)
- *                   bit 3: Read mode (1=read, 0=write)
- *                   bit 4: ACK enable (1=send ACK after read, 0=send NACK)
+ *                   bit 0: Start command
+ *                           - If bus idle: generate START condition
+ *                           - If bus busy and RESTART=1: generate repeated START
+ *                           - If bus busy and RESTART=0: send next data byte
+ *                   bit 1: Stop condition (write 1 to generate STOP)
+ *                   bit 2: Read mode (1=read, 0=write)
+ *                   bit 3: ACK enable (1=send ACK after read, 0=send NACK)
+ *                   bit 4: RESTART request (1=request repeated START on next START command)
  *                   bit 5: Reserved
  *                   bit 6: Reserved
  *                   bit 7: Reserved
@@ -29,14 +32,13 @@
  * 
  * Usage:
  * 1. Set prescaler for desired I2C clock speed
- * 2. Enable the module (CTRL bit 0 = 1)
- * 3. Write slave address + R/W bit to DATA, set START bit
- * 4. Wait for transfer complete (STATUS bit 3)
- * 5. Check ACK (STATUS bit 1)
- * 6. For write: Write data byte to DATA register
- * 7. For read: Set read mode and ACK/NACK, read from DATA register
- * 8. Repeat steps 4-7 for additional bytes
- * 9. Set STOP bit to release bus
+ * 2. Write slave address + R/W bit to DATA, set START bit
+ * 3. Wait for transfer complete (STATUS bit 3)
+ * 4. Check ACK (STATUS bit 1)
+ * 5. For write: Write data byte to DATA register, set START bit to continue
+ * 6. For read: Set read mode and ACK/NACK, read from DATA register
+ * 7. Repeat steps 3-6 for additional bytes (master holds bus in WAIT state)
+ * 8. Set STOP bit to release bus
  */
 
 module i2c_master #(
@@ -74,11 +76,11 @@ module i2c_master #(
     localparam [3:0] ADDR_PRESCALE = 4'hC;
 
     // Control register bits
-    localparam CTRL_ENABLE    = 0;
-    localparam CTRL_START     = 1;
-    localparam CTRL_STOP      = 2;
-    localparam CTRL_READ      = 3;
-    localparam CTRL_ACK_EN    = 4;
+    localparam CTRL_START     = 0;
+    localparam CTRL_STOP      = 1;
+    localparam CTRL_READ      = 2;
+    localparam CTRL_ACK_EN    = 3;
+    localparam CTRL_RESTART   = 4;
 
     // Status register bits
     localparam STATUS_BUSY          = 0;
@@ -91,15 +93,16 @@ module i2c_master #(
     localparam [3:0] STATE_IDLE       = 4'd0;
     localparam [3:0] STATE_START      = 4'd1;
     localparam [3:0] STATE_START2     = 4'd2;
-    localparam [3:0] STATE_DATA_BIT   = 4'd3;
-    localparam [3:0] STATE_DATA_SCL_H = 4'd4;
-    localparam [3:0] STATE_DATA_SCL_L = 4'd5;
-    localparam [3:0] STATE_ACK_BIT    = 4'd6;
-    localparam [3:0] STATE_ACK_SCL_H  = 4'd7;
-    localparam [3:0] STATE_ACK_SCL_L  = 4'd8;
+    localparam [3:0] STATE_DATA_SCL_H = 4'd3;
+    localparam [3:0] STATE_DATA_SCL_L = 4'd4;
+    localparam [3:0] STATE_ACK_BIT    = 4'd5;
+    localparam [3:0] STATE_ACK_SCL_H  = 4'd6;
+    localparam [3:0] STATE_RESTART    = 4'd7;
+    localparam [3:0] STATE_RESTART2   = 4'd8;
     localparam [3:0] STATE_STOP       = 4'd9;
     localparam [3:0] STATE_STOP2      = 4'd10;
     localparam [3:0] STATE_STOP3      = 4'd11;
+    localparam [3:0] STATE_WAIT      = 4'd12;
 
     // I2C request detection
     wire i2c_request = (mem_addr[31:8] == I2C_BASE_ADDR[31:8]);
@@ -108,7 +111,7 @@ module i2c_master #(
     // Registers
     reg [7:0] ctrl_reg;
     reg [7:0] status_reg;
-    reg [7:0] data_reg;      // Shared TX/RX data register (saves 8 FFs)
+    reg [7:0] data_reg;
     reg [7:0] prescale_reg;
 
     // State machine
@@ -135,14 +138,14 @@ module i2c_master #(
     reg bus_error;
     reg transfer_done;
 
-    // Start/stop command latches (cleared after processing)
+    // Start/stop/restart command latches (cleared after processing)
     reg start_pending;
     reg stop_pending;
+    reg restart_pending;
 
     // Read mode flag
     wire read_mode = ctrl_reg[CTRL_READ];
     wire ack_enable = ctrl_reg[CTRL_ACK_EN];
-    wire module_enable = ctrl_reg[CTRL_ENABLE];
 
     // Unused bits
     wire [23:0] _unused_wdata_high = mem_wdata[31:8];
@@ -152,7 +155,7 @@ module i2c_master #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             clk_cnt <= 8'd0;
-        end else if (!module_enable || state == STATE_IDLE) begin
+        end else if (state == STATE_IDLE) begin
             clk_cnt <= 8'd0;
         end else if (clk_tick) begin
             clk_cnt <= 8'd0;
@@ -176,7 +179,7 @@ module i2c_master #(
         
         case (state)
             STATE_IDLE: begin
-                if (module_enable && start_pending) begin
+                if (start_pending) begin
                     next_state = STATE_START;
                 end
             end
@@ -191,36 +194,29 @@ module i2c_master #(
             STATE_START2: begin
                 // SCL goes low
                 if (clk_tick) begin
-                    next_state = STATE_DATA_BIT;
+                    next_state = STATE_DATA_SCL_L;
                 end
             end
 
-            STATE_DATA_BIT: begin
-                // Set up data bit, SCL is low
+            STATE_DATA_SCL_L: begin
+                // SCL is low, data is set up at middle
                 if (clk_tick) begin
                     next_state = STATE_DATA_SCL_H;
                 end
             end
 
             STATE_DATA_SCL_H: begin
-                // SCL goes high, data is sampled
+                // SCL goes high, data is sampled at middle
                 if (clk_tick) begin
                     // Check clock stretching
                     if (i2c_scl_in) begin
-                        next_state = STATE_DATA_SCL_L;
+                        if (bit_cnt == 4'd8) begin
+                            next_state = STATE_ACK_BIT;
+                        end else begin
+                            next_state = STATE_DATA_SCL_L;
+                        end
                     end
                     // else stay in this state (clock stretching)
-                end
-            end
-
-            STATE_DATA_SCL_L: begin
-                // SCL goes low
-                if (clk_tick) begin
-                    if (bit_cnt == 4'd7) begin
-                        next_state = STATE_ACK_BIT;
-                    end else begin
-                        next_state = STATE_DATA_BIT;
-                    end
                 end
             end
 
@@ -235,22 +231,38 @@ module i2c_master #(
                 // SCL goes high, ACK is sampled
                 if (clk_tick) begin
                     if (i2c_scl_in) begin
-                        next_state = STATE_ACK_SCL_L;
+                        next_state = STATE_WAIT;
                     end
                 end
             end
 
-            STATE_ACK_SCL_L: begin
-                // SCL goes low, transfer complete
+            STATE_WAIT: begin
                 if (clk_tick) begin
                     if (stop_pending) begin
                         next_state = STATE_STOP;
                     end else if (start_pending) begin
-                        // Repeated start
-                        next_state = STATE_START;
-                    end else begin
-                        next_state = STATE_IDLE;
+                        // Decide between continued data byte and repeated START
+                        if (restart_pending) begin
+                            // Repeated START
+                            next_state = STATE_RESTART;
+                        end else begin
+                            // Send next byte
+                            next_state = STATE_DATA_SCL_L;
+                        end
                     end
+                    // else stay in WAIT state
+                end
+            end
+
+            STATE_RESTART: begin
+                if (clk_tick) begin
+                    next_state = STATE_RESTART2;
+                end
+            end
+
+            STATE_RESTART2: begin
+                if (clk_tick) begin
+                    next_state = STATE_START;
                 end
             end
 
@@ -295,6 +307,7 @@ module i2c_master #(
             transfer_done <= 1'b0;
             start_pending <= 1'b0;
             stop_pending <= 1'b0;
+            restart_pending <= 1'b0;
         end else begin
             // Handle register writes
             if (i2c_request && mem_we) begin
@@ -306,6 +319,10 @@ module i2c_master #(
                         end
                         if (mem_wdata[CTRL_STOP]) begin
                             stop_pending <= 1'b1;
+                        end
+                        if (mem_wdata[CTRL_RESTART]) begin
+                            // Latch a restart request to force repeated START on next START command
+                            restart_pending <= 1'b1;
                         end
                     end
                     ADDR_DATA: begin
@@ -325,6 +342,7 @@ module i2c_master #(
                     bit_cnt <= 4'd0;
                     if (start_pending) begin
                         shift_reg <= data_reg;
+                        ack_received <= 1'b0;
                     end
                 end
 
@@ -333,6 +351,8 @@ module i2c_master #(
                     if (clk_tick) begin
                         sda_out_reg <= 1'b0;
                         start_pending <= 1'b0;
+                        // A restart request is considered consumed once we actually drive START
+                        restart_pending <= 1'b0;
                     end
                 end
 
@@ -344,13 +364,24 @@ module i2c_master #(
                     end
                 end
 
-                STATE_DATA_BIT: begin
-                    // Set up data bit (MSB first), SCL is low
-                    if (clk_tick) begin
+                STATE_DATA_SCL_L: begin
+                    // SCL is low
+                    scl_out_reg <= 1'b0;
+                    
+                    // Set up data bit at start of SCL low period (standard I2C timing)
+                    if (clk_cnt == 8'd0) begin
                         if (read_mode) begin
                             sda_out_reg <= 1'b1;  // Release SDA for reading
                         end else begin
                             sda_out_reg <= shift_reg[7];  // Output MSB
+                        end
+                    end
+                    
+                    // Shift register and increment bit counter at end of period
+                    if (clk_tick) begin
+                        bit_cnt <= bit_cnt + 1'b1;
+                        if (!read_mode) begin
+                            shift_reg <= {shift_reg[6:0], 1'b0};  // Shift left for next bit
                         end
                     end
                 end
@@ -359,8 +390,10 @@ module i2c_master #(
                     // SCL goes high
                     scl_out_reg <= 1'b1;
                     
-                    // Sample data on rising edge of SCL
-                    if (clk_tick && i2c_scl_in) begin
+                    // Sample data on rising edge of SCL (standard I2C timing)
+                    // Sample when SCL is confirmed high (handles clock stretching)
+                    if (i2c_scl_in && clk_cnt == 8'd0) begin
+                        // Sample on rising edge (first cycle after SCL goes high)
                         if (read_mode) begin
                             shift_reg <= {shift_reg[6:0], i2c_sda_in};
                         end else begin
@@ -370,24 +403,19 @@ module i2c_master #(
                             end
                         end
                     end
-                end
-
-                STATE_DATA_SCL_L: begin
-                    // SCL goes low
-                    if (clk_tick) begin
+                    
+                    // SCL goes low at end of period (if not clock stretching)
+                    if (clk_tick && i2c_scl_in) begin
                         scl_out_reg <= 1'b0;
-                        if (bit_cnt < 4'd7) begin
-                            bit_cnt <= bit_cnt + 1'b1;
-                            if (!read_mode) begin
-                                shift_reg <= {shift_reg[6:0], 1'b0};  // Shift left for next bit
-                            end
-                        end
                     end
                 end
 
                 STATE_ACK_BIT: begin
                     // Set up ACK bit, SCL is low
-                    if (clk_tick) begin
+                    scl_out_reg <= 1'b0;
+                    
+                    // Set up ACK SDA at start of SCL low period (consistent with DATA_SCL_L)
+                    if (clk_cnt == 8'd0) begin
                         if (read_mode) begin
                             // Master sends ACK/NACK
                             sda_out_reg <= !ack_enable;  // ACK=0 (low), NACK=1 (high)
@@ -409,21 +437,51 @@ module i2c_master #(
                         end else begin
                             ack_received <= 1'b1;  // We sent the ACK
                         end
-                    end
-                end
-
-                STATE_ACK_SCL_L: begin
-                    // SCL goes low, transfer complete
-                    if (clk_tick) begin
-                        scl_out_reg <= 1'b0;
+                        
+                        // Complete transfer: store data and set transfer_done
+                        // SCL will be pulled low in WAIT state
                         transfer_done <= 1'b1;
                         data_reg <= shift_reg;  // Store received data (or echo back TX data)
                         bit_cnt <= 4'd0;
-                        
-                        // Prepare for next byte if not stopping
-                        if (!stop_pending && !start_pending) begin
-                            shift_reg <= data_reg;
+                    end
+                end
+
+                STATE_WAIT: begin
+                    // Hold SCL and SDA low, wait for software
+                    scl_out_reg <= 1'b0;
+                    // Keep SDA in current state (don't change it)
+
+                    if (clk_tick) begin
+                        if (start_pending) begin
+                            if (restart_pending) begin
+                                // Repeated START
+                                shift_reg <= data_reg;
+                                ack_received <= 1'b0;
+                                bit_cnt <= 4'd0;
+                                restart_pending <= 1'b0;  // Clear restart_pending when continuing
+                                start_pending <= 1'b0;
+                            end else begin
+                                // Send next byte
+                                shift_reg <= data_reg;
+                                ack_received <= 1'b0;
+                                bit_cnt <= 4'd0;
+                                start_pending <= 1'b0;  // Clear start_pending when continuing
+                            end
                         end
+                    end
+                end
+
+                STATE_RESTART: begin
+                    if (clk_tick) begin
+                        scl_out_reg <= 1'b0;
+                        sda_out_reg <= 1'b1;
+                    end
+                end
+
+                STATE_RESTART2: begin
+                    if (clk_tick) begin
+                        scl_out_reg <= 1'b1;
+                        sda_out_reg <= 1'b1;
                     end
                 end
 
@@ -463,10 +521,10 @@ module i2c_master #(
             if (i2c_request && mem_we) begin
                 case (reg_offset)
                     ADDR_CTRL: begin
-                        // Only store persistent bits (enable, read, ack_en)
-                        ctrl_reg[CTRL_ENABLE] <= mem_wdata[CTRL_ENABLE];
-                        ctrl_reg[CTRL_READ] <= mem_wdata[CTRL_READ];
-                        ctrl_reg[CTRL_ACK_EN] <= mem_wdata[CTRL_ACK_EN];
+                        // Only store persistent bits (read, ack_en, restart request)
+                        ctrl_reg[CTRL_READ]    <= mem_wdata[CTRL_READ];
+                        ctrl_reg[CTRL_ACK_EN]  <= mem_wdata[CTRL_ACK_EN];
+                        ctrl_reg[CTRL_RESTART] <= mem_wdata[CTRL_RESTART];
                         // START and STOP are handled separately as commands
                     end
                     ADDR_PRESCALE: begin
@@ -511,7 +569,7 @@ module i2c_master #(
     assign i2c_scl_out = 1'b0;  // Always drive low when enabled
     assign i2c_scl_oe = !scl_out_reg;  // Enable driver when we want low
 
-    // Module enable output for pin muxing
-    assign ena = module_enable;
+    // Module enable output for pin muxing (active when busy)
+    assign ena = busy;
 
 endmodule

@@ -47,11 +47,11 @@ I2C_DATA        = I2C_BASE_ADDR + 0x08
 I2C_PRESCALE    = I2C_BASE_ADDR + 0x0C
 
 # I2C Control register bits
-I2C_CTRL_ENABLE  = 0x01  # bit 0: Enable module
-I2C_CTRL_START   = 0x02  # bit 1: Generate START condition
-I2C_CTRL_STOP    = 0x04  # bit 2: Generate STOP condition
-I2C_CTRL_READ    = 0x08  # bit 3: Read mode (1=read, 0=write)
-I2C_CTRL_ACK_EN  = 0x10  # bit 4: ACK enable (1=send ACK, 0=send NACK)
+I2C_CTRL_START   = 0x01  # bit 0: Generate START condition
+I2C_CTRL_STOP    = 0x02  # bit 1: Generate STOP condition
+I2C_CTRL_READ    = 0x04  # bit 2: Read mode (1=read, 0=write)
+I2C_CTRL_ACK_EN  = 0x08  # bit 3: ACK enable (1=send ACK, 0=send NACK)
+I2C_CTRL_RESTART  = 0x10  # bit 4: Restart request (1=request repeated START on next START command)
 
 # I2C Status register bits
 I2C_STATUS_BUSY      = 0x01  # bit 0: Transfer in progress

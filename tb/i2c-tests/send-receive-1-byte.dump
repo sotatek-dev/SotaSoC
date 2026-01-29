@@ -1,0 +1,283 @@
+
+build/i2c.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	02000117          	auipc	sp,0x2000
+   4:	00010113          	mv	sp,sp
+   8:	2015                	jal	2c <main>
+   a:	a001                	j	a <_start+0xa>
+
+0000000c <test_read_write_byte>:
+   c:	1141                	addi	sp,sp,-16 # 1fffff0 <i2c_ctrl_reg+0xffffe8>
+   e:	00310593          	addi	a1,sp,3
+  12:	c422                	sw	s0,8(sp)
+  14:	c606                	sw	ra,12(sp)
+  16:	842a                	mv	s0,a0
+  18:	2a25                	jal	150 <i2c_read_byte>
+  1a:	e509                	bnez	a0,24 <test_read_write_byte+0x18>
+  1c:	00314583          	lbu	a1,3(sp)
+  20:	8522                	mv	a0,s0
+  22:	2899                	jal	78 <i2c_write_byte>
+  24:	40b2                	lw	ra,12(sp)
+  26:	4422                	lw	s0,8(sp)
+  28:	0141                	addi	sp,sp,16
+  2a:	8082                	ret
+
+0000002c <main>:
+  2c:	1151                	addi	sp,sp,-12
+  2e:	09f00513          	li	a0,159
+  32:	c406                	sw	ra,8(sp)
+  34:	2039                	jal	42 <i2c_init>
+  36:	02100513          	li	a0,33
+  3a:	3fc9                	jal	c <test_read_write_byte>
+  3c:	0001                	nop
+  3e:	0001                	nop
+  40:	bff5                	j	3c <main+0x10>
+
+00000042 <i2c_init>:
+  42:	01000637          	lui	a2,0x1000
+  46:	400045b7          	lui	a1,0x40004
+  4a:	400046b7          	lui	a3,0x40004
+  4e:	00b62423          	sw	a1,8(a2) # 1000008 <i2c_ctrl_reg>
+  52:	0691                	addi	a3,a3,4 # 40004004 <__stack_top+0x3e004004>
+  54:	01000637          	lui	a2,0x1000
+  58:	40004737          	lui	a4,0x40004
+  5c:	00d62223          	sw	a3,4(a2) # 1000004 <i2c_status_reg>
+  60:	0721                	addi	a4,a4,8 # 40004008 <__stack_top+0x3e004008>
+  62:	010006b7          	lui	a3,0x1000
+  66:	400047b7          	lui	a5,0x40004
+  6a:	00e6a023          	sw	a4,0(a3) # 1000000 <i2c_data_reg>
+  6e:	c7c8                	sw	a0,12(a5)
+  70:	0001                	nop
+  72:	0001                	nop
+  74:	4501                	li	a0,0
+  76:	8082                	ret
+
+00000078 <i2c_write_byte>:
+  78:	010007b7          	lui	a5,0x1000
+  7c:	0047a783          	lw	a5,4(a5) # 1000004 <i2c_status_reg>
+  80:	4398                	lw	a4,0(a5)
+  82:	8b05                	andi	a4,a4,1
+  84:	ff75                	bnez	a4,80 <i2c_write_byte+0x8>
+  86:	01000737          	lui	a4,0x1000
+  8a:	00072603          	lw	a2,0(a4) # 1000000 <i2c_data_reg>
+  8e:	01000737          	lui	a4,0x1000
+  92:	00872683          	lw	a3,8(a4) # 1000008 <i2c_ctrl_reg>
+  96:	0506                	slli	a0,a0,0x1
+  98:	0ff57713          	zext.b	a4,a0
+  9c:	c218                	sw	a4,0(a2)
+  9e:	4705                	li	a4,1
+  a0:	c298                	sw	a4,0(a3)
+  a2:	a039                	j	b0 <i2c_write_byte+0x38>
+  a4:	4398                	lw	a4,0(a5)
+  a6:	8b41                	andi	a4,a4,16
+  a8:	eb31                	bnez	a4,fc <i2c_write_byte+0x84>
+  aa:	4398                	lw	a4,0(a5)
+  ac:	8b11                	andi	a4,a4,4
+  ae:	eb25                	bnez	a4,11e <i2c_write_byte+0xa6>
+  b0:	4398                	lw	a4,0(a5)
+  b2:	8b21                	andi	a4,a4,8
+  b4:	db65                	beqz	a4,a4 <i2c_write_byte+0x2c>
+  b6:	4398                	lw	a4,0(a5)
+  b8:	8b09                	andi	a4,a4,2
+  ba:	c759                	beqz	a4,148 <i2c_write_byte+0xd0>
+  bc:	c20c                	sw	a1,0(a2)
+  be:	4705                	li	a4,1
+  c0:	c298                	sw	a4,0(a3)
+  c2:	a039                	j	d0 <i2c_write_byte+0x58>
+  c4:	4398                	lw	a4,0(a5)
+  c6:	8b41                	andi	a4,a4,16
+  c8:	ef29                	bnez	a4,122 <i2c_write_byte+0xaa>
+  ca:	4398                	lw	a4,0(a5)
+  cc:	8b11                	andi	a4,a4,4
+  ce:	eb3d                	bnez	a4,144 <i2c_write_byte+0xcc>
+  d0:	4398                	lw	a4,0(a5)
+  d2:	8b21                	andi	a4,a4,8
+  d4:	db65                	beqz	a4,c4 <i2c_write_byte+0x4c>
+  d6:	4398                	lw	a4,0(a5)
+  d8:	8b09                	andi	a4,a4,2
+  da:	cb2d                	beqz	a4,14c <i2c_write_byte+0xd4>
+  dc:	4709                	li	a4,2
+  de:	c298                	sw	a4,0(a3)
+  e0:	a039                	j	ee <i2c_write_byte+0x76>
+  e2:	4398                	lw	a4,0(a5)
+  e4:	8b41                	andi	a4,a4,16
+  e6:	e719                	bnez	a4,f4 <i2c_write_byte+0x7c>
+  e8:	4398                	lw	a4,0(a5)
+  ea:	8b11                	andi	a4,a4,4
+  ec:	e701                	bnez	a4,f4 <i2c_write_byte+0x7c>
+  ee:	4398                	lw	a4,0(a5)
+  f0:	8b21                	andi	a4,a4,8
+  f2:	db65                	beqz	a4,e2 <i2c_write_byte+0x6a>
+  f4:	4388                	lw	a0,0(a5)
+  f6:	8905                	andi	a0,a0,1
+  f8:	fd75                	bnez	a0,f4 <i2c_write_byte+0x7c>
+  fa:	8082                	ret
+  fc:	557d                	li	a0,-1
+  fe:	4709                	li	a4,2
+ 100:	c298                	sw	a4,0(a3)
+ 102:	a039                	j	110 <i2c_write_byte+0x98>
+ 104:	4398                	lw	a4,0(a5)
+ 106:	8b41                	andi	a4,a4,16
+ 108:	e719                	bnez	a4,116 <i2c_write_byte+0x9e>
+ 10a:	4398                	lw	a4,0(a5)
+ 10c:	8b11                	andi	a4,a4,4
+ 10e:	e701                	bnez	a4,116 <i2c_write_byte+0x9e>
+ 110:	4398                	lw	a4,0(a5)
+ 112:	8b21                	andi	a4,a4,8
+ 114:	db65                	beqz	a4,104 <i2c_write_byte+0x8c>
+ 116:	4398                	lw	a4,0(a5)
+ 118:	8b05                	andi	a4,a4,1
+ 11a:	ff75                	bnez	a4,116 <i2c_write_byte+0x9e>
+ 11c:	8082                	ret
+ 11e:	5579                	li	a0,-2
+ 120:	bff9                	j	fe <i2c_write_byte+0x86>
+ 122:	557d                	li	a0,-1
+ 124:	4709                	li	a4,2
+ 126:	c298                	sw	a4,0(a3)
+ 128:	a039                	j	136 <i2c_write_byte+0xbe>
+ 12a:	4398                	lw	a4,0(a5)
+ 12c:	8b41                	andi	a4,a4,16
+ 12e:	e719                	bnez	a4,13c <i2c_write_byte+0xc4>
+ 130:	4398                	lw	a4,0(a5)
+ 132:	8b11                	andi	a4,a4,4
+ 134:	e701                	bnez	a4,13c <i2c_write_byte+0xc4>
+ 136:	4398                	lw	a4,0(a5)
+ 138:	8b21                	andi	a4,a4,8
+ 13a:	db65                	beqz	a4,12a <i2c_write_byte+0xb2>
+ 13c:	4398                	lw	a4,0(a5)
+ 13e:	8b05                	andi	a4,a4,1
+ 140:	ff75                	bnez	a4,13c <i2c_write_byte+0xc4>
+ 142:	8082                	ret
+ 144:	5579                	li	a0,-2
+ 146:	bff9                	j	124 <i2c_write_byte+0xac>
+ 148:	5575                	li	a0,-3
+ 14a:	bf55                	j	fe <i2c_write_byte+0x86>
+ 14c:	5575                	li	a0,-3
+ 14e:	bfd9                	j	124 <i2c_write_byte+0xac>
+
+00000150 <i2c_read_byte>:
+ 150:	c9d5                	beqz	a1,204 <i2c_read_byte+0xb4>
+ 152:	010007b7          	lui	a5,0x1000
+ 156:	0047a783          	lw	a5,4(a5) # 1000004 <i2c_status_reg>
+ 15a:	4398                	lw	a4,0(a5)
+ 15c:	8b05                	andi	a4,a4,1
+ 15e:	ff75                	bnez	a4,15a <i2c_read_byte+0xa>
+ 160:	01000737          	lui	a4,0x1000
+ 164:	00072603          	lw	a2,0(a4) # 1000000 <i2c_data_reg>
+ 168:	010006b7          	lui	a3,0x1000
+ 16c:	00151713          	slli	a4,a0,0x1
+ 170:	0086a683          	lw	a3,8(a3) # 1000008 <i2c_ctrl_reg>
+ 174:	00176713          	ori	a4,a4,1
+ 178:	0ff77713          	zext.b	a4,a4
+ 17c:	c218                	sw	a4,0(a2)
+ 17e:	4705                	li	a4,1
+ 180:	c298                	sw	a4,0(a3)
+ 182:	a039                	j	190 <i2c_read_byte+0x40>
+ 184:	4398                	lw	a4,0(a5)
+ 186:	8b41                	andi	a4,a4,16
+ 188:	eb29                	bnez	a4,1da <i2c_read_byte+0x8a>
+ 18a:	4398                	lw	a4,0(a5)
+ 18c:	8b11                	andi	a4,a4,4
+ 18e:	eb2d                	bnez	a4,200 <i2c_read_byte+0xb0>
+ 190:	4398                	lw	a4,0(a5)
+ 192:	8b21                	andi	a4,a4,8
+ 194:	db65                	beqz	a4,184 <i2c_read_byte+0x34>
+ 196:	4398                	lw	a4,0(a5)
+ 198:	8b09                	andi	a4,a4,2
+ 19a:	c73d                	beqz	a4,208 <i2c_read_byte+0xb8>
+ 19c:	4715                	li	a4,5
+ 19e:	c298                	sw	a4,0(a3)
+ 1a0:	a039                	j	1ae <i2c_read_byte+0x5e>
+ 1a2:	4398                	lw	a4,0(a5)
+ 1a4:	8b41                	andi	a4,a4,16
+ 1a6:	e719                	bnez	a4,1b4 <i2c_read_byte+0x64>
+ 1a8:	4398                	lw	a4,0(a5)
+ 1aa:	8b11                	andi	a4,a4,4
+ 1ac:	e701                	bnez	a4,1b4 <i2c_read_byte+0x64>
+ 1ae:	4398                	lw	a4,0(a5)
+ 1b0:	8b21                	andi	a4,a4,8
+ 1b2:	db65                	beqz	a4,1a2 <i2c_read_byte+0x52>
+ 1b4:	4218                	lw	a4,0(a2)
+ 1b6:	00e58023          	sb	a4,0(a1) # 40004000 <__stack_top+0x3e004000>
+ 1ba:	4709                	li	a4,2
+ 1bc:	c298                	sw	a4,0(a3)
+ 1be:	a039                	j	1cc <i2c_read_byte+0x7c>
+ 1c0:	4398                	lw	a4,0(a5)
+ 1c2:	8b41                	andi	a4,a4,16
+ 1c4:	e719                	bnez	a4,1d2 <i2c_read_byte+0x82>
+ 1c6:	4398                	lw	a4,0(a5)
+ 1c8:	8b11                	andi	a4,a4,4
+ 1ca:	e701                	bnez	a4,1d2 <i2c_read_byte+0x82>
+ 1cc:	4398                	lw	a4,0(a5)
+ 1ce:	8b21                	andi	a4,a4,8
+ 1d0:	db65                	beqz	a4,1c0 <i2c_read_byte+0x70>
+ 1d2:	4388                	lw	a0,0(a5)
+ 1d4:	8905                	andi	a0,a0,1
+ 1d6:	fd75                	bnez	a0,1d2 <i2c_read_byte+0x82>
+ 1d8:	8082                	ret
+ 1da:	557d                	li	a0,-1
+ 1dc:	4709                	li	a4,2
+ 1de:	c298                	sw	a4,0(a3)
+ 1e0:	4398                	lw	a4,0(a5)
+ 1e2:	8b21                	andi	a4,a4,8
+ 1e4:	eb11                	bnez	a4,1f8 <i2c_read_byte+0xa8>
+ 1e6:	4398                	lw	a4,0(a5)
+ 1e8:	8b41                	andi	a4,a4,16
+ 1ea:	e719                	bnez	a4,1f8 <i2c_read_byte+0xa8>
+ 1ec:	4398                	lw	a4,0(a5)
+ 1ee:	8b11                	andi	a4,a4,4
+ 1f0:	e701                	bnez	a4,1f8 <i2c_read_byte+0xa8>
+ 1f2:	4398                	lw	a4,0(a5)
+ 1f4:	8b21                	andi	a4,a4,8
+ 1f6:	db65                	beqz	a4,1e6 <i2c_read_byte+0x96>
+ 1f8:	4398                	lw	a4,0(a5)
+ 1fa:	8b05                	andi	a4,a4,1
+ 1fc:	ff75                	bnez	a4,1f8 <i2c_read_byte+0xa8>
+ 1fe:	8082                	ret
+ 200:	5579                	li	a0,-2
+ 202:	bfe9                	j	1dc <i2c_read_byte+0x8c>
+ 204:	557d                	li	a0,-1
+ 206:	8082                	ret
+ 208:	5575                	li	a0,-3
+ 20a:	bfc9                	j	1dc <i2c_read_byte+0x8c>
+
+Disassembly of section .comment:
+
+00000000 <.comment>:
+   0:	3a434347          	.insn	4, 0x3a434347
+   4:	2820                	.insn	2, 0x2820
+   6:	3331                	jal	fffffd12 <__stack_top+0xfdfffd12>
+   8:	322e                	.insn	2, 0x322e
+   a:	302e                	.insn	2, 0x302e
+   c:	312d                	jal	fffffc36 <__stack_top+0xfdfffc36>
+   e:	7531                	lui	a0,0xfffec
+  10:	7562                	.insn	2, 0x7562
+  12:	746e                	.insn	2, 0x746e
+  14:	3175                	jal	fffffcc0 <__stack_top+0xfdfffcc0>
+  16:	2932312b          	.insn	4, 0x2932312b
+  1a:	3120                	.insn	2, 0x3120
+  1c:	2e322e33          	.insn	4, 0x2e322e33
+  20:	0030                	addi	a2,sp,8
+
+Disassembly of section .riscv.attributes:
+
+00000000 <.riscv.attributes>:
+   0:	2041                	jal	80 <i2c_write_byte+0x8>
+   2:	0000                	unimp
+   4:	7200                	.insn	2, 0x7200
+   6:	7369                	lui	t1,0xffffa
+   8:	01007663          	bgeu	zero,a6,14 <test_read_write_byte+0x8>
+   c:	0016                	c.slli	zero,0x5
+   e:	0000                	unimp
+  10:	0404                	addi	s1,sp,512
+  12:	7205                	lui	tp,0xfffe1
+  14:	3376                	.insn	2, 0x3376
+  16:	6532                	.insn	2, 0x6532
+  18:	7031                	c.lui	zero,0xfffec
+  1a:	5f39                	li	t5,-18
+  1c:	30703263          	.insn	4, 0x30703263
+	...

@@ -29,8 +29,11 @@ module test_soc_tb;
     reg spi_miso;
 
     // I2C interface signals
+    reg i2c_ena;
+    reg i2c_sda_in;
     wire i2c_sda_out;
     wire i2c_sda_oe;
+    reg i2c_scl_in;
     wire i2c_scl_out;
     wire i2c_scl_oe;
 
@@ -57,7 +60,9 @@ module test_soc_tb;
     assign gpio_io_out = uio_out[7:4];
 
     assign uio_in[3:0] = bus_io_in;
-    assign uio_in[7:4] = gpio_io_in;
+    assign uio_in[4] = i2c_ena ? i2c_sda_in : gpio_io_in[0];
+    assign uio_in[5] = i2c_ena ? i2c_scl_in : gpio_io_in[1];
+    assign uio_in[7:6] = gpio_io_in[3:2];
 
     assign pwm_out[0] = uo_out[7];
     assign pwm_out[1] = uio_out[7];
@@ -66,9 +71,11 @@ module test_soc_tb;
 
     // I2C signal assignments
     // I2C SDA is on uio[4], SCL is on uio[5]
-    assign i2c_sda_out = uio_out[4];
+    // SDA and SCL are open-drain, so if oe is high(output), the signal is low,
+    // and if oe is low (input), the signal is high-z
+    assign i2c_sda_out = uio_oe[4] ? 1'b0 : 1'b1;
     assign i2c_sda_oe  = uio_oe[4];
-    assign i2c_scl_out = uio_out[5];
+    assign i2c_scl_out = uio_oe[5] ? 1'b0 : 1'b1;
     assign i2c_scl_oe  = uio_oe[5];
 
     `ifndef FLASH_BASE_ADDR  
