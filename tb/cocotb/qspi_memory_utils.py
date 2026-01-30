@@ -46,6 +46,7 @@ def load_bin_file(bin_file_path):
             binary_data = f.read()
             # Copy binary data directly into memory starting at address 0x00000000
             memory[0:len(binary_data)] = binary_data
+        fill_start = len(binary_data)
         print(f"Loaded {len(binary_data)} bytes from {bin_file_path}")
     else:
         print(f"Warning: Binary file not found or not specified: {bin_file_path}")
@@ -56,7 +57,12 @@ def load_bin_file(bin_file_path):
             memory[i + 1] = (nop >> 8) & 0xFF
             memory[i + 2] = (nop >> 16) & 0xFF
             memory[i + 3] = (nop >> 24) & 0xFF
-    
+        fill_start = 16
+
+    # Fill the rest with random bytes to simulate uninitialized RAM
+    remaining = len(memory) - fill_start
+    memory[fill_start:] = os.urandom(remaining)
+
     return memory
 
 def read_word_from_memory(memory, addr):

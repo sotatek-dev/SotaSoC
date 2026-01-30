@@ -359,7 +359,7 @@ module soc #(
     assign uio_out[6] = ram_cs_n;
     assign uio_out[7] = i2c_ena ? i2c_sda_out :gpio_bidir_out[0];
 
-    assign uio_oe[1] = UIO_OE_OUT;
+    assign uio_oe[0] = UIO_OE_OUT;
     assign uio_oe[2:1] = bus_io_oe[1:0];
     assign uio_oe[3] = UIO_OE_OUT;
     assign uio_oe[5:4] = bus_io_oe[3:2];

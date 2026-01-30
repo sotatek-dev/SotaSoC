@@ -1,5 +1,5 @@
 
-build/spi.elf:     file format elf32-littleriscv
+build/spi-transfer.elf:     file format elf32-littleriscv
 
 
 Disassembly of section .text:
@@ -7,120 +7,184 @@ Disassembly of section .text:
 00000000 <_start>:
    0:	02000117          	auipc	sp,0x2000
    4:	00010113          	mv	sp,sp
-   8:	2011                	jal	c <main>
-   a:	a001                	j	a <_start+0xa>
+   8:	01000197          	auipc	gp,0x1000
+   c:	7f818193          	addi	gp,gp,2040 # 1000800 <__global_pointer$>
+  10:	01000737          	lui	a4,0x1000
+  14:	010006b7          	lui	a3,0x1000
+  18:	00070713          	mv	a4,a4
+  1c:	00068693          	mv	a3,a3
+  20:	00d77e63          	bgeu	a4,a3,3c <_start+0x3c>
+  24:	8e99                	sub	a3,a3,a4
+  26:	18000793          	li	a5,384
+  2a:	00f68633          	add	a2,a3,a5
+  2e:	4394                	lw	a3,0(a5)
+  30:	0791                	addi	a5,a5,4
+  32:	0711                	addi	a4,a4,4 # 1000004 <__bss_end+0x4>
+  34:	fed72e23          	sw	a3,-4(a4)
+  38:	fec79be3          	bne	a5,a2,2e <_start+0x2e>
+  3c:	010007b7          	lui	a5,0x1000
+  40:	01000737          	lui	a4,0x1000
+  44:	00078793          	mv	a5,a5
+  48:	00070713          	mv	a4,a4
+  4c:	00e7f763          	bgeu	a5,a4,5a <_start+0x5a>
+  50:	0007a023          	sw	zero,0(a5) # 1000000 <__bss_end>
+  54:	0791                	addi	a5,a5,4
+  56:	fef71de3          	bne	a4,a5,50 <_start+0x50>
+  5a:	2011                	jal	5e <main>
+  5c:	a001                	j	5c <_start+0x5c>
 
-0000000c <main>:
-   c:	400016b7          	lui	a3,0x40001
-  10:	4298                	lw	a4,0(a3)
-  12:	eec10113          	addi	sp,sp,-276 # 1fffeec <main+0x1fffee0>
-  16:	10112823          	sw	ra,272(sp)
-  1a:	01076713          	ori	a4,a4,16
-  1e:	c298                	sw	a4,0(a3)
-  20:	400017b7          	lui	a5,0x40001
-  24:	43d4                	lw	a3,4(a5)
-  26:	40005737          	lui	a4,0x40005
-  2a:	40005337          	lui	t1,0x40005
-  2e:	0106e693          	ori	a3,a3,16
-  32:	c3d4                	sw	a3,4(a5)
-  34:	468d                	li	a3,3
-  36:	cb14                	sw	a3,16(a4)
-  38:	43d0                	lw	a2,4(a5)
-  3a:	0034                	addi	a3,sp,8
-  3c:	40005737          	lui	a4,0x40005
-  40:	9a3d                	andi	a2,a2,-17
-  42:	40005537          	lui	a0,0x40005
-  46:	c3d0                	sw	a2,4(a5)
-  48:	85b6                	mv	a1,a3
-  4a:	4601                	li	a2,0
-  4c:	400050b7          	lui	ra,0x40005
-  50:	0321                	addi	t1,t1,8 # 40005008 <__stack_top+0x3e005008>
-  52:	4385                	li	t2,1
-  54:	0711                	addi	a4,a4,4 # 40005004 <__stack_top+0x3e005004>
-  56:	0531                	addi	a0,a0,12 # 4000500c <__stack_top+0x3e00500c>
-  58:	10000293          	li	t0,256
-  5c:	00c32023          	sw	a2,0(t1)
-  60:	0070a023          	sw	t2,0(ra) # 40005000 <__stack_top+0x3e005000>
-  64:	431c                	lw	a5,0(a4)
-  66:	8b89                	andi	a5,a5,2
-  68:	dff5                	beqz	a5,64 <main+0x58>
-  6a:	431c                	lw	a5,0(a4)
-  6c:	0585                	addi	a1,a1,1
-  6e:	0605                	addi	a2,a2,1
-  70:	c03e                	sw	a5,0(sp)
-  72:	4782                	lw	a5,0(sp)
-  74:	411c                	lw	a5,0(a0)
-  76:	fef58fa3          	sb	a5,-1(a1)
-  7a:	fe5611e3          	bne	a2,t0,5c <main+0x50>
-  7e:	400017b7          	lui	a5,0x40001
-  82:	43d0                	lw	a2,4(a5)
-  84:	400055b7          	lui	a1,0x40005
-  88:	40005737          	lui	a4,0x40005
-  8c:	01066613          	ori	a2,a2,16
-  90:	c3d0                	sw	a2,4(a5)
-  92:	43c8                	lw	a0,4(a5)
-  94:	40005637          	lui	a2,0x40005
-  98:	10068293          	addi	t0,a3,256 # 40001100 <__stack_top+0x3e001100>
-  9c:	993d                	andi	a0,a0,-17
-  9e:	c3c8                	sw	a0,4(a5)
-  a0:	40005337          	lui	t1,0x40005
-  a4:	05a1                	addi	a1,a1,8 # 40005008 <__stack_top+0x3e005008>
-  a6:	4505                	li	a0,1
-  a8:	0711                	addi	a4,a4,4 # 40005004 <__stack_top+0x3e005004>
-  aa:	0631                	addi	a2,a2,12 # 4000500c <__stack_top+0x3e00500c>
-  ac:	0006c783          	lbu	a5,0(a3)
-  b0:	c19c                	sw	a5,0(a1)
-  b2:	00a32023          	sw	a0,0(t1) # 40005000 <__stack_top+0x3e005000>
-  b6:	431c                	lw	a5,0(a4)
-  b8:	8b89                	andi	a5,a5,2
-  ba:	dff5                	beqz	a5,b6 <main+0xaa>
-  bc:	431c                	lw	a5,0(a4)
-  be:	0685                	addi	a3,a3,1
-  c0:	c23e                	sw	a5,4(sp)
-  c2:	4792                	lw	a5,4(sp)
-  c4:	421c                	lw	a5,0(a2)
-  c6:	fe5693e3          	bne	a3,t0,ac <main+0xa0>
-  ca:	400017b7          	lui	a5,0x40001
-  ce:	43d8                	lw	a4,4(a5)
-  d0:	01076713          	ori	a4,a4,16
-  d4:	c3d8                	sw	a4,4(a5)
-  d6:	0001                	nop
-  d8:	0001                	nop
-  da:	a001                	j	da <main+0xce>
+0000005e <main>:
+  5e:	1131                	addi	sp,sp,-20 # 1ffffec <__heap_limit+0xfec>
+  60:	c806                	sw	ra,16(sp)
+  62:	c622                	sw	s0,12(sp)
+  64:	c426                	sw	s1,8(sp)
+  66:	0840                	addi	s0,sp,20
+  68:	450d                	li	a0,3
+  6a:	fe242623          	sw	sp,-20(s0)
+  6e:	209d                	jal	d4 <spi_init>
+  70:	4585                	li	a1,1
+  72:	4509                	li	a0,2
+  74:	2861                	jal	10c <gpio_set_direction>
+  76:	4509                	li	a0,2
+  78:	20e1                	jal	140 <gpio_set_pin>
+  7a:	4509                	li	a0,2
+  7c:	7111                	addi	sp,sp,-256
+  7e:	fe242823          	sw	sp,-16(s0)
+  82:	4481                	li	s1,0
+  84:	28e9                	jal	15e <gpio_clear_pin>
+  86:	0ff4f513          	zext.b	a0,s1
+  8a:	28b1                	jal	e6 <spi_transfer_byte>
+  8c:	ff042783          	lw	a5,-16(s0)
+  90:	00978733          	add	a4,a5,s1
+  94:	00a70023          	sb	a0,0(a4) # 1000000 <__bss_end>
+  98:	0485                	addi	s1,s1,1
+  9a:	10000713          	li	a4,256
+  9e:	fee494e3          	bne	s1,a4,86 <main+0x28>
+  a2:	4509                	li	a0,2
+  a4:	2871                	jal	140 <gpio_set_pin>
+  a6:	4509                	li	a0,2
+  a8:	285d                	jal	15e <gpio_clear_pin>
+  aa:	ff042483          	lw	s1,-16(s0)
+  ae:	10048793          	addi	a5,s1,256
+  b2:	fef42823          	sw	a5,-16(s0)
+  b6:	0004c503          	lbu	a0,0(s1)
+  ba:	0485                	addi	s1,s1,1
+  bc:	202d                	jal	e6 <spi_transfer_byte>
+  be:	ff042783          	lw	a5,-16(s0)
+  c2:	fef49ae3          	bne	s1,a5,b6 <main+0x58>
+  c6:	4509                	li	a0,2
+  c8:	28a5                	jal	140 <gpio_set_pin>
+  ca:	fec42103          	lw	sp,-20(s0)
+  ce:	0001                	nop
+  d0:	0001                	nop
+  d2:	a001                	j	d2 <main+0x74>
+
+000000d4 <spi_init>:
+  d4:	400057b7          	lui	a5,0x40005
+  d8:	0ff57513          	zext.b	a0,a0
+  dc:	cb88                	sw	a0,16(a5)
+  de:	0001                	nop
+  e0:	0001                	nop
+  e2:	4501                	li	a0,0
+  e4:	8082                	ret
+
+000000e6 <spi_transfer_byte>:
+  e6:	400057b7          	lui	a5,0x40005
+  ea:	c788                	sw	a0,8(a5)
+  ec:	4685                	li	a3,1
+  ee:	400057b7          	lui	a5,0x40005
+  f2:	c394                	sw	a3,0(a5)
+  f4:	00478713          	addi	a4,a5,4 # 40005004 <__stack_top+0x3e005004>
+  f8:	431c                	lw	a5,0(a4)
+  fa:	8b89                	andi	a5,a5,2
+  fc:	dff5                	beqz	a5,f8 <spi_transfer_byte+0x12>
+  fe:	400057b7          	lui	a5,0x40005
+ 102:	4318                	lw	a4,0(a4)
+ 104:	47c8                	lw	a0,12(a5)
+ 106:	0ff57513          	zext.b	a0,a0
+ 10a:	8082                	ret
+
+0000010c <gpio_set_direction>:
+ 10c:	47fd                	li	a5,31
+ 10e:	02a7e763          	bltu	a5,a0,13c <gpio_set_direction+0x30>
+ 112:	4785                	li	a5,1
+ 114:	00a79533          	sll	a0,a5,a0
+ 118:	00f58b63          	beq	a1,a5,12e <gpio_set_direction+0x22>
+ 11c:	400017b7          	lui	a5,0x40001
+ 120:	4398                	lw	a4,0(a5)
+ 122:	fff54513          	not	a0,a0
+ 126:	8d79                	and	a0,a0,a4
+ 128:	c388                	sw	a0,0(a5)
+ 12a:	4501                	li	a0,0
+ 12c:	8082                	ret
+ 12e:	40001737          	lui	a4,0x40001
+ 132:	431c                	lw	a5,0(a4)
+ 134:	8fc9                	or	a5,a5,a0
+ 136:	c31c                	sw	a5,0(a4)
+ 138:	4501                	li	a0,0
+ 13a:	8082                	ret
+ 13c:	557d                	li	a0,-1
+ 13e:	8082                	ret
+
+00000140 <gpio_set_pin>:
+ 140:	47fd                	li	a5,31
+ 142:	00a7ec63          	bltu	a5,a0,15a <gpio_set_pin+0x1a>
+ 146:	40001737          	lui	a4,0x40001
+ 14a:	4354                	lw	a3,4(a4)
+ 14c:	4785                	li	a5,1
+ 14e:	00a797b3          	sll	a5,a5,a0
+ 152:	8fd5                	or	a5,a5,a3
+ 154:	c35c                	sw	a5,4(a4)
+ 156:	4501                	li	a0,0
+ 158:	8082                	ret
+ 15a:	557d                	li	a0,-1
+ 15c:	8082                	ret
+
+0000015e <gpio_clear_pin>:
+ 15e:	47fd                	li	a5,31
+ 160:	00a7ee63          	bltu	a5,a0,17c <gpio_clear_pin+0x1e>
+ 164:	40001737          	lui	a4,0x40001
+ 168:	4354                	lw	a3,4(a4)
+ 16a:	4785                	li	a5,1
+ 16c:	00a797b3          	sll	a5,a5,a0
+ 170:	fff7c793          	not	a5,a5
+ 174:	8ff5                	and	a5,a5,a3
+ 176:	c35c                	sw	a5,4(a4)
+ 178:	4501                	li	a0,0
+ 17a:	8082                	ret
+ 17c:	557d                	li	a0,-1
+ 17e:	8082                	ret
 
 Disassembly of section .comment:
 
 00000000 <.comment>:
    0:	3a434347          	.insn	4, 0x3a434347
    4:	2820                	.insn	2, 0x2820
-   6:	3331                	jal	fffffd12 <__stack_top+0xfdfffd12>
-   8:	322e                	.insn	2, 0x322e
-   a:	302e                	.insn	2, 0x302e
-   c:	312d                	jal	fffffc36 <__stack_top+0xfdfffc36>
-   e:	7531                	lui	a0,0xfffec
-  10:	7562                	.insn	2, 0x7562
-  12:	746e                	.insn	2, 0x746e
-  14:	3175                	jal	fffffcc0 <__stack_top+0xfdfffcc0>
-  16:	2932312b          	.insn	4, 0x2932312b
-  1a:	3120                	.insn	2, 0x3120
-  1c:	2e322e33          	.insn	4, 0x2e322e33
-  20:	0030                	addi	a2,sp,8
+   6:	31313567          	.insn	4, 0x31313567
+   a:	6335                	lui	t1,0xd
+   c:	34346537          	lui	a0,0x34346
+  10:	20296637          	lui	a2,0x20296
+  14:	3531                	jal	fffffe20 <__stack_top+0xfdfffe20>
+  16:	322e                	.insn	2, 0x322e
+  18:	302e                	.insn	2, 0x302e
+	...
 
 Disassembly of section .riscv.attributes:
 
 00000000 <.riscv.attributes>:
-   0:	2041                	jal	80 <main+0x74>
+   0:	2741                	jal	780 <__data_load_start+0x600>
    2:	0000                	unimp
    4:	7200                	.insn	2, 0x7200
    6:	7369                	lui	t1,0xffffa
-   8:	01007663          	bgeu	zero,a6,14 <main+0x8>
-   c:	0016                	c.slli	zero,0x5
+   8:	01007663          	bgeu	zero,a6,14 <_start+0x14>
+   c:	001d                	c.nop	7
    e:	0000                	unimp
   10:	0404                	addi	s1,sp,512
   12:	7205                	lui	tp,0xfffe1
   14:	3376                	.insn	2, 0x3376
   16:	6532                	.insn	2, 0x6532
-  18:	7031                	c.lui	zero,0xfffec
-  1a:	5f39                	li	t5,-18
+  18:	7032                	.insn	2, 0x7032
+  1a:	5f30                	lw	a2,120(a4)
   1c:	30703263          	.insn	4, 0x30703263
-	...
+  20:	7a5f 6163 7031      	.insn	6, 0x703161637a5f
+  26:	0030                	addi	a2,sp,8

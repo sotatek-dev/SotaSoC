@@ -567,7 +567,7 @@ async def test_i2c_read_write_1_byte(dut):
     )
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000040:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000092:
             registers = dut.soc_inst.cpu_core.register_file.registers
             
             assert int(dut.soc_inst.error_flag.value) == 0, "error_flag should be 0"
@@ -641,7 +641,7 @@ async def test_i2c_read_write_multiple_bytes(dut):
     )
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000040:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000092:
             registers = dut.soc_inst.cpu_core.register_file.registers
             
             assert int(dut.soc_inst.error_flag.value) == 0, "error_flag should be 0"
@@ -710,7 +710,7 @@ async def test_i2c_repeated_start(dut):
     )
 
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000174:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x000001CC:
             registers = dut.soc_inst.cpu_core.register_file.registers
             
             assert int(dut.soc_inst.error_flag.value) == 0, "error_flag should be 0"

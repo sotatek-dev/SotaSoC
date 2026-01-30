@@ -316,25 +316,25 @@ async def test_spi_reset_values(dut):
 
 @cocotb.test()
 async def test_spi_tx(dut):
-    """Test SPI TX transfer with GPIO[4] as CS control"""
+    """Test SPI TX transfer with GPIO[2] as CS control"""
     
     hex_memory = {
         0x00000000: NOP_INSTR,
-        # Setup GPIO[4] for CS control
+        # Setup GPIO[2] for CS control
         0x00000004: encode_lui(11, (GPIO_BASE_ADDR >> 12) & 0xFFFFF),      # LUI x11, GPIO base upper
         0x00000008: encode_addi(11, 11, GPIO_BASE_ADDR & 0xFFF),           # ADDI x11, x11, GPIO base lower
-        # Set CS high initially (GPIO_OUT[4] = 1, CS inactive)
-        0x0000000C: encode_addi(12, 0, 0x10),                              # ADDI x12, x0, 0x10 (bit 4 = 1)
-        0x00000010: encode_store(11, 12, GPIO_OUT & 0xFFF),                # SW x12, 0x04(x11) - set GPIO_OUT[4] = 1 (CS high)
+        # Set CS high initially (GPIO_OUT[2] = 1, CS inactive)
+        0x0000000C: encode_addi(12, 0, 0x04),                              # ADDI x12, x0, 0x04 (bit 2 = 1)
+        0x00000010: encode_store(11, 12, GPIO_OUT & 0xFFF),                # SW x12, 0x04(x11) - set GPIO_OUT[2] = 1 (CS high)
         # Setup SPI
         0x00000014: encode_lui(1, (SPI_BASE_ADDR >> 12) & 0xFFFFF),        # LUI x1, SPI base upper
         0x00000018: encode_addi(1, 1, SPI_BASE_ADDR & 0xFFF),              # ADDI x1, x1, SPI base lower
         # Set CONFIG to a specific value
         0x0000001C: encode_addi(2, 0, SPI_DIV_2MHZ | SPI_MODE0),           # ADDI x2, x0, config value
         0x00000020: encode_store(1, 2, SPI_CONFIG & 0xFFF),                # SW x2, 0x10(x1) - write CONFIG
-        # Set CS low (GPIO_OUT[4] = 0, CS active)
-        0x00000024: encode_addi(12, 0, 0x00),                              # ADDI x12, x0, 0x00 (clear bit 4)
-        0x00000028: encode_store(11, 12, GPIO_OUT & 0xFFF),                # SW x12, 0x04(x11) - set GPIO_OUT[4] = 0 (CS low)
+        # Set CS low (GPIO_OUT[2] = 0, CS active)
+        0x00000024: encode_addi(12, 0, 0x00),                              # ADDI x12, x0, 0x00 (clear bit 2)
+        0x00000028: encode_store(11, 12, GPIO_OUT & 0xFFF),                # SW x12, 0x04(x11) - set GPIO_OUT[2] = 0 (CS low)
         # Write TX_DATA and START
         0x0000002C: encode_addi(5, 0, 0xAA),                               # ADDI x5, x0, 0xAA
         0x00000030: encode_store(1, 5, SPI_TX_DATA & 0xFFF),               # SW x5, 0x08(x1) - write TX_DATA
@@ -346,9 +346,9 @@ async def test_spi_tx(dut):
         0x00000040: encode_andi(9, 9, SPI_STATUS_DONE),                    # ANDI x9, x9, SPI_STATUS_DONE bit
         0x00000044: encode_addi(10, 0, SPI_STATUS_DONE),                   # ADDI x10, x0, SPI_STATUS_DONE
         0x00000048: encode_bne(9, 10, -12),                                # BNE x9, x10, -12 (branch back to 0x0000003C if not DONE)
-        # Set CS high (GPIO_OUT[4] = 1, CS inactive)
-        0x0000004C: encode_addi(12, 0, 0x10),                              # ADDI x12, x0, 0x10 (bit 4 = 1)
-        0x00000050: encode_store(11, 12, GPIO_OUT & 0xFFF),                # SW x12, 0x04(x11) - set GPIO_OUT[4] = 1 (CS high)
+        # Set CS high (GPIO_OUT[2] = 1, CS inactive)
+        0x0000004C: encode_addi(12, 0, 0x04),                              # ADDI x12, x0, 0x04 (bit 2 = 1)
+        0x00000050: encode_store(11, 12, GPIO_OUT & 0xFFF),                # SW x12, 0x04(x11) - set GPIO_OUT[2] = 1 (CS high)
         0x00000054: encode_load(13, 1, SPI_RX_DATA & 0xFFF),               # LW x13, 0x0C(x1) - read RX_DATA
         0x00000058: NOP_INSTR,
         0x0000005C: NOP_INSTR,
@@ -388,7 +388,7 @@ async def test_spi_tx(dut):
 
 
 async def test_spi_master(dut, length, end_pc):
-    """Test SPI TX transfer with GPIO[4] as CS control"""
+    """Test SPI TX transfer with GPIO[2] as CS control"""
 
     # Get the bin file path from environment variable 
     # The makefile passes this via PLUSARGS which cocotb makes available as environment variable
@@ -451,13 +451,13 @@ async def test_spi_master(dut, length, end_pc):
 
 @cocotb.test()
 async def test_spi_master1(dut):
-    """Test SPI TX transfer with GPIO[4] as CS control"""
+    """Test SPI transfer"""
 
-    await test_spi_master(dut, 256, 0xDA)
+    await test_spi_master(dut, 256, 0xD2)
 
 
 @cocotb.test()
 async def test_spi_master2(dut):
-    """Test SPI TX transfer with GPIO[4] as CS control"""
+    """Test SPI transfer"""
 
-    await test_spi_master(dut, 32, 0xDC)
+    await test_spi_master(dut, 32, 0xCE)

@@ -17,7 +17,7 @@ module test_soc_tb;
     wire [3:0] bus_io_out;
     wire [0:0] gpio_io_out;
 
-    reg uart0_rx;
+    reg uart0_rx = 0;
     reg [5:0] gpio_in;
     reg [0:0] gpio_io_in;
 
@@ -26,11 +26,11 @@ module test_soc_tb;
     wire spi_cs_n;
     wire spi_sclk;
     wire spi_mosi;
-    reg spi_miso;
+    reg spi_miso = 0;
 
     // I2C interface signals
     reg i2c_ena = 0;
-    reg i2c_sda_in;
+    reg i2c_sda_in = 0;
     wire i2c_sda_out;
     wire i2c_scl_out;
 
@@ -50,8 +50,7 @@ module test_soc_tb;
     assign spi_cs_n = uo_out[3];
     assign spi_sclk = uo_out[4];
     assign spi_mosi = uo_out[5];
-    assign pwm_out[0] = uo_out[6];
-    assign pwm_out[1] = uo_out[7:5];
+    assign pwm_out[1:0] = uo_out[7:6];
     assign gpio_out = uo_out[7:2];
 
     assign flash_cs_n = uio_out[0];
