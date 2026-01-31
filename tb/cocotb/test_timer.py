@@ -1,12 +1,16 @@
 import cocotb
 from test_utils import (
     NOP_INSTR,
+    MRET_INSTR,
     encode_load,
     encode_store,
     encode_addi,
     encode_lui,
     encode_jal,
     encode_csrrw,
+    CSR_MSTATUS,
+    CSR_MIE,
+    CSR_MTVEC,
     TIMER_BASE_ADDR,
     TIMER_MTIME_LO,
     TIMER_MTIME_HI,
@@ -17,15 +21,6 @@ from qspi_memory_utils import (
     test_spi_memory,
     convert_hex_memory_to_byte_memory,
 )
-
-
-# CSR addresses
-CSR_MSTATUS = 0x300
-CSR_MIE = 0x304
-CSR_MTVEC = 0x305
-
-# Instruction encodings
-MRET_INSTR = 0x30200073   # MRET: opcode=0x73, funct3=0, imm12=0x302
 
 
 @cocotb.test()

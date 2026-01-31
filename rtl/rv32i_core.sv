@@ -33,9 +33,10 @@ module rv32i_core #(
     output wire [47:0] o_mtime,
 
     // Interrupt interface
-    input wire i_timer_interrupt,       // Machine timer interrupt (MTIP)
+    input wire i_timer_interrupt,      // Machine timer interrupt (MTIP)
+    input wire i_external_interrupt,   // Machine external interrupt (MEIP)
 
-    output wire o_error_flag            // Error flag
+    output wire o_error_flag           // Error flag
 );
 
     localparam INSTR_NOP = 32'h00000013;
@@ -43,6 +44,7 @@ module rv32i_core #(
     localparam MASK_MCAUSE = 32'h8000000F;
     localparam MASK_ADDR = 32'h00FFFFFF;
     localparam INT_CAUSE_TIMER = 32'h80000007;
+    localparam INT_CAUSE_EXTERNAL = 32'h8000000B;
 
     // RISC-V Opcodes
     localparam OPCODE_R        = 7'b0110011;  // R-type: ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND
@@ -162,6 +164,7 @@ module rv32i_core #(
     wire int_enabled;
     wire int_is_interrupt;  // Interrupt detected in IF/ID stage
     wire [31:0] int_pc_next;
+    wire [31:0] int_cause;
 
     // Instruction decoding
     assign if_opcode = if_instr[6:0];
@@ -257,6 +260,7 @@ module rv32i_core #(
         .mret_trigger(mret_trigger),
         .mepc_out(mepc),
         .timer_interrupt(i_timer_interrupt),
+        .external_interrupt(i_external_interrupt),
         .mip_out(csr_mip),
         .mie_out(csr_mie),
         .mstatus_out(csr_mstatus)
@@ -271,11 +275,15 @@ module rv32i_core #(
     // 5. We're not in the middle of handling an exception or interrupt
 
     // Check for timer interrupt (MTIP = bit 7 of mip, MTIE = bit 7 of mie)
-    wire int_timer_pending = csr_mip[7] && csr_mie[7];  // MIE bit
+    wire int_timer_pending = csr_mip[7] && csr_mie[7];
+    // Check for external interrupt (MEIP = bit 11 of mip, MEIE = bit 11 of mie)
+    wire int_external_pending = csr_mip[11] && csr_mie[11];
 
     // Interrupt is pending if any enabled interrupt is pending
-    assign int_pending = int_timer_pending;
+    assign int_pending = int_timer_pending || int_external_pending;
     assign int_enabled = csr_mstatus[3];  // MIE bit
+
+    assign int_cause = (int_timer_pending ? INT_CAUSE_TIMER : INT_CAUSE_EXTERNAL) & MASK_MCAUSE;
 
     // Only handle interrupt when there is no memory stall, exception, or interrupt is already being handled
     // Also make sure to handle interrupt only if if_pc is a valid address,
@@ -483,7 +491,7 @@ module rv32i_core #(
                                   32'd0;
 
     assign exception_trigger = ex_is_exception || id_int_is_interrupt;
-    assign exception_cause = (ex_is_exception ? ex_exception_cause : INT_CAUSE_TIMER) & MASK_MCAUSE;
+    assign exception_cause = (ex_is_exception ? ex_exception_cause : int_cause) & MASK_MCAUSE;
     assign exception_pc = ex_is_exception ? ex_exception_pc : int_pc_next;
     assign exception_value = ex_is_exception ? ex_exception_value : 32'd0;
     assign mret_trigger = ex_is_mret;

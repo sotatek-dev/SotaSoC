@@ -1,5 +1,6 @@
 import cocotb
 from test_utils import (
+    MRET_INSTR,
     NOP_INSTR,
     encode_csrrw,
 )
@@ -18,7 +19,6 @@ CSR_MTVAL = 0x343
 
 # Instruction encodings
 ECALL_INSTR = 0x00000073  # ECALL: opcode=0x73, funct3=0, imm12=0
-MRET_INSTR = 0x30200073   # MRET: opcode=0x73, funct3=0, imm12=0x302
 
 
 @cocotb.test()

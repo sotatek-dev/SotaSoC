@@ -102,11 +102,14 @@ module soc #(
     wire mem_instr_ready;
     wire mem_data_ready;
 
+    wire external_interrupt;
+
     // Timer connections
     wire timer_interrupt;
     wire [31:0] timer_mem_rdata;
 
     // GPIO connections
+    wire gpio_interrupt;
     wire [31:0] gpio_mem_rdata;
 
     // PWM connections
@@ -121,6 +124,8 @@ module soc #(
     // SPI connections
     wire [31:0] spi_mem_rdata;
     // ============ Internal wires ============
+
+    assign external_interrupt = gpio_interrupt;
 
     // RV32I Core instantiation
     rv32i_core #(
@@ -148,6 +153,8 @@ module soc #(
 
         // Timer interrupt
         .i_timer_interrupt(timer_interrupt),
+        // External interrupt
+        .i_external_interrupt(external_interrupt),
 
         // Error flag
         .o_error_flag(error_flag)
@@ -251,7 +258,8 @@ module soc #(
         .gpio_bidir_out(gpio_bidir_out),
         .gpio_bidir_oe(gpio_bidir_oe),
         .gpio_out(gpio_out),
-        .gpio_in(gpio_in)
+        .gpio_in(gpio_in),
+        .gpio_interrupt(gpio_interrupt)
     );
 
     // Timer module
