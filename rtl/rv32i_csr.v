@@ -31,7 +31,8 @@ module rv32i_csr (
     output wire [31:0] mip_out,         // Current mip value
 
     // Interrupt interface
-    input wire timer_interrupt          // Machine timer interrupt (MTIP)
+    input wire timer_interrupt,         // Machine timer interrupt (MTIP)
+    input wire external_interrupt       // Machine external interrupt (MEIP)
 );
 
     localparam MASK_ADDR = 32'h00FFFFFF;
@@ -48,12 +49,13 @@ module rv32i_csr (
     reg [31:0] mcause;       // 0x342 - Machine trap cause
     reg [31:0] mtval;        // 0x343 - Machine trap value
     reg mip_tip;             // 0x344 - Timer interrupt pending
+    reg mip_eip;             // 0x344 - External interrupt pending (MEIP)
     // Note: medeleg (0x302), mideleg (0x303), satp (0x180), pmpcfg0 (0x3a0), pmpaddr0 (0x3b0),
     // mvendorid (0xf11), marchid (0xf12), mimpid (0xf13), mhartid (0xf14)
     // are writable but always return 0 when read
 
-    // mip[7] = timer interrupt pending (MTIP)
-    wire [31:0] mip = {24'h0, mip_tip, 7'h0};
+    // mip[7] = MTIP, mip[11] = MEIP
+    wire [31:0] mip = {20'h0, mip_eip, 3'b0, mip_tip, 7'h0};
 
     assign mstatus_out = mstatus;
     assign mie_out = mie & MASK_MIE;
@@ -122,10 +124,12 @@ module rv32i_csr (
             mcause <= 32'd0;
             mtval <= 32'd0;
             mip_tip <= 1'b0;
+            mip_eip <= 1'b0;
             `DEBUG_PRINT(("Time %0t: CSR - CSR file reset", $time));
         end else begin
 
             mip_tip <= timer_interrupt;
+            mip_eip <= external_interrupt;
 
             // Handle exceptions (takes priority over CSR writes)
             if (exception_trigger) begin

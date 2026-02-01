@@ -18,8 +18,8 @@ module test_soc_tb;
     wire [0:0] gpio_io_out;
 
     reg uart0_rx = 0;
-    reg [5:0] gpio_in;
-    reg [0:0] gpio_io_in;
+    reg [5:0] gpio_in = 0;
+    reg [0:0] gpio_io_in = 0;
 
     wire [1:0] pwm_out;
 

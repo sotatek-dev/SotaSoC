@@ -7,6 +7,7 @@ CLK_HZ = 62_500_000
 CYCLES_PER_INSTRUCTION = 8
 MEMORY_CYCLES = 7
 NOP_INSTR = 0x00000013
+MRET_INSTR = 0x30200073
 
 # Memory base addresses
 FLASH_BASE_ADDR = 0x00000000
@@ -18,9 +19,20 @@ TIMER_BASE_ADDR = 0x40002000
 PWM_BASE_ADDR   = 0x40003000
 
 # GPIO register offsets
-GPIO_DIR = GPIO_BASE_ADDR + 0x00  # Direction register (bidirectional pins)
-GPIO_OUT = GPIO_BASE_ADDR + 0x04  # Output data register
-GPIO_IN  = GPIO_BASE_ADDR + 0x08  # Input data register (read-only)
+GPIO_DIR      = GPIO_BASE_ADDR + 0x00  # Direction register (bidirectional pins)
+GPIO_OUT      = GPIO_BASE_ADDR + 0x04  # Output data register
+GPIO_IN       = GPIO_BASE_ADDR + 0x08  # Input data register (read-only)
+GPIO_INT_EN   = GPIO_BASE_ADDR + 0x0C  # Interrupt enable (rising edge per pin)
+GPIO_INT_PEND = GPIO_BASE_ADDR + 0x14  # Interrupt pending (read-only)
+GPIO_INT_CLR  = GPIO_BASE_ADDR + 0x18  # Interrupt clear (write 1 to clear)
+
+# CSR addresses (for interrupt tests)
+CSR_MSTATUS = 0x300
+CSR_MIE     = 0x304
+CSR_MTVEC   = 0x305
+CSR_MEPC    = 0x341
+CSR_MCAUSE  = 0x342
+CSR_MIP     = 0x344
 
 # Timer register offsets
 TIMER_MTIME_LO    = TIMER_BASE_ADDR + 0x00

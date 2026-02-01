@@ -33,6 +33,8 @@ module mtime_timer #(
     // Timer registers
     reg [47:0] mtimecmp;   // Machine time compare register
 
+    reg timer_interrupt_reg;
+
     // Address offsets (3-bit for 8-byte region)
     localparam [3:0] ADDR_MTIME_LO     = 4'h0;  // mtime at base + 0x0
     localparam [3:0] ADDR_MTIME_HI     = 4'h4;  // mtime at base + 0x4
@@ -44,7 +46,14 @@ module mtime_timer #(
     // Calculate offset from base address (only lower 3 bits needed)
     wire [3:0] addr_offset = mem_addr[3:0];
 
-    assign timer_interrupt = (mtime >= mtimecmp);
+    assign timer_interrupt = timer_interrupt_reg;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            timer_interrupt_reg <= 1'b0;
+        else
+            timer_interrupt_reg <= (mtime >= mtimecmp);
+    end
 
     wire [31:0] timer_mem_rdata = (addr_offset == ADDR_MTIME_LO) ? mtime[31:0] :
                             (addr_offset == ADDR_MTIME_HI) ? {16'h0, mtime[47:32]} :
