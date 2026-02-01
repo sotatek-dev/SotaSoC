@@ -71,12 +71,16 @@ module gpio #(
     reg [NUM_IN_TOTAL-1:0] int_en_reg;
     reg [NUM_IN_TOTAL-1:0] int_pend_reg;
 
+    reg gpio_interrupt_reg;
+
     // Output assignments
     assign gpio_bidir_out = out_reg[NUM_BIDIR-1:0];
     assign gpio_bidir_oe  = dir_reg;
     assign gpio_out       = out_reg[NUM_OUT_TOTAL-1:NUM_BIDIR];
 
     wire [NUM_IN_TOTAL-1:0] in_data = {gpio_in, gpio_bidir_in};
+
+    assign gpio_interrupt = gpio_interrupt_reg;
 
     // Synchronize input (avoid metastability)
     reg [NUM_IN_TOTAL-1:0] gpio_sync1, gpio_sync2;
@@ -114,7 +118,12 @@ module gpio #(
         end
     end
 
-    assign gpio_interrupt = |(int_en_reg & int_pend_reg);
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            gpio_interrupt_reg <= 1'b0;
+        else
+            gpio_interrupt_reg <= |(int_en_reg & int_pend_reg);
+    end
 
     // Read logic
     wire [31:0] gpio_mem_rdata =
