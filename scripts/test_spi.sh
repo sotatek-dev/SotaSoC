@@ -46,5 +46,11 @@ run_test() {
     fi
 }
 
-run_test "tb/cocotb/test_spi_master.mk" "test_spi_master1" "tb/spi-tests/spi1.bin"
-run_test "tb/cocotb/test_spi_master.mk" "test_spi_master2" "tb/spi-tests/spi2.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_multiple_bytes_mode0" "tb/spi-tests/spi-transfer.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_multiple_bytes_mode1" "tb/spi-tests/spi-transfer.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_multiple_bytes_mode2" "tb/spi-tests/spi-transfer.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_multiple_bytes_mode3" "tb/spi-tests/spi-transfer.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_single_byte_mode0" "tb/spi-tests/spi-transfer.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_single_byte_mode1" "tb/spi-tests/spi-transfer.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_single_byte_mode2" "tb/spi-tests/spi-transfer.bin"
+run_test "tb/cocotb/test_spi_master.mk" "test_transfer_single_byte_mode3" "tb/spi-tests/spi-transfer.bin"

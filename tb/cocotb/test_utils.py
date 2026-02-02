@@ -78,11 +78,15 @@ I2C_PRESCALE_400KHZ = 39   # 64MHz / (4 * 40) = 400kHz
 
 # SPI base address and register offsets
 SPI_BASE_ADDR   = 0x40005000
-SPI_CTRL        = SPI_BASE_ADDR + 0x00
-SPI_STATUS      = SPI_BASE_ADDR + 0x04
-SPI_TX_DATA     = SPI_BASE_ADDR + 0x08
-SPI_RX_DATA     = SPI_BASE_ADDR + 0x0C
-SPI_CONFIG      = SPI_BASE_ADDR + 0x10
+SPI_EN          = SPI_BASE_ADDR + 0x00
+SPI_CTRL        = SPI_BASE_ADDR + 0x04
+SPI_STATUS      = SPI_BASE_ADDR + 0x08
+SPI_TX_DATA     = SPI_BASE_ADDR + 0x0C
+SPI_RX_DATA     = SPI_BASE_ADDR + 0x10
+SPI_CONFIG      = SPI_BASE_ADDR + 0x14
+
+# SPI Enable register bits
+SPI_EN_BIT      = 0x01  # bit 0: Module enable (1=enabled, 0=disabled)
 
 # SPI Control register bits
 SPI_CTRL_START  = 0x01  # bit 0: Start transfer

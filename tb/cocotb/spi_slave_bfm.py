@@ -2,13 +2,14 @@
 SPI Slave Bus Functional Model (BFM)
 
 This BFM simulates an SPI slave device to test the SPI master peripheral.
-Supports SPI Mode 0 only (CPOL=0, CPHA=0).
+Supports all four SPI modes via CPOL and CPHA.
 
-Mode 0 Protocol:
-- Clock idle state: LOW (CPOL=0)
-- Data sampling: Rising edge (CPHA=0)
-- Data change: Falling edge (CPHA=0)
-- MSB first
+SPI modes (CPOL, CPHA):
+- Mode 0 (0,0): SCLK idle low;  sample on rising,  change on falling; MSB out before first edge
+- Mode 1 (0,1): SCLK idle low;  sample on falling, change on rising; MSB out at first edge
+- Mode 2 (1,0): SCLK idle high; sample on falling, change on rising; MSB out before first edge
+- Mode 3 (1,1): SCLK idle high; sample on rising,  change on falling; MSB out at first edge
+MSB first for all modes.
 """
 
 import cocotb
@@ -45,15 +46,15 @@ class SPISlaveBFM:
     
     Simulates an SPI slave device that:
     - Monitors CS (chip select) or enable signal
-    - Samples MOSI on rising clock edge (Mode 0)
-    - Drives MISO on falling clock edge (Mode 0)
+    - Samples MOSI and drives MISO on edges determined by CPOL/CPHA
     - Captures received data from MOSI
     - Transmits configured data on MISO
     
+    Supports all four SPI modes via cpol and cpha (default Mode 0: cpol=0, cpha=0).
     This BFM only requires SPI signals, making it reusable across different testbenches.
     """
     
-    def __init__(self, clk, cs_n, sclk, mosi, miso):
+    def __init__(self, clk, cs_n, sclk, mosi, miso, cpol=0, cpha=0):
         """
         Initialize SPI Slave BFM
         
@@ -63,12 +64,16 @@ class SPISlaveBFM:
             sclk: SPI clock signal
             mosi: Master Out Slave In (data from master)
             miso: Master In Slave Out (data to master, driven by BFM)
+            cpol: Clock polarity (0=idle low, 1=idle high). Default 0 (Mode 0/1).
+            cpha: Clock phase (0=sample first/change second, 1=change first/sample second). Default 0 (Mode 0/2).
         """
         self.clk = clk
         self.cs_n = cs_n
         self.sclk = sclk
         self.mosi = mosi
         self.miso = miso
+        self.cpol = int(cpol) & 1
+        self.cpha = int(cpha) & 1
         
         # State
         self.rx_buffer = []  # Received data from MOSI
@@ -77,7 +82,8 @@ class SPISlaveBFM:
         self.current_tx_byte = 0xFF  # Default: send 0xFF if no data configured
         
         # Transfer state
-        self.bit_count = 0
+        self.tx_bit_count = 0   # TX: bits already put on MISO
+        self.rx_bit_count = 0   # RX: bits sampled from MOSI
         self.rx_byte = 0
         self.tx_byte = 0xFF
         self.tx_byte_index = 0
@@ -85,6 +91,17 @@ class SPISlaveBFM:
         # Previous values for edge detection
         self.prev_sclk = 0
         self.prev_cs_n = 0
+    
+    def set_mode(self, cpol, cpha):
+        """
+        Set SPI mode (CPOL, CPHA). Takes effect on next transfer.
+        
+        Args:
+            cpol: 0 = SCLK idle low, 1 = SCLK idle high
+            cpha: 0 = sample first edge / change second; 1 = change first / sample second
+        """
+        self.cpol = int(cpol) & 1
+        self.cpha = int(cpha) & 1
     
     def set_tx_data(self, data_list):
         """
@@ -149,62 +166,63 @@ class SPISlaveBFM:
                 # print(f"SPI_MASTER: Transfer starting")
                 # Transfer starting
                 self.rx_byte = 0
-                
-                # Mode 0: Data must be valid before first clock edge
-                # Output MSB on MISO before first rising edge
-                miso_bit = (self.tx_byte >> 7) & 1
-                self.miso.value = miso_bit
-                self.bit_count = 1
-            
+                self.rx_bit_count = 0
+                # CPHA=0: data must be valid before first edge -> output MSB now
+                # CPHA=1: data changes at first edge -> output on first change_edge
+                if self.cpha == 0:
+                    miso_bit = (self.tx_byte >> 7) & 1
+                    self.miso.value = miso_bit
+                    self.tx_bit_count = 1
+                else:
+                    self.miso.value = 0
+                    self.tx_bit_count = 0
+
             # Detect SPI disable/CS inactive (transfer end)
             elif current_cs_n == 1 and self.prev_cs_n == 0:
-                # print(f"SPI_MASTER: Transfer ending bit_count={self.bit_count}")
+                # print(f"SPI_MASTER: Transfer ending tx_bit_count={self.tx_bit_count}")
                 # Transfer ending
                 # Master completes transfer after 8 bits (bit_counter == 8)
                 # At this point, we should have received 8 bits
-                if self.bit_count >= 8:
+                if self.rx_bit_count >= 8:
                     # Complete byte received
                     self.rx_buffer.append(self.rx_byte)
-                
+
                 # Reset for next transfer
-                self.bit_count = 0
+                self.tx_bit_count = 0
+                self.rx_bit_count = 0
                 self.rx_byte = 0
                 self.miso.value = 0
-            
+
             # During active transfer
             elif current_cs_n == 0:
-                # print(f"SPI_MASTER: Transfer active bit_count={self.bit_count} current_sclk={current_sclk}, prev_sclk={self.prev_sclk}, rx_byte={self.rx_byte}")
-                # Detect clock rising edge (sample MOSI)
-                if current_sclk == 1 and self.prev_sclk == 0:
-                    # Rising edge: Sample MOSI (RX)
-                    # Master samples MISO on rising edge, so we sample MOSI here
+                # print(f"SPI_MASTER: Transfer active tx_bit_count={self.tx_bit_count} current_sclk={current_sclk}, prev_sclk={self.prev_sclk}, rx_byte={self.rx_byte}")
+                rising = current_sclk == 1 and self.prev_sclk == 0
+                falling = current_sclk == 0 and self.prev_sclk == 1
+                first_edge = rising if self.cpol == 0 else falling
+                second_edge = falling if self.cpol == 0 else rising
+                sample_edge = first_edge if self.cpha == 0 else second_edge
+                change_edge = second_edge if self.cpha == 0 else first_edge
+
+                if sample_edge:
+                    # Sample MOSI (RX)
                     mosi_bit = safe_int(self.mosi.value) & 1
                     self.rx_byte = (self.rx_byte << 1) | mosi_bit
-                    # Note: bit_count is incremented after falling edge in master
-                    if self.bit_count == 8:
-                        # Byte complete - this shouldn't happen on falling edge
-                        # as transfer should end when cs_n goes high
+                    self.rx_bit_count += 1
+                    if self.rx_bit_count == 8:
                         self.rx_buffer.append(self.rx_byte)
-                        self.bit_count = 0
                         self.rx_byte = 0
+                        self.rx_bit_count = 0
 
                         self.get_next_tx_byte()
+                        self.tx_bit_count = 0
 
-                # Detect clock falling edge (change MISO)
-                elif current_sclk == 0 and self.prev_sclk == 1:
-                    # Falling edge: Change MISO (TX)
-                    # Master changes MOSI on falling edge, so we change MISO here
-                    if self.bit_count < 8:
-                        # Output next bit (MSB first)
-                        # bit_count represents bits already transferred
-                        bit_index = 7 - self.bit_count
+                if change_edge:
+                    # Change MISO (TX): output next bit (MSB first)
+                    if self.tx_bit_count < 8:
+                        bit_index = 7 - self.tx_bit_count
                         miso_bit = (self.tx_byte >> bit_index) & 1
                         self.miso.value = miso_bit
-                        self.bit_count += 1
-                    elif self.bit_count == 8:
-                        # Byte complete - this shouldn't happen on falling edge
-                        # as transfer should end when cs_n goes high
-                        pass
+                        self.tx_bit_count += 1
             
             # Update previous values
             self.prev_sclk = current_sclk
@@ -270,7 +288,7 @@ class SPISlaveBFM:
 # Helper Functions
 # =============================================================================
 
-def start_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data=None):
+def start_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data=None, cpol=0, cpha=0):
     """
     Create and start an SPI Slave BFM (non-async version)
     
@@ -285,11 +303,13 @@ def start_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data=None):
         mosi: Master Out Slave In signal
         miso: Master In Slave Out signal (driven by BFM)
         tx_data: Optional list of bytes to transmit on MISO
+        cpol: Clock polarity (0=idle low, 1=idle high). Default 0 (Mode 0/1).
+        cpha: Clock phase (0=sample first/change second, 1=change first/sample second). Default 0 (Mode 0/2).
     
     Returns:
         SPISlaveBFM instance (already running in background)
     """
-    bfm = SPISlaveBFM(clk, cs_n, sclk, mosi, miso)
+    bfm = SPISlaveBFM(clk, cs_n, sclk, mosi, miso, cpol=cpol, cpha=cpha)
     
     if tx_data is not None:
         bfm.set_tx_data(tx_data)
@@ -300,7 +320,7 @@ def start_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data=None):
     return bfm
 
 
-async def create_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data=None):
+async def create_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data=None, cpol=0, cpha=0):
     """
     Create and start an SPI Slave BFM (async version)
     
@@ -314,8 +334,10 @@ async def create_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data=None):
         mosi: Master Out Slave In signal
         miso: Master In Slave Out signal (driven by BFM)
         tx_data: Optional list of bytes to transmit on MISO
+        cpol: Clock polarity (0=idle low, 1=idle high). Default 0 (Mode 0/1).
+        cpha: Clock phase (0=sample first/change second, 1=change first/sample second). Default 0 (Mode 0/2).
     
     Returns:
         SPISlaveBFM instance (already running in background)
     """
-    return start_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data)
+    return start_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data, cpol, cpha)
