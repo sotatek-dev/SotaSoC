@@ -18,6 +18,7 @@ from test_utils import (
     SPI_CONFIG,
     SPI_EN_BIT,
     SPI_CTRL_START,
+    SPI_CTRL_LEN,
     SPI_STATUS_BUSY,
     SPI_STATUS_DONE,
     SPI_CONFIG_DIV_MASK,
@@ -180,7 +181,7 @@ async def test_spi_tx_data_write_only(dut):
         0x00000010: encode_addi(3, 0, 0xAA),                       # ADDI x3, x0, 0xAA
         0x00000014: encode_store(1, 3, 0),                         # SW x3, 0(x1) - write TX_DATA
         0x00000018: encode_load(4, 1, 0),                          # LW x4, 0(x1) - read TX_DATA again (should return 0)
-        0x0000001C: encode_addi(5, 0, 0x55),                       # ADDI x5, x0, 0x55
+        0x0000001C: encode_addi(5, 0, 0x0155),                       # ADDI x5, x0, 0x55
         0x00000020: encode_store(1, 5, 0),                         # SW x5, 0(x1) - write TX_DATA again
         0x00000024: encode_load(6, 1, 0),                          # LW x6, 0(x1) - read TX_DATA (should return 0)
         0x00000028: NOP_INSTR,
@@ -211,7 +212,7 @@ async def test_spi_tx_data_write_only(dut):
             assert tx_data_read_3 == 0, \
                 f"TX_DATA read should return 0 after second write, got 0x{tx_data_read_3:08x}"
 
-            assert tx_data == 0x55, f"TX_DATA should be 0x55, got 0x{tx_data:08x}"
+            assert tx_data == 0x5501, f"TX_DATA should be 0x5501, got 0x{tx_data:08x}"
             
             return True
         return False
@@ -429,6 +430,7 @@ async def test_spi_transfer(dut, test_id, length, cpol=0, cpha=0):
     tx_data = []
     for i in range(length):
         tx_data.append(random.randrange(0, length))
+        # tx_data.append(i)
 
 
     bfm = start_spi_slave_bfm(clk, cs_n, sclk, mosi, miso, tx_data, cpol, cpha)
@@ -509,3 +511,34 @@ async def test_transfer_single_byte_mode3(dut):
     """Test SPI transfer single byte with mode 3"""
 
     await test_spi_transfer(dut, 7, 32, cpol=1, cpha=1)
+
+@cocotb.test()
+async def test_transfer_single_word_mode0(dut):
+    """Test SPI transfer single word with mode 0"""
+
+    await test_spi_transfer(dut, 8, 32, cpol=0, cpha=0)
+
+@cocotb.test()
+async def test_transfer_single_word_mode1(dut):
+    """Test SPI transfer single word with mode 1"""
+
+    await test_spi_transfer(dut, 9, 32, cpol=0, cpha=1)
+
+@cocotb.test()
+async def test_transfer_single_word_mode2(dut):
+    """Test SPI transfer single word with mode 2"""
+
+    await test_spi_transfer(dut, 10, 32, cpol=1, cpha=0)
+
+@cocotb.test()
+async def test_transfer_single_word_mode3(dut):
+    """Test SPI transfer single word with mode 3"""
+
+    await test_spi_transfer(dut, 11, 32, cpol=1, cpha=1)
+
+
+@cocotb.test()
+async def test_transfer_fast(dut):
+    """Test SPI transfer fast mode"""
+
+    await test_spi_transfer(dut, 12, 256, cpol=0, cpha=0)

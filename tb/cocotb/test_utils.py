@@ -90,6 +90,7 @@ SPI_EN_BIT      = 0x01  # bit 0: Module enable (1=enabled, 0=disabled)
 
 # SPI Control register bits
 SPI_CTRL_START  = 0x01  # bit 0: Start transfer
+SPI_CTRL_LEN    = 0x02  # bit 1: 0=1 byte, 1=2 bytes (per transfer)
 
 # SPI Status register bits
 SPI_STATUS_BUSY = 0x01  # bit 0: Transfer in progress

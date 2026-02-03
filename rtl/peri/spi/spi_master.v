@@ -9,32 +9,34 @@
  *                   bits [31:1]: Reserved
  * - CTRL    (0x04): Control register
  *                   bit 0: Start transaction (write 1 to start, auto-clears; only when enabled)
- *                   bits [31:1]: Reserved
+ *                   bit 1: Length (0=1 byte, 1=2 bytes; applies to the transfer started by bit 0)
+ *                   bits [31:2]: Reserved
  * - STATUS  (0x08): Status register (read-only)
  *                   bit 0: Busy (1=transfer in progress)
  *                   bit 1: Done (1=transfer complete, cleared on new transfer)
  *                   bits [31:2]: Reserved
  * - TX_DATA (0x0C): TX data register (write-only)
- *                   Write: Data to send (8-bit, bits [7:0])
+ *                   Write: Data to send; bits [7:0]=first byte, [15:8]=second byte (used when LEN=1)
  * - RX_DATA (0x10): RX data register (read-only)
- *                   Read: Data received (8-bit, bits [7:0])
+ *                   Read: Data received; bits [7:0]=first byte, [15:8]=second byte
  * - CONFIG  (0x14): Configuration register
  *                   bits [7:0]: Clock divider (SPI_SCLK = clk / (2 * (divider + 1)))
  *                   bit 8: CPHA (0=sample first edge/change second, 1=change first/sample second)
  *                   bit 9: CPOL (0=idle low, 1=idle high)
  *                   bits [31:10]: Reserved
  * 
- * Usage:
- * 1. Write ENABLE register (bit 0 = 1);
- * 2. Configure SPI parameters (CONFIG register)
- * 3. Write data to TX_DATA register (8-bit, use dummy data like 0xFF for read-only operations)
- * 4. Set CTRL register: set start bit (bit 0 = 1)
- * 5. Wait for done (STATUS bit 1)
- * 6. Read data from RX_DATA register (8-bit)
- * 
- * Note: SPI is full-duplex - data is always transmitted and received simultaneously.
- * 
- * Note: This module is optimized for area by supporting only 8-bit transfers.
+ * Usage (1 byte):
+ * 1. Write ENABLE (bit 0 = 1); configure CONFIG
+ * 2. Write TX_DATA [7:0] (or full 32-bit; [15:0] used)
+ * 3. Write CTRL: bit 0 = 1 (START), bit 1 = 0 (1 byte)
+ * 4. Wait for STATUS.DONE; read RX_DATA [7:0]
+ *
+ * Usage (2 bytes):
+ * 1. Write ENABLE; configure CONFIG
+ * 2. Write TX_DATA [15:0]: [7:0]=first byte, [15:8]=second byte
+ * 3. Write CTRL: bit 0 = 1 (START), bit 1 = 1 (2 bytes)
+ * 4. Wait for STATUS.DONE; read RX_DATA [15:0]
+ *
  */
 
 module spi_master #(
@@ -70,6 +72,7 @@ module spi_master #(
 
     // Control register bits
     localparam CTRL_START = 0;
+    localparam CTRL_LEN   = 1;   // 0=1 byte, 1=2 bytes
 
     // Config register bits
     localparam CONFIG_DIV_START = 0;
@@ -86,9 +89,9 @@ module spi_master #(
     // Internal registers
     reg [1:0] state;
     reg [1:0] next_state;
-    reg [3:0] bit_counter;       // Counts bits within a byte (0-7)
-    reg [7:0] tx_shift_reg;      // TX shift register (8 bits)
-    reg [7:0] rx_shift_reg;      // RX shift register (8 bits)
+    reg [4:0] bit_counter;       // Counts transferred bits
+    reg [15:0] tx_shift_reg;     // TX shift register (first byte out MSB first = [15:8] of load, then [7:0])
+    reg [15:0] rx_shift_reg;     // RX shift register (first byte in -> [7:0], second -> [15:8])
 
     reg ctrl_en;                 // Module enable from ENABLE register (1=enabled)
     reg [7:0] clock_divider;     // Clock divider value
@@ -99,6 +102,7 @@ module spi_master #(
     reg busy;
     reg done;
     reg start_pending;
+    reg len_2byte;              // 0=1 byte, 1=2 bytes (captured from CTRL bit 1 when START is written)
 
     assign ena = ctrl_en;
 
@@ -108,8 +112,9 @@ module spi_master #(
 
     wire spi_clk_next = (spi_clk_en && (clk_counter == clock_divider)) ? ~spi_sclk : spi_sclk;
 
-    // After the last bit is received, we need to wait for the clock divider to complete
-    wire is_transaction_done = (bit_counter == 4'd8) && (clk_counter == clock_divider - 1);
+    wire [4:0] max_bit_counter = len_2byte ? 5'd16 : 5'd8;
+    // After the last bit is received, wait for the clock divider to complete
+    wire is_transaction_done = (bit_counter == max_bit_counter) && (clk_counter == clock_divider - 1);
 
     // SPI clock generation
     always @(posedge clk or negedge rst_n) begin
@@ -186,9 +191,9 @@ module spi_master #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             spi_mosi <= 1'b0;
-            bit_counter <= 4'b0;
-            tx_shift_reg <= 8'b0;
-            rx_shift_reg <= 8'b0;
+            bit_counter <= 5'b0;
+            tx_shift_reg <= 16'b0;
+            rx_shift_reg <= 16'b0;
 
             ctrl_en <= 1'b0;  // Disabled by default; must set ENABLE before start
             clock_divider <= 8'd31;  // Default: ~1MHz @ 64MHz system clock
@@ -198,6 +203,7 @@ module spi_master #(
             busy <= 1'b0;
             done <= 1'b0;
             start_pending <= 1'b0;
+            len_2byte <= 1'b0;
         end else begin
             // Default values
             start_pending <= 1'b0;
@@ -211,13 +217,14 @@ module spi_master #(
                     ADDR_CTRL: begin
                         if (mem_wdata[CTRL_START] && ctrl_en && !busy) begin
                             start_pending <= 1'b1;
+                            len_2byte <= mem_wdata[CTRL_LEN];
                             done <= 1'b0;  // Clear done flag on new transfer
                         end
                     end
                     ADDR_TX_DATA: begin
-                        // Load TX data into shift register (8-bit)
+                        // Load TX buffer: [7:0]=first byte, [15:8]=second byte; shift out order = first byte then second (MSB first each)
                         if (!busy) begin
-                            tx_shift_reg <= mem_wdata[7:0];
+                            tx_shift_reg <= {mem_wdata[7:0], mem_wdata[15:8]};
                         end
                     end
                     ADDR_CONFIG: begin
@@ -234,19 +241,18 @@ module spi_master #(
                 STATE_IDLE: begin
                     spi_clk_en <= 1'b0;
                     busy <= 1'b0;
-                    bit_counter <= 4'b0;
+                    bit_counter <= 5'b0;
                     spi_mosi <= 1'b0;
                 end
 
                 STATE_START: begin
                     busy <= 1'b1;
-                    bit_counter <= 4'b0;
+                    bit_counter <= 5'b0;
                     spi_clk_en <= 1'b1;
-                    // Reset RX shift register for new transfer (always receive in SPI)
-                    rx_shift_reg <= 8'b0;
+                    rx_shift_reg <= 16'b0;
                     // CPHA=0: data must be valid before first clock edge; output first bit now
                     // CPHA=1: data changes on first edge; do not drive first bit here (output on first change_edge in TRANSFER)
-                    spi_mosi <= cpha ? 1'b0 : tx_shift_reg[7];
+                    spi_mosi <= cpha ? 1'b0 : tx_shift_reg[15];
                 end
 
                 STATE_TRANSFER: begin
@@ -254,13 +260,13 @@ module spi_master #(
                     spi_clk_en <= 1'b1;
 
                     if (sample_edge) begin
-                        rx_shift_reg <= {rx_shift_reg[6:0], spi_miso};
-                        tx_shift_reg <= {tx_shift_reg[6:0], 1'b0};
+                        rx_shift_reg <= {rx_shift_reg[14:0], spi_miso};
+                        tx_shift_reg <= {tx_shift_reg[14:0], 1'b0};
                         bit_counter <= bit_counter + 1;
                     end
 
                     if (change_edge) begin
-                        spi_mosi <= tx_shift_reg[7];
+                        spi_mosi <= tx_shift_reg[15];
                     end
 
                     if (is_transaction_done) begin
@@ -272,7 +278,7 @@ module spi_master #(
                     spi_clk_en <= 1'b0;
                     busy <= 1'b0;
                     done <= 1'b1;
-                    bit_counter <= 4'b0;
+                    bit_counter <= 5'b0;
                     spi_mosi <= 1'b0;
                 end
 
@@ -286,8 +292,9 @@ module spi_master #(
 
     wire [31:0] status_reg = {30'b0, done, busy};
 
-    // RX data output - return 8-bit data
-    wire [31:0] rx_data_reg = {24'b0, rx_shift_reg};
+    // RX data output - return 16-bit: [7:0]=first byte, [15:8]=second byte
+    wire [15:0] rx_data = len_2byte ? {rx_shift_reg[7:0], rx_shift_reg[15:8]} : {8'b0, rx_shift_reg[7:0]};
+    wire [31:0] rx_data_reg = {16'b0, rx_data};
 
     wire [31:0] config_reg = {22'b0, cpol, cpha, clock_divider};
 
