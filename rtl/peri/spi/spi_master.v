@@ -2,6 +2,7 @@
  * 
  * Implements an SPI master controller for peripheral devices.
  * Supports standard SPI mode only (no dual/quad mode).
+ * Transfer length: 1, 2, or 4 bytes (LEN[1:0] in CTRL).
  * 
  * Memory-mapped registers:
  * - ENABLE  (0x00): Enable register
@@ -9,16 +10,16 @@
  *                   bits [31:1]: Reserved
  * - CTRL    (0x04): Control register
  *                   bit 0: Start transaction (write 1 to start, auto-clears; only when enabled)
- *                   bit 1: Length (0=1 byte, 1=2 bytes; applies to the transfer started by bit 0)
- *                   bits [31:2]: Reserved
+ *                   bits [2:1]: LEN - length (00=1 byte, 01=2 bytes, 10=4 bytes; 11=reserved, treated as 4)
+ *                   bits [31:3]: Reserved
  * - STATUS  (0x08): Status register (read-only)
  *                   bit 0: Busy (1=transfer in progress)
  *                   bit 1: Done (1=transfer complete, cleared on new transfer)
  *                   bits [31:2]: Reserved
  * - TX_DATA (0x0C): TX data register (write-only)
- *                   Write: Data to send; bits [7:0]=first byte, [15:8]=second byte (used when LEN=1)
+ *                   Write: [7:0]=first byte, [15:8]=second, [23:16]=third, [31:24]=fourth (for 4-byte)
  * - RX_DATA (0x10): RX data register (read-only)
- *                   Read: Data received; bits [7:0]=first byte, [15:8]=second byte
+ *                   Read: [7:0]=first byte, [15:8]=second, [23:16]=third, [31:24]=fourth
  * - CONFIG  (0x14): Configuration register
  *                   bits [7:0]: Clock divider (SPI_SCLK = clk / (2 * (divider + 1)))
  *                   bit 8: CPHA (0=sample first edge/change second, 1=change first/sample second)
@@ -71,8 +72,9 @@ module spi_master #(
     localparam ENABLE_BIT = 0;
 
     // Control register bits
-    localparam CTRL_START = 0;
-    localparam CTRL_LEN   = 1;   // 0=1 byte, 1=2 bytes
+    localparam CTRL_START   = 0;
+    localparam CTRL_LEN_LO  = 1;   // LEN[1:0]: 00=1 byte, 01=2 bytes, 10/11=4 bytes
+    localparam CTRL_LEN_HI  = 2;
 
     // Config register bits
     localparam CONFIG_DIV_START = 0;
@@ -89,9 +91,9 @@ module spi_master #(
     // Internal registers
     reg [1:0] state;
     reg [1:0] next_state;
-    reg [4:0] bit_counter;       // Counts transferred bits
-    reg [15:0] tx_shift_reg;     // TX shift register (first byte out MSB first = [15:8] of load, then [7:0])
-    reg [15:0] rx_shift_reg;     // RX shift register (first byte in -> [7:0], second -> [15:8])
+    reg [5:0] bit_counter;       // Counts transferred bits (1..32)
+    reg [31:0] tx_shift_reg;     // TX shift: bit 31 = first bit out (MSB of byte 1)
+    reg [31:0] rx_shift_reg;     // RX shift: byte 1 -> [7:0], byte 2 -> [15:8], byte 3 -> [23:16], byte 4 -> [31:24]
 
     reg ctrl_en;                 // Module enable from ENABLE register (1=enabled)
     reg [7:0] clock_divider;     // Clock divider value
@@ -102,7 +104,7 @@ module spi_master #(
     reg busy;
     reg done;
     reg start_pending;
-    reg len_2byte;              // 0=1 byte, 1=2 bytes (captured from CTRL bit 1 when START is written)
+    reg [1:0] len_sel;           // 00=1 byte, 01=2 bytes, 10/11=4 bytes (from CTRL[2:1] on START)
 
     assign ena = ctrl_en;
 
@@ -112,7 +114,7 @@ module spi_master #(
 
     wire spi_clk_next = (spi_clk_en && (clk_counter == clock_divider)) ? ~spi_sclk : spi_sclk;
 
-    wire [4:0] max_bit_counter = len_2byte ? 5'd16 : 5'd8;
+    wire [5:0] max_bit_counter = (len_sel == 2'b00) ? 6'd8 : (len_sel == 2'b01) ? 6'd16 : 6'd32;
     // After the last bit is received, wait for the clock divider to complete
     wire is_transaction_done = (bit_counter == max_bit_counter) && (clk_counter == clock_divider - 1);
 
@@ -191,9 +193,9 @@ module spi_master #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             spi_mosi <= 1'b0;
-            bit_counter <= 5'b0;
-            tx_shift_reg <= 16'b0;
-            rx_shift_reg <= 16'b0;
+            bit_counter <= 6'b0;
+            tx_shift_reg <= 32'b0;
+            rx_shift_reg <= 32'b0;
 
             ctrl_en <= 1'b0;  // Disabled by default; must set ENABLE before start
             clock_divider <= 8'd31;  // Default: ~1MHz @ 64MHz system clock
@@ -203,7 +205,7 @@ module spi_master #(
             busy <= 1'b0;
             done <= 1'b0;
             start_pending <= 1'b0;
-            len_2byte <= 1'b0;
+            len_sel <= 2'b0;
         end else begin
             // Default values
             start_pending <= 1'b0;
@@ -217,14 +219,14 @@ module spi_master #(
                     ADDR_CTRL: begin
                         if (mem_wdata[CTRL_START] && ctrl_en && !busy) begin
                             start_pending <= 1'b1;
-                            len_2byte <= mem_wdata[CTRL_LEN];
+                            len_sel <= mem_wdata[CTRL_LEN_HI:CTRL_LEN_LO];
                             done <= 1'b0;  // Clear done flag on new transfer
                         end
                     end
                     ADDR_TX_DATA: begin
-                        // Load TX buffer: [7:0]=first byte, [15:8]=second byte; shift out order = first byte then second (MSB first each)
+                        // Load TX: [7:0]=byte1, [15:8]=byte2, [23:16]=byte3, [31:24]=byte4; shift out MSB first per byte
                         if (!busy) begin
-                            tx_shift_reg <= {mem_wdata[7:0], mem_wdata[15:8]};
+                            tx_shift_reg <= {mem_wdata[7:0], mem_wdata[15:8], mem_wdata[23:16], mem_wdata[31:24]};
                         end
                     end
                     ADDR_CONFIG: begin
@@ -241,18 +243,18 @@ module spi_master #(
                 STATE_IDLE: begin
                     spi_clk_en <= 1'b0;
                     busy <= 1'b0;
-                    bit_counter <= 5'b0;
+                    bit_counter <= 6'b0;
                     spi_mosi <= 1'b0;
                 end
 
                 STATE_START: begin
                     busy <= 1'b1;
-                    bit_counter <= 5'b0;
+                    bit_counter <= 6'b0;
                     spi_clk_en <= 1'b1;
-                    rx_shift_reg <= 16'b0;
+                    rx_shift_reg <= 32'b0;
                     // CPHA=0: data must be valid before first clock edge; output first bit now
                     // CPHA=1: data changes on first edge; do not drive first bit here (output on first change_edge in TRANSFER)
-                    spi_mosi <= cpha ? 1'b0 : tx_shift_reg[15];
+                    spi_mosi <= cpha ? 1'b0 : tx_shift_reg[31];
                 end
 
                 STATE_TRANSFER: begin
@@ -260,13 +262,13 @@ module spi_master #(
                     spi_clk_en <= 1'b1;
 
                     if (sample_edge) begin
-                        rx_shift_reg <= {rx_shift_reg[14:0], spi_miso};
-                        tx_shift_reg <= {tx_shift_reg[14:0], 1'b0};
+                        rx_shift_reg <= {rx_shift_reg[30:0], spi_miso};
+                        tx_shift_reg <= {tx_shift_reg[30:0], 1'b0};
                         bit_counter <= bit_counter + 1;
                     end
 
                     if (change_edge) begin
-                        spi_mosi <= tx_shift_reg[15];
+                        spi_mosi <= tx_shift_reg[31];
                     end
 
                     if (is_transaction_done) begin
@@ -278,7 +280,7 @@ module spi_master #(
                     spi_clk_en <= 1'b0;
                     busy <= 1'b0;
                     done <= 1'b1;
-                    bit_counter <= 5'b0;
+                    bit_counter <= 6'b0;
                     spi_mosi <= 1'b0;
                 end
 
@@ -292,9 +294,10 @@ module spi_master #(
 
     wire [31:0] status_reg = {30'b0, done, busy};
 
-    // RX data output - return 16-bit: [7:0]=first byte, [15:8]=second byte
-    wire [15:0] rx_data = len_2byte ? {rx_shift_reg[7:0], rx_shift_reg[15:8]} : {8'b0, rx_shift_reg[7:0]};
-    wire [31:0] rx_data_reg = {16'b0, rx_data};
+    // RX data: [7:0]=first byte, [15:8]=second, [23:16]=third, [31:24]=fourth; upper bytes zero when len_sel < 4
+    wire [31:0] rx_data_reg = (len_sel == 2'b00) ? {24'b0, rx_shift_reg[7:0]} :
+                              (len_sel == 2'b01) ? {16'b0, rx_shift_reg[7:0], rx_shift_reg[15:8]} :
+                              {rx_shift_reg[7:0], rx_shift_reg[15:8], rx_shift_reg[23:16], rx_shift_reg[31:24]};
 
     wire [31:0] config_reg = {22'b0, cpol, cpha, clock_divider};
 

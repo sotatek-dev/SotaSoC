@@ -181,19 +181,20 @@ async def test_spi_tx_data_write_only(dut):
         0x00000010: encode_addi(3, 0, 0xAA),                       # ADDI x3, x0, 0xAA
         0x00000014: encode_store(1, 3, 0),                         # SW x3, 0(x1) - write TX_DATA
         0x00000018: encode_load(4, 1, 0),                          # LW x4, 0(x1) - read TX_DATA again (should return 0)
-        0x0000001C: encode_addi(5, 0, 0x0155),                       # ADDI x5, x0, 0x55
-        0x00000020: encode_store(1, 5, 0),                         # SW x5, 0(x1) - write TX_DATA again
-        0x00000024: encode_load(6, 1, 0),                          # LW x6, 0(x1) - read TX_DATA (should return 0)
-        0x00000028: NOP_INSTR,
+        0x0000001C: encode_lui(5, 0x12345),                        # LUI x5, 0x12345 -> x5 = 0x12345000
+        0x00000020: encode_addi(5, 5, 0x678),                      # ADDI x5, x5, 0x678 -> x5 = 0x12345678
+        0x00000024: encode_store(1, 5, 0),                         # SW x5, 0(x1) - write TX_DATA 0x12345678
+        0x00000028: encode_load(6, 1, 0),                          # LW x6, 0(x1) - read TX_DATA (should return 0)
         0x0000002C: NOP_INSTR,
         0x00000030: NOP_INSTR,
+        0x00000034: NOP_INSTR,
     }
     memory = convert_hex_memory_to_byte_memory(hex_memory)
     
     max_cycles = 10000
     
     def callback(dut, memory):
-        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000030:
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000034:
             registers = dut.soc_inst.cpu_core.register_file.registers
 
             tx_data = dut.soc_inst.spi_inst.tx_shift_reg.value.to_unsigned()
@@ -212,7 +213,7 @@ async def test_spi_tx_data_write_only(dut):
             assert tx_data_read_3 == 0, \
                 f"TX_DATA read should return 0 after second write, got 0x{tx_data_read_3:08x}"
 
-            assert tx_data == 0x5501, f"TX_DATA should be 0x5501, got 0x{tx_data:08x}"
+            assert tx_data == 0x78563412, f"TX_DATA should be 0x78563412, got 0x{tx_data:08x}"
             
             return True
         return False
@@ -513,32 +514,61 @@ async def test_transfer_single_byte_mode3(dut):
     await test_spi_transfer(dut, 7, 32, cpol=1, cpha=1)
 
 @cocotb.test()
+async def test_transfer_single_hword_mode0(dut):
+    """Test SPI transfer single half-word with mode 0"""
+
+    await test_spi_transfer(dut, 8, 32, cpol=0, cpha=0)
+
+@cocotb.test()
+async def test_transfer_single_hword_mode1(dut):
+    """Test SPI transfer single half-word with mode 1"""
+
+    await test_spi_transfer(dut, 9, 32, cpol=0, cpha=1)
+
+@cocotb.test()
+async def test_transfer_single_hword_mode2(dut):
+    """Test SPI transfer single half-word with mode 2"""
+
+    await test_spi_transfer(dut, 10, 32, cpol=1, cpha=0)
+
+@cocotb.test()
+async def test_transfer_single_hword_mode3(dut):
+    """Test SPI transfer single half-word with mode 3"""
+
+    await test_spi_transfer(dut, 11, 32, cpol=1, cpha=1)
+
+@cocotb.test()
 async def test_transfer_single_word_mode0(dut):
     """Test SPI transfer single word with mode 0"""
 
-    await test_spi_transfer(dut, 8, 32, cpol=0, cpha=0)
+    await test_spi_transfer(dut, 12, 32, cpol=0, cpha=0)
 
 @cocotb.test()
 async def test_transfer_single_word_mode1(dut):
     """Test SPI transfer single word with mode 1"""
 
-    await test_spi_transfer(dut, 9, 32, cpol=0, cpha=1)
+    await test_spi_transfer(dut, 13, 32, cpol=0, cpha=1)
 
 @cocotb.test()
 async def test_transfer_single_word_mode2(dut):
     """Test SPI transfer single word with mode 2"""
 
-    await test_spi_transfer(dut, 10, 32, cpol=1, cpha=0)
+    await test_spi_transfer(dut, 14, 32, cpol=1, cpha=0)
 
 @cocotb.test()
 async def test_transfer_single_word_mode3(dut):
     """Test SPI transfer single word with mode 3"""
 
-    await test_spi_transfer(dut, 11, 32, cpol=1, cpha=1)
-
+    await test_spi_transfer(dut, 15, 32, cpol=1, cpha=1)
 
 @cocotb.test()
-async def test_transfer_fast(dut):
+async def test_transfer_fast_hword(dut):
     """Test SPI transfer fast mode"""
 
-    await test_spi_transfer(dut, 12, 256, cpol=0, cpha=0)
+    await test_spi_transfer(dut, 16, 256, cpol=0, cpha=0)
+
+@cocotb.test()
+async def test_transfer_fast_word(dut):
+    """Test SPI transfer fast mode"""
+
+    await test_spi_transfer(dut, 17, 256, cpol=0, cpha=0)
