@@ -99,7 +99,7 @@ end
 
 //
 // Handle updates to the sent data register.
-integer i = 0;
+integer i;
 always @(posedge clk) begin : p_data_to_send
     if(!resetn) begin
         data_to_send <= {PAYLOAD_BITS{1'b0}};

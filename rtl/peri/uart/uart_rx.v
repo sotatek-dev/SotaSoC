@@ -116,7 +116,7 @@ end
 
 //
 // Handle updates to the recieved data register.
-integer i = 0;
+integer i;
 always @(posedge clk) begin : p_recieved_data
     if(!resetn) begin
         recieved_data <= {PAYLOAD_BITS{1'b0}};
