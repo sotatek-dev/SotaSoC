@@ -46,7 +46,7 @@ async def test_riscof_signature(dut):
                     found_completion = True
                     cycles_after_completion = 1000  # Wait some cycles after tohost write
                     print(f"Found write to tohost: 0x{{current_tohost:08x}} at address 0x{{tohost_byte_addr:08x}}")
-                    print(f"PC: 0x{{int(dut.soc_inst.cpu_core.o_instr_addr.value):08x}}")
+                    # print(f"PC: 0x{{int(dut.soc_inst.cpu_core.o_instr_addr.value):08x}}")
 
         if found_completion:
             cycles_after_completion -= 1

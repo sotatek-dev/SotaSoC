@@ -106,7 +106,7 @@ async def test_spi_memory(dut, memory, max_cycles, callback):
 
     # Reset
     dut.rst_n.value = 0
-    await Timer(15, unit="ns")
+    await Timer(45, unit="ns")
     dut.rst_n.value = 1
 
     is_instr = False

@@ -40,6 +40,11 @@ module test_soc_tb;
     wire [7:0] uio_out;
     wire [7:0] uio_oe;
 
+    /* Power nets for gate-level netlist (inout must be connected to nets) */
+    wire VPWR, VGND;
+    assign VPWR = 1'b1;
+    assign VGND = 1'b0;
+
     assign ui_in[0] = uart0_rx;
     assign ui_in[1] = spi_miso;
     assign ui_in[7:2] = gpio_in;
@@ -82,7 +87,21 @@ module test_soc_tb;
     `define PSRAM_BASE_ADDR 32'h01000000
     `endif
 
-    // Instantiate the SoC
+    // Instantiate RTL SoC or gate-level netlist (IHP sg13g2)
+    `ifdef GL_TEST
+    tt_um_SotaSoC soc_inst (
+        .clk(clk),
+        .ena(1'b1),
+        .rst_n(rst_n),
+        .VPWR(VPWR),
+        .VGND(VGND),
+        .ui_in(ui_in),
+        .uio_in(uio_in),
+        .uio_oe(uio_oe),
+        .uio_out(uio_out),
+        .uo_out(uo_out)
+    );
+    `else
     soc#(
         .FLASH_BASE_ADDR(`FLASH_BASE_ADDR),
         .PSRAM_BASE_ADDR(`PSRAM_BASE_ADDR)
@@ -96,6 +115,7 @@ module test_soc_tb;
         .clk(clk),
         .rst_n(rst_n)
     );
+    `endif
 
     // Monitor signals for debugging
     // always @(posedge clk) begin

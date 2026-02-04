@@ -1,6 +1,8 @@
 # Makefile for RISCOF signature extraction test
 # Based on test_spi_mem.mk
 
+# GL_TEST = 1
+
 PROJECT_ROOT ?= $(PWD)
 # Include common configuration from cocotb directory
 include $(PROJECT_ROOT)/tb/cocotb/Makefile.inc

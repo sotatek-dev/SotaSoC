@@ -6,7 +6,9 @@ TOPLEVEL_LANG ?= verilog
 
 PROJECT_ROOT ?= $(PWD)
 
-# Common Verilog sources for SOC tests
+ifneq ($(GL_TEST),1)
+
+# --- RTL simulation ---
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_core.sv
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_alu.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/rv32i_register.v
@@ -26,6 +28,25 @@ VERILOG_SOURCES += $(PROJECT_ROOT)/rtl/peri/spi/spi_master.v
 VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/test_soc_tb.sv
 
 COMPILE_ARGS += -g2012 -I$(PROJECT_ROOT)/rtl -DSIMULATION
+
+else
+
+PDK_ROOT ?= $(PROJECT_ROOT)/../ttihp-SotaSoC/ttsetup/pdk/ciel/ihp-sg13g2/versions/cb7daaa8901016cf7c5d272dfa322c41f024931f/
+
+# --- Gate-level simulation (IHP sg13g2 netlist) ---
+# Require: export PDK_ROOT=/path/to/ihp-sg13g2 (or set in env)
+SIM_BUILD = sim_build/gl
+COMPILE_ARGS += -DGL_TEST
+COMPILE_ARGS += -DFUNCTIONAL
+COMPILE_ARGS += -DSIM
+COMPILE_ARGS += -DSIMULATION
+# IHP sg13g2 PDK libraries (must be compiled before netlist)
+VERILOG_SOURCES += $(PDK_ROOT)/ihp-sg13g2/libs.ref/sg13g2_io/verilog/sg13g2_io.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/gl/sg13g2_stdcell_with_power.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/../ttihp-SotaSoC/runs/wokwi/final/pnl/tt_um_SotaSoC.pnl.v
+VERILOG_SOURCES += $(PROJECT_ROOT)/tb/cocotb/test_soc_tb.sv
+
+endif
 
 # Pass BIN_FILE parameter to simulation if provided
 ifdef BIN_FILE
