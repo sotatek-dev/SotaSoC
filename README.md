@@ -25,8 +25,8 @@
 
 A BSP is available for **FreeRTOS** and **bare-metal** development:
 
-- [FreeRTOS BSP](https://github.com/sotatek-dev/SotaSoC-BSP/tree/main/FreeRTOS)
-- [Bare-metal BSP](https://github.com/sotatek-dev/SotaSoC-BSP/tree/main/examples)
+- [FreeRTOS BSP](https://github.com/sotatek-dev/SotaSoC-BSP/tree/main/examples-freertos)
+- [Bare-metal BSP](https://github.com/sotatek-dev/SotaSoC-BSP/tree/main/examples-baremetal)
 
 ### Demo
 
