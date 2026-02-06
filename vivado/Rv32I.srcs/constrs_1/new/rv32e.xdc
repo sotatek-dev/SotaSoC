@@ -15,41 +15,41 @@ set_false_path -from [get_ports rst_n]
 set_false_path -from [get_ports {ui_in[0]}]
 
 
-set_property PACKAGE_PIN G18 [get_ports {ui_in[0]}]
+set_property PACKAGE_PIN L19 [get_ports {ui_in[0]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[0]}]
 set_property PULLTYPE PULLDOWN [get_ports {ui_in[0]}]
 
-set_property PACKAGE_PIN L19 [get_ports {ui_in[1]}]
+set_property PACKAGE_PIN H17 [get_ports {ui_in[1]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[1]}]
 
-set_property PACKAGE_PIN H17 [get_ports {ui_in[2]}]
+set_property PACKAGE_PIN H18 [get_ports {ui_in[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[2]}]
 set_property PULLTYPE PULLDOWN [get_ports {ui_in[2]}]
 
-set_property PACKAGE_PIN H18 [get_ports {ui_in[3]}]
+set_property PACKAGE_PIN J15 [get_ports {ui_in[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[3]}]
 set_property PULLTYPE PULLDOWN [get_ports {ui_in[3]}]
 
-set_property PACKAGE_PIN J15 [get_ports {ui_in[4]}]
+set_property PACKAGE_PIN K22 [get_ports {ui_in[4]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[4]}]
 set_property PULLTYPE PULLDOWN [get_ports {ui_in[4]}]
 
-set_property PACKAGE_PIN K22 [get_ports {ui_in[5]}]
+set_property PACKAGE_PIN G20 [get_ports {ui_in[5]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[5]}]
 
-set_property PACKAGE_PIN G20 [get_ports {ui_in[6]}]
+set_property PACKAGE_PIN H20 [get_ports {ui_in[6]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[6]}]
 
-set_property PACKAGE_PIN H20 [get_ports {ui_in[7]}]
+set_property PACKAGE_PIN G18 [get_ports {ui_in[7]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {ui_in[7]}]
 
 
-set_property PACKAGE_PIN H19 [get_ports {uo_out[0]}]
+set_property PACKAGE_PIN G17 [get_ports {uo_out[0]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {uo_out[0]}]
 set_property DRIVE 4 [get_ports {uo_out[0]}]
 set_property SLEW SLOW [get_ports {uo_out[0]}]
 
-set_property PACKAGE_PIN G17 [get_ports {uo_out[1]}]
+set_property PACKAGE_PIN H19 [get_ports {uo_out[1]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {uo_out[1]}]
 set_property DRIVE 4 [get_ports {uo_out[1]}]
 set_property SLEW SLOW [get_ports {uo_out[1]}]

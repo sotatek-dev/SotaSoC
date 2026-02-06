@@ -45,12 +45,12 @@ module test_soc_tb;
     assign VPWR = 1'b1;
     assign VGND = 1'b0;
 
-    assign ui_in[0] = uart0_rx;
-    assign ui_in[1] = spi_miso;
-    assign ui_in[7:2] = gpio_in;
+    assign ui_in[0] = spi_miso;
+    assign ui_in[6:1] = gpio_in;
+    assign ui_in[7] = uart0_rx;
 
-    assign error_flag = uo_out[0];
-    assign uart0_tx = uo_out[1];
+    assign uart0_tx = uo_out[0];
+    assign error_flag = uo_out[1];
     assign i2c_scl_out = uo_out[2];
     assign spi_cs_n = uo_out[3];
     assign spi_sclk = uo_out[4];

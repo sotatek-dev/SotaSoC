@@ -338,12 +338,12 @@ module soc #(
         .spi_miso(spi_miso)
     );
 
-    assign uart_rx[0] = ui_in[0];
-    assign spi_miso = ui_in[1];
-    assign gpio_in[GPIO_NUM_IN-1:0] = ui_in[7:2];
+    assign spi_miso = ui_in[0];
+    assign gpio_in[GPIO_NUM_IN-1:0] = ui_in[6:1];
+    assign uart_rx[0] = ui_in[7];
 
-    assign uo_out[0] = error_flag;
-    assign uo_out[1] = uart_tx[0];
+    assign uo_out[0] = uart_tx[0];
+    assign uo_out[1] = error_flag;
     assign uo_out[2] = i2c_ena ? i2c_scl_out : gpio_out[0];
     assign uo_out[3] = gpio_out[1];
     assign uo_out[4] = spi_ena ? spi_sclk : gpio_out[2];
