@@ -41,6 +41,8 @@ module soc #(
     localparam UIO_OE_OUT = 1'b1;
 
     // ============ External wires ============
+    wire [1:0] boot_mode;
+
     // Shared SPI interface
     wire flash_cs_n;
     wire ram_cs_n;
@@ -174,6 +176,8 @@ module soc #(
     ) mem_ctrl (
         .clk(clk),
         .rst_n(rst_n),
+
+        .boot_mode(boot_mode),
 
         // Core instruction interface
         .instr_addr(core_instr_addr),
@@ -341,6 +345,8 @@ module soc #(
     assign spi_miso = ui_in[0];
     assign gpio_in[GPIO_NUM_IN-1:0] = ui_in[6:1];
     assign uart_rx[0] = ui_in[7];
+
+    assign boot_mode[1:0] = ui_in[6:5];
 
     assign uo_out[0] = uart_tx[0];
     assign uo_out[1] = error_flag;

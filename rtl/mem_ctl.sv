@@ -22,7 +22,9 @@ module mem_ctl #(
 ) (
     input wire clk,
     input wire rst_n,
-    
+
+    input wire [1:0] boot_mode,
+
     // Core interface
     input wire [31:0] instr_addr,
     output reg [31:0] instr_data,
@@ -109,8 +111,9 @@ module mem_ctl #(
     spi_mem spi_mem_inst (
         .clk(clk),
         .rst_n(rst_n),
-        
-        // CPU interface
+
+        .boot_mode(boot_mode),
+
         .start(spi_start),
         .stop(spi_stop),
         .write_enable(spi_write_enable),

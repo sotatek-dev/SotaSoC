@@ -1,6 +1,9 @@
 /* RV32I SoC Testbench - cocotb wrapper */
 
 module test_soc_tb;
+    // Boot mode: 00=0cy, 01=1cy, 10=2cy, 11=3cy delay for QSPI data path (pin-mux simulation)
+    localparam [1:0] BOOT_MODE = 2'b00;
+
     // Clock and reset
     reg clk;
     reg rst_n;
@@ -18,8 +21,15 @@ module test_soc_tb;
     wire [0:0] gpio_io_out;
 
     reg uart0_rx = 0;
-    reg [5:0] gpio_in = 0;
+    // gpio_in[5:4] = boot_mode; initial value simulates pull at boot, then freely changeable (GPIO)
+    reg [5:0] gpio_in = {BOOT_MODE, 4'b0000};
     reg [0:0] gpio_io_in = 0;
+
+    // Pipeline to simulate pin-mux delay on QSPI input; selection by BOOT_MODE
+    reg [3:0] bus_io_in_d1, bus_io_in_d2, bus_io_in_d3;
+    wire [3:0] bus_io_in_eff = (BOOT_MODE == 2'b00) ? bus_io_in :
+                               (BOOT_MODE == 2'b01) ? bus_io_in_d1 :
+                               (BOOT_MODE == 2'b10) ? bus_io_in_d2 : bus_io_in_d3;
 
     wire [1:0] pwm_out;
 
@@ -66,11 +76,24 @@ module test_soc_tb;
     assign gpio_io_out[0:0] = uio_out[7:7];
 
     assign uio_in[0] = 1'b0;
-    assign uio_in[2:1] = bus_io_in[1:0];
+    assign uio_in[2:1] = bus_io_in_eff[1:0];
     assign uio_in[3] = 1'b0;
-    assign uio_in[5:4] = bus_io_in[3:2];
+    assign uio_in[5:4] = bus_io_in_eff[3:2];
     assign uio_in[6] = 1'b0;
     assign uio_in[7] = i2c_ena ? i2c_sda_in : gpio_io_in[0];
+
+    // Delay pipeline for QSPI input (pin-mux simulation); select by BOOT_MODE
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            bus_io_in_d1 <= 4'b0;
+            bus_io_in_d2 <= 4'b0;
+            bus_io_in_d3 <= 4'b0;
+        end else begin
+            bus_io_in_d1 <= bus_io_in;
+            bus_io_in_d2 <= bus_io_in_d1;
+            bus_io_in_d3 <= bus_io_in_d2;
+        end
+    end
 
 
     // I2C signal assignments

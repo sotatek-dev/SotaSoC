@@ -1,7 +1,9 @@
 module spi_mem (
     input wire clk,
     input wire rst_n,
-    
+
+    input [1:0] boot_mode,
+
     // CPU interface
     input wire start,                    // Start QSPI transaction
     input wire stop,                     // Stop QSPI transaction
@@ -13,7 +15,7 @@ module spi_mem (
     input wire [31:0] data_in,           // 32-bit data input for write operations
     output reg [31:0] data_out,          // 32-bit data output
     output reg done,                     // Transaction complete
-    
+
     // QSPI interface (4-bit mode only)
     output reg spi_clk,                  // QSPI clock
     output reg spi_cs_n,                 // QSPI chip select (active low)
@@ -61,7 +63,17 @@ module spi_mem (
     reg flash_in_cont_mode;
     reg ram_in_quad_mode;
 
-    wire[7:0] cmd_enter_quad_mode = 8'hAC; // It is the command 0x35 (enter quad mode) in reverse order
+    // boot_mode latched once after reset; pins can then be used as GPIO
+    reg [1:0] boot_mode_reg;
+    reg boot_mode_latched;
+
+    // Sample delay pipeline for pin-mux timing (boot_mode): 00=0, 01=1, 10=2, 11=3 cycles delay
+    reg sample_trigger;
+    reg sample_trigger_d1;
+    reg sample_trigger_d2;
+    reg sample_trigger_d3;
+
+    wire [7:0] cmd_enter_quad_mode = 8'hAC; // It is the command 0x35 (enter quad mode) in reverse order
 
     wire [7:0] cmd = write_enable ? 8'h38 : 8'hEB;
     wire [31:0] cmd_addr = {cmd, addr};
@@ -70,6 +82,11 @@ module spi_mem (
     wire is_compressed_instr = (bit_counter == 12) && (shift_reg_in[5:4] != 2'b11);
     wire is_normal_instr = (bit_counter == 28);
     wire is_instr_complete = is_instr && (fsm_state == FSM_DATA_TRANSFER) && (is_compressed_instr || is_normal_instr);
+
+    wire do_sample = (boot_mode_reg == 2'b00 && sample_trigger) ||
+                     (boot_mode_reg == 2'b01 && sample_trigger_d1) ||
+                     (boot_mode_reg == 2'b10 && sample_trigger_d2) ||
+                     (boot_mode_reg == 2'b11 && sample_trigger_d3);
 
     // State machine
     always @(posedge clk or negedge rst_n) begin
@@ -240,7 +257,25 @@ module spi_mem (
 
             flash_in_cont_mode <= 1'b0;
             ram_in_quad_mode <= 1'b0;
+
+            sample_trigger <= 1'b0;
+            sample_trigger_d1 <= 1'b0;
+            sample_trigger_d2 <= 1'b0;
+            sample_trigger_d3 <= 1'b0;
+
+            boot_mode_reg <= 2'b00;
+            boot_mode_latched <= 1'b0;
         end else begin
+
+            if (!boot_mode_latched) begin
+                boot_mode_reg <= boot_mode;
+                boot_mode_latched <= 1'b1;
+            end
+
+            sample_trigger <= (fsm_state == FSM_DATA_TRANSFER && !is_write_op && spi_clk == 1'b0);
+            sample_trigger_d1 <= sample_trigger;
+            sample_trigger_d2 <= sample_trigger_d1;
+            sample_trigger_d3 <= sample_trigger_d2;
 
             if (spi_clk_en) begin
                 spi_clk <= ~spi_clk;
@@ -490,7 +525,7 @@ module spi_mem (
                         spi_io_oe <= 4'b0000;       // All IOs are inputs
                         spi_io_out <= 4'b0000;      // Don't drive outputs
                         
-                        if (spi_clk == 1'b0) begin  // Rising edge - sample input
+                        if (do_sample) begin  // Sample with optional delay (boot_mode) for pin-mux timing
                             if (is_instr_complete) begin
                             // In case of fetch instruction, we update flag and data here to save one clock cycle
                                 bit_counter <= 6'b0;
