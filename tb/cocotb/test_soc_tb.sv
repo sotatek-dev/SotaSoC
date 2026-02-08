@@ -50,11 +50,6 @@ module test_soc_tb;
     wire [7:0] uio_out;
     wire [7:0] uio_oe;
 
-    /* Power nets for gate-level netlist (inout must be connected to nets) */
-    wire VPWR, VGND;
-    assign VPWR = 1'b1;
-    assign VGND = 1'b0;
-
     assign ui_in[0] = spi_miso;
     assign ui_in[6:1] = gpio_in;
     assign ui_in[7] = uart0_rx;
@@ -112,6 +107,12 @@ module test_soc_tb;
 
     // Instantiate RTL SoC or gate-level netlist (IHP sg13g2)
     `ifdef GL_TEST
+
+    /* Power nets for gate-level netlist (inout must be connected to nets) */
+    wire VPWR, VGND;
+    assign VPWR = 1'b1;
+    assign VGND = 1'b0;
+
     tt_um_SotaSoC soc_inst (
         .clk(clk),
         .ena(1'b1),
