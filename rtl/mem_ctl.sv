@@ -162,7 +162,7 @@ module mem_ctl #(
     wire pwm_request = mem_addr[31:8] == PWM_BASE_ADDR[31:8];
     wire i2c_request = mem_addr[31:8] == I2C_BASE_ADDR[31:8];
     wire spi_request = mem_addr[31:8] == SPI_BASE_ADDR[31:8];
-    wire peripheral_request = data_request && (uart_request || gpio_request || timer_request || pwm_request || i2c_request || spi_request);
+    wire peripheral_request = (mem_we || mem_re) && (uart_request || gpio_request || timer_request || pwm_request || i2c_request || spi_request);
 
     // Priority logic: data has higher priority
     wire start_data_access = data_request;
@@ -207,7 +207,7 @@ module mem_ctl #(
             //      if there is a ongoing instruction fetch, we stop it and start data access.
             //      otherwise, we start data access as normal.
             // 4. If there is instruction fetch, we start instruction fetch or getch next instruction as normal.
-            if (start_data_access && peripheral_request) begin
+            if (peripheral_request) begin
                 if (uart_request && uart_instance_valid) begin
                     // UART requests are handled by uart_ctl module
                     // Just forward the response
