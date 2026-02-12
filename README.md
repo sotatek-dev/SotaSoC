@@ -17,7 +17,7 @@
 - **UART** — programmable baud rate via 10-bit clock divider; default 115200 at 64 MHz
 - **48-bit timer** (mtime)
 - **13× GPIO** — 1 bidirectional (in/out), 6 input (with interrupt), 6 output
-- **2× PWM** — 2 independent channels; 16-bit period and duty (in clock cycles), configurable frequency and duty cycle per channel
+- **PWM** — 16-bit period and duty (in clock cycles), configurable frequency and duty cycle per channel
 - **SPI** — master; full mode support (CPOL/CPHA), clock up to 16 MHz, configurable; 4-byte buffer
 - **I2C** — master; clock configurable via 8-bit prescaler — 100 kHz, 400 kHz, 1 MHz, and others; START, STOP, repeated START, byte read/write with ACK/NACK
 
@@ -75,7 +75,7 @@ The SoC is built around a single **RV32I core** connected to a **memory controll
 | `0x4000_0000`  | UART          | UART control and data          |
 | `0x4000_1000`  | GPIO          | GPIO (bidir, in, out)          |
 | `0x4000_2000`  | Timer         | 48-bit mtime / mtimecmp        |
-| `0x4000_3000`  | PWM           | 2× PWM channels                |
+| `0x4000_3000`  | PWM           | 1× PWM channel                 |
 | `0x4000_4000`  | I2C           | I2C master                     |
 | `0x4000_5000`  | SPI           | SPI master                     |
 
@@ -261,7 +261,7 @@ After programming the FPGA and applying reset, the core runs from **RESET_ADDRES
 │       ├── uart/            # UART (uart_ctl, uart_tx, uart_rx)
 │       ├── timer/           # 48-bit mtime (mtime_timer.v)
 │       ├── gpio/            # GPIO
-│       ├── pwm/             # PWM (2 channels)
+│       ├── pwm/             # PWM
 │       ├── i2c/             # I2C master
 │       ├── spi/             # SPI master
 │       └── mem/             # QSPI memory (qspi_mem.v, spi_mem.v)
