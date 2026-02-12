@@ -6,7 +6,7 @@
 
 ### Supported ISA Extensions
 
-- **E** — RV32E: 32-bit RISC-V with 16 general-purpose registers (embedded profile).
+- **I** — RV32I: 32-bit RISC-V base integer instruction set with 32 general-purpose registers.
 - **C** — RISC-V Compressed instructions.
 - **Zicsr** — Control and Status Register extension.
 - **Zifencei** — Instruction-fetch fence extension.
@@ -47,19 +47,19 @@ More examples and demos are available in the [SotaSoC-BSP](https://github.com/so
 
 ### Architecture
 
-The SoC is built around a single **RV32E core** connected to a **memory controller** that handles instruction fetch and data access. The controller routes instruction fetches to **QSPI Flash**, data reads/writes to **QSPI PSRAM** or peripherals, and forwards peripheral accesses to the appropriate blocks (UART, GPIO, timer, PWM, I2C, SPI). All peripherals are memory-mapped.
+The SoC is built around a single **RV32I core** connected to a **memory controller** that handles instruction fetch and data access. The controller routes instruction fetches to **QSPI Flash**, data reads/writes to **QSPI PSRAM** or peripherals, and forwards peripheral accesses to the appropriate blocks (UART, GPIO, timer, PWM, I2C, SPI). All peripherals are memory-mapped.
 
 - **Instruction path:** Core → mem_ctl → QSPI Flash (execute-in-place or preloaded).
 - **Data path:** Core → mem_ctl → QSPI PSRAM or peripheral registers.
 
 ### CPU Core
 
-- **RV32E** with 16 general-purpose registers; **RESET_ADDR** = `0x0000_0000` (configurable).
+- **RV32I** with 32 general-purpose registers; **RESET_ADDR** = `0x0000_0000` (configurable).
 - **Pipeline:** ALU, CSR (Zicsr), branch/jump handling.
 - **C extension** supported via decompression in the fetch path (`rv32c_decompress`).
 - **Timer:** 48-bit **mtime** from the SoC; core supports **mtimecmp** and timer interrupt (MTIP) for RISC-V timer semantics.
 - **Interrupts:** Timer interrupt (MTIP) and external interrupt (MEIP). Full machine-mode support: **MSTATUS** (MIE, MPP), **MIE**, **MIP**, **MTVEC**, **MCAUSE**, and **MEPC** for trap handling and return.
-- **Compliance:** The core has passed all tests for extensions **E**, **C**, and **Zicsr** in the [RISC-V Compatibility Framework](https://github.com/riscv-non-isa/riscv-arch-test) (RISCOF).
+- **Compliance:** The core has passed all tests for extensions **I**, **C**, and **Zicsr** in the [RISC-V Compatibility Framework](https://github.com/riscv-non-isa/riscv-arch-test) (RISCOF).
 
 ### Memory
 
@@ -251,7 +251,7 @@ After programming the FPGA and applying reset, the core runs from **RESET_ADDRES
 ├── rtl/                     # RTL source files
 │   ├── soc.sv               # SoC top level
 │   ├── mem_ctl.sv           # Memory controller (QSPI Flash/PSRAM, peripheral decode)
-│   ├── rv32i_core.sv        # RV32E core
+│   ├── rv32i_core.sv        # RV32I core
 │   ├── rv32i_csr.v          # CSRs (MSTATUS, MIE, MTVEC, MCAUSE, etc.)
 │   ├── rv32i_alu.v          # ALU
 │   ├── rv32i_register.v     # Register file
