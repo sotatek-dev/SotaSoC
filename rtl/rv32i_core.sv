@@ -12,7 +12,7 @@
 `include "debug_defines.vh"
 
 module rv32i_core #(
-    parameter REG_NUM = 16,
+    parameter REG_NUM = 32,
     parameter RESET_ADDR = 32'h00000000
 ) (
     input wire clk,

@@ -12,10 +12,10 @@ from test_utils import (
     PWM_CH0_PERIOD,
     PWM_CH0_DUTY,
     PWM_CH0_COUNTER,
-    PWM_CH1_CTRL,
-    PWM_CH1_PERIOD,
-    PWM_CH1_DUTY,
-    PWM_CH1_COUNTER,
+    # PWM_CH1_CTRL,
+    # PWM_CH1_PERIOD,
+    # PWM_CH1_DUTY,
+    # PWM_CH1_COUNTER,
 )
 from qspi_memory_utils import (
     test_spi_memory,
@@ -348,21 +348,22 @@ async def test_pwm_multiple_channels(dut):
             assert ch0_period == period_ch0, f"Channel 0 PERIOD should be {period_ch0}, got {ch0_period}"
             assert ch0_duty == duty_ch0, f"Channel 0 DUTY should be {duty_ch0}, got {ch0_duty}"
             
+            # The lastest version have only 1 channel
             # Check Channel 1
-            ch1_enable = (channel_enable_value >> 1) & 0x1
-            ch1_period = int(pwm_inst.channel_period[1].value) & 0xFFFF
-            ch1_duty = int(pwm_inst.channel_duty[1].value) & 0xFFFF
-            assert ch1_enable == 1, f"Channel 1 should be enabled"
-            assert ch1_period == period_ch1, f"Channel 1 PERIOD should be {period_ch1}, got {ch1_period}"
-            assert ch1_duty == duty_ch1, f"Channel 1 DUTY should be {duty_ch1}, got {ch1_duty}"
+            # ch1_enable = (channel_enable_value >> 1) & 0x1
+            # ch1_period = int(pwm_inst.channel_period[1].value) & 0xFFFF
+            # ch1_duty = int(pwm_inst.channel_duty[1].value) & 0xFFFF
+            # assert ch1_enable == 1, f"Channel 1 should be enabled"
+            # assert ch1_period == period_ch1, f"Channel 1 PERIOD should be {period_ch1}, got {ch1_period}"
+            # assert ch1_duty == duty_ch1, f"Channel 1 DUTY should be {duty_ch1}, got {ch1_duty}"
             
             # Check both outputs exist
             pwm_out_value = int(dut.pwm_out.value)
             pwm_out_0 = (pwm_out_value >> 0) & 0x1
-            pwm_out_1 = (pwm_out_value >> 1) & 0x1
+            # pwm_out_1 = (pwm_out_value >> 1) & 0x1
             # Outputs should be valid (0 or 1)
             assert pwm_out_0 in [0, 1], f"PWM output 0 should be 0 or 1, got {pwm_out_0}"
-            assert pwm_out_1 in [0, 1], f"PWM output 1 should be 0 or 1, got {pwm_out_1}"
+            # assert pwm_out_1 in [0, 1], f"PWM output 1 should be 0 or 1, got {pwm_out_1}"
             
             return True
         return False
@@ -537,11 +538,11 @@ async def test_pwm_duty_cycle_ratio_long_run(dut):
 
             # Calculate duty cycle ratios
             ratio_ch0 = high_samples_ch0 / total_samples_ch0 if total_samples_ch0 > 0 else 0
-            ratio_ch1 = high_samples_ch1 / total_samples_ch1 if total_samples_ch1 > 0 else 0
+            # ratio_ch1 = high_samples_ch1 / total_samples_ch1 if total_samples_ch1 > 0 else 0
 
             # Expected duty cycle ratios
             expected_ratio_ch0 = duty_ch0 / period_ch0
-            expected_ratio_ch1 = duty_ch1 / period_ch1
+            # expected_ratio_ch1 = duty_ch1 / period_ch1
 
             tolerance = 0.005
 
@@ -550,10 +551,11 @@ async def test_pwm_duty_cycle_ratio_long_run(dut):
                 f"Channel 0 duty cycle ratio mismatch: expected {expected_ratio_ch0:.4f}, got {ratio_ch0:.4f} " \
                 f"(high={high_samples_ch0}, total={total_samples_ch0})"
 
-            # Verify channel 1 duty cycle ratio
-            assert abs(ratio_ch1 - expected_ratio_ch1) <= tolerance, \
-                f"Channel 1 duty cycle ratio mismatch: expected {expected_ratio_ch1:.4f}, got {ratio_ch1:.4f} " \
-                f"(high={high_samples_ch1}, total={total_samples_ch1})"
+            # The lastest version have only 1 channel
+            # # Verify channel 1 duty cycle ratio
+            # assert abs(ratio_ch1 - expected_ratio_ch1) <= tolerance, \
+            #     f"Channel 1 duty cycle ratio mismatch: expected {expected_ratio_ch1:.4f}, got {ratio_ch1:.4f} " \
+            #     f"(high={high_samples_ch1}, total={total_samples_ch1})"
 
             return True
         return False
@@ -629,22 +631,23 @@ async def test_pwm_priority_over_gpio(dut):
         pwm_inst = dut.soc_inst.pwm_inst
         channel_enable_value = int(pwm_inst.channel_enable.value)
         ch0_enable = (channel_enable_value >> 0) & 0x1
-        ch1_enable = (channel_enable_value >> 1) & 0x1
+        # ch1_enable = (channel_enable_value >> 1) & 0x1
         
         # Sample PWM outputs from testbench (shared pins)
         pwm_out_value = int(dut.pwm_out.value)
         pwm_out_0 = (pwm_out_value >> 0) & 0x1  # uo_out[7]
-        pwm_out_1 = (pwm_out_value >> 1) & 0x1  # uio_out[7]
+        # pwm_out_1 = (pwm_out_value >> 1) & 0x1  # uio_out[7]
         
         if ch0_enable == 1:
             total_samples_ch0 += 1
             if pwm_out_0 == 1:
                 high_samples_ch0 += 1
-        
-        if ch1_enable == 1:
-            total_samples_ch1 += 1
-            if pwm_out_1 == 1:
-                high_samples_ch1 += 1
+
+        # The lastest version have only 1 channel
+        # if ch1_enable == 1:
+        #     total_samples_ch1 += 1
+        #     if pwm_out_1 == 1:
+        #         high_samples_ch1 += 1
         
         # Verify after enough cycles
         if cycle_count >= 40000:
@@ -657,7 +660,7 @@ async def test_pwm_priority_over_gpio(dut):
             
             # Calculate duty cycle ratios
             ratio_ch0 = high_samples_ch0 / total_samples_ch0 if total_samples_ch0 > 0 else 0
-            ratio_ch1 = high_samples_ch1 / total_samples_ch1 if total_samples_ch1 > 0 else 0
+            # ratio_ch1 = high_samples_ch1 / total_samples_ch1 if total_samples_ch1 > 0 else 0
             
             expected_ratio = duty / period  # 0.5
             tolerance = 0.01
@@ -667,8 +670,8 @@ async def test_pwm_priority_over_gpio(dut):
             assert abs(ratio_ch0 - expected_ratio) <= tolerance, \
                 f"PWM CH0 should override GPIO: expected duty ratio {expected_ratio:.2f}, got {ratio_ch0:.4f}"
             
-            assert abs(ratio_ch1 - expected_ratio) <= tolerance, \
-                f"PWM CH1 should override GPIO: expected duty ratio {expected_ratio:.2f}, got {ratio_ch1:.4f}"
+            # assert abs(ratio_ch1 - expected_ratio) <= tolerance, \
+            #     f"PWM CH1 should override GPIO: expected duty ratio {expected_ratio:.2f}, got {ratio_ch1:.4f}"
             
             return True
         return False

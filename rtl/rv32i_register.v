@@ -1,9 +1,9 @@
-/* RV32I Register File - 16 registers (x0-x15) */
+/* RV32I Register File */
 
 `include "debug_defines.vh"
 
 module rv32i_register #(
-    parameter REG_NUM = 16
+    parameter REG_NUM = 32
 ) (
     input wire clk,
     input wire rst_n,
@@ -73,7 +73,7 @@ module rv32i_register #(
         end else if (rd_we && rd_addr_internal != 5'd0) begin
             // Write to register (x0 is always zero, so don't write to it)
             registers[rd_addr_internal] <= rd_data;
-            if (rd_data != registers[rd_addr]) begin
+            if (rd_data != registers[rd_addr_internal]) begin
                 `DEBUG_PRINT(("Time %0t: REG - Write: x%0d = 0x%h (was 0x%h)", 
                          $time, rd_addr_internal, rd_data, registers[rd_addr_internal]));
             end

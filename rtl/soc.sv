@@ -9,7 +9,7 @@
  */
 
 module soc #(
-    parameter REG_NUM          = 16,
+    parameter REG_NUM          = 32,
     parameter RESET_ADDR       = 32'h00000000 ,
     parameter FLASH_BASE_ADDR  = 32'h00000000,
     parameter PSRAM_BASE_ADDR  = 32'h01000000,
@@ -24,7 +24,7 @@ module soc #(
     parameter GPIO_NUM_BIDIR   = 1,
     parameter GPIO_NUM_OUT     = 6,
     parameter GPIO_NUM_IN      = 6,
-    parameter PWM_NUM          = 2
+    parameter PWM_NUM          = 1
 ) (
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
@@ -355,7 +355,7 @@ module soc #(
     assign uo_out[4] = spi_ena ? spi_sclk : gpio_out[2];
     assign uo_out[5] = spi_ena ? spi_mosi : gpio_out[3];
     assign uo_out[6] = pwm_ena[0] ? pwm_out[0] : gpio_out[4];
-    assign uo_out[7] = pwm_ena[1] ? pwm_out[1] : gpio_out[5];
+    assign uo_out[7] = gpio_out[5];
 
     wire _unused_uio_in0 = uio_in[0];
     assign bus_io_in[1:0] = uio_in[2:1];

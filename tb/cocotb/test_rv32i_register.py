@@ -8,7 +8,7 @@ from cocotb.triggers import Timer, RisingEdge, FallingEdge
 from cocotb.clock import Clock
 import random
 
-# Register addresses for RV32I (16 registers: x0-x15)
+# Register addresses for RV32I (32 registers: x0-x31)
 REG_X0 = 0x0
 REG_X1 = 0x1
 REG_X2 = 0x2
@@ -25,6 +25,22 @@ REG_X12 = 0xC
 REG_X13 = 0xD
 REG_X14 = 0xE
 REG_X15 = 0xF
+REG_X16 = 0x10
+REG_X17 = 0x11
+REG_X18 = 0x12
+REG_X19 = 0x13
+REG_X20 = 0x14
+REG_X21 = 0x15
+REG_X22 = 0x16
+REG_X23 = 0x17
+REG_X24 = 0x18
+REG_X25 = 0x19
+REG_X26 = 0x1A
+REG_X27 = 0x1B
+REG_X28 = 0x1C
+REG_X29 = 0x1D
+REG_X30 = 0x1E
+REG_X31 = 0x1F
 
 @cocotb.test()
 async def test_register_reset(dut):
@@ -40,7 +56,7 @@ async def test_register_reset(dut):
     await Timer(10, unit='ns')
     
     # Check that all registers are zero after reset
-    for reg_addr in range(16):
+    for reg_addr in range(32):
         dut.rs1_addr.value = reg_addr
         await Timer(1, unit='ns')
         assert dut.rs1_data.value == 0, f"Register {reg_addr} not zero after reset, got {dut.rs1_data.value}"
@@ -225,7 +241,7 @@ async def test_register_write_disable(dut):
 
 @cocotb.test()
 async def test_all_registers(dut):
-    """Test all 16 registers"""
+    """Test all 32 registers"""
     # Start clock
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
@@ -237,7 +253,7 @@ async def test_all_registers(dut):
     await Timer(10, unit='ns')
     
     # Write unique values to all registers
-    for i in range(16):
+    for i in range(32):
         dut.rd_addr.value = i
         dut.rd_data.value = 0x1000 + i
         dut.rd_we.value = 1
@@ -245,7 +261,7 @@ async def test_all_registers(dut):
         dut.rd_we.value = 0
     
     # Read back all registers
-    for i in range(16):
+    for i in range(32):
         dut.rs1_addr.value = i
         await Timer(1, unit='ns')
         if i == 0:

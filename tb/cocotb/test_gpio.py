@@ -137,9 +137,8 @@ async def test_gpio_read_write_out(dut):
 async def test_gpio_in_read_only(dut):
     """Test that IN register is read-only (writes are ignored)"""
 
-    dut.gpio_in.value = 0x2A;
-    dut.gpio_io_in.value = 0x01;
-    
+    dut.gpio_in.value = 0x0;
+
     hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: encode_lui(1, GPIO_BASE_ADDR >> 12),         # LUI x1, GPIO base upper
@@ -158,6 +157,10 @@ async def test_gpio_in_read_only(dut):
     max_cycles = 10000
     
     def callback(dut, memory):
+        if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000004:
+            dut.gpio_in.value = 0x2A;
+            dut.gpio_io_in.value = 0x01;
+
         if dut.soc_inst.cpu_core.o_instr_addr.value == 0x00000028:
             registers = dut.soc_inst.cpu_core.register_file.registers
             
@@ -187,6 +190,7 @@ async def test_gpio_in_read_only(dut):
 async def test_gpio_bidir_output_mode(dut):
     """Test bidirectional pins in output mode"""
     
+    dut.gpio_in.value = 0x0;
     # Set all bidirectional pins as output (DIR = (1 << NUM_BIDIR) - 1)
     # Write a pattern to OUT register (lower NUM_BIDIR bits for bidir)
     dir_all_out = (1 << NUM_BIDIR) - 1
@@ -233,7 +237,8 @@ async def test_gpio_bidir_output_mode(dut):
 @cocotb.test()
 async def test_gpio_bidir_input_mode(dut):
     """Test bidirectional pins in input mode - read external input"""
-    
+
+    dut.gpio_in.value = 0x0;
     # Set all bidirectional pins as input (DIR = 0)
     # Note: We simulate input by forcing gpio_bidir_in signal
     
@@ -270,7 +275,8 @@ async def test_gpio_bidir_input_mode(dut):
 @cocotb.test()
 async def test_gpio_bidir_mixed_direction(dut):
     """Test bidirectional pins with mixed direction (some input, some output)"""
-    
+
+    dut.gpio_in.value = 0x0;
     # DIR: 1=output, 0=input for each bidir pin. With NUM_BIDIR=1, dir_value 0 or 1.
     dir_value = 0x05  # Only lower NUM_BIDIR bits used (0x05 & 0x01 = 1 = output)
     out_value = 0x0F  # All bits set
@@ -324,7 +330,8 @@ async def test_gpio_bidir_mixed_direction(dut):
 @cocotb.test()
 async def test_gpio_output_only_pins(dut):
     """Test output-only pins (OUT register bits [NUM_BIDIR+NUM_OUT-1:NUM_BIDIR] -> gpio_out)"""
-    
+
+    dut.gpio_in.value = 0x0;
     # OUT register: upper NUM_OUT bits -> gpio_out, lower NUM_BIDIR bits -> gpio_bidir_out
     # Test pattern: set gpio_out to 0x28 (6 bits), gpio_bidir = 0 (1 bit) -> test_out = 0x50
     test_out = 0x50  # (0x28 << NUM_BIDIR) | 0
@@ -365,7 +372,8 @@ async def test_gpio_output_only_pins(dut):
 @cocotb.test()
 async def test_gpio_output_toggle(dut):
     """Test toggling output pins multiple times"""
-    
+
+    dut.gpio_in.value = 0x0;
     hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: encode_lui(1, (GPIO_OUT >> 12) & 0xFFFFF),
@@ -420,7 +428,8 @@ async def test_gpio_output_toggle(dut):
 @cocotb.test()
 async def test_gpio_validate_output_pins(dut):
     """Test that output pins correctly reflect OUT register values"""
-    
+
+    dut.gpio_in.value = 0x0;
     # OUT register: upper NUM_OUT bits -> gpio_out, lower NUM_BIDIR bits -> gpio_bidir_out
     test_out_value = 0x5A
     expected_gpio_out = (test_out_value >> NUM_BIDIR) & ((1 << NUM_OUT) - 1)
@@ -463,7 +472,8 @@ async def test_gpio_validate_output_pins(dut):
 @cocotb.test()
 async def test_gpio_output_pins_all_patterns(dut):
     """Test output pins with multiple patterns: all 0s, all 1s, alternating"""
-    
+
+    dut.gpio_in.value = 0x0;
     # Test patterns: OUT register values (NUM_BIDIR + NUM_OUT bits). Expected values computed in callback.
     out_values = [0x00, 0x7F, 0x55, 0x2A]
     dir_all_out = (1 << NUM_BIDIR) - 1  # All bidirectional pins as output
@@ -536,7 +546,8 @@ async def test_gpio_output_pins_all_patterns(dut):
 @cocotb.test()
 async def test_gpio_reset_values(dut):
     """Test that GPIO registers have correct reset values"""
-    
+
+    dut.gpio_in.value = 0x0;
     hex_memory = {
         0x00000000: NOP_INSTR,
         0x00000004: encode_lui(1, (GPIO_BASE_ADDR >> 12) & 0xFFFFF),
@@ -575,7 +586,8 @@ async def test_gpio_reset_values(dut):
 @cocotb.test()
 async def test_gpio_invalid_register_offset(dut):
     """Test reading invalid register offset returns 0"""
-    
+
+    dut.gpio_in.value = 0x0;
     # Offset 0x0C is invalid (only 0x00, 0x04, 0x08 are valid)
     invalid_offset = 0x0C
     

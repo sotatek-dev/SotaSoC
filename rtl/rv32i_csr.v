@@ -36,6 +36,7 @@ module rv32i_csr (
 );
 
     localparam MASK_ADDR = 32'h00FFFFFF;
+    localparam MASK_MSTATUS = 32'h00001FFF;
     localparam MASK_MIE = 32'h00000880;  // meie and mtie only
     localparam MASK_MCAUSE = 32'h8000000F;
 
@@ -57,7 +58,7 @@ module rv32i_csr (
     // mip[7] = MTIP, mip[11] = MEIP
     wire [31:0] mip = {20'h0, mip_eip, 3'b0, mip_tip, 7'h0};
 
-    assign mstatus_out = mstatus;
+    assign mstatus_out = mstatus & MASK_MSTATUS;
     assign mie_out = mie & MASK_MIE;
     assign mtvec_out = mtvec & MASK_ADDR; // Output mtvec for exception handling
     assign mepc_out = mepc & MASK_ADDR; // Output mepc for MRET
@@ -71,7 +72,7 @@ module rv32i_csr (
         case (csr_addr)
             // Machine-level CSRs
             12'h300: csr_rdata = mstatus;                     // MSTATUS
-            12'h301: csr_rdata = 32'h40000014;                // MISA - read-only constant (RV32EC, MXL=1)
+            12'h301: csr_rdata = 32'h40000104;                // MISA - read-only constant (RV32IC, MXL=1)
             12'h302: csr_rdata = 32'd0;                       // MEDELEG
             12'h303: csr_rdata = 32'd0;                       // MIDELEG
             12'h304: csr_rdata = mie & MASK_MIE;              // MIE
@@ -137,7 +138,7 @@ module rv32i_csr (
                 // MPP (bits [12:11]) <- current privilege mode (assume machine mode = 3)
                 // MPIE (bit 7) <- MIE (bit 3)
                 // MIE (bit 3) <- 0 (disable interrupts)
-                mstatus <= {mstatus[31:13], 2'b11, mstatus[10:8], mstatus[3], mstatus[6:4], 1'b0, mstatus[2:0]};
+                mstatus <= {mstatus[31:13], 2'b11, mstatus[10:8], mstatus[3], mstatus[6:4], 1'b0, mstatus[2:0]} & MASK_MSTATUS;
                 mepc <= exception_pc & MASK_ADDR;
                 mcause <= exception_cause & MASK_MCAUSE;
                 mtval <= exception_value;
@@ -148,7 +149,7 @@ module rv32i_csr (
                 // MIE (bit 3) <- MPIE (bit 7)
                 // MPIE (bit 7) <- 1
                 // MPP (bits [12:11]) <- 0 (U-mode, or could be restored from saved value)
-                mstatus <= {mstatus[31:13], 2'b00, mstatus[10:8], 1'b1, mstatus[6:4], mstatus[7], mstatus[2:0]};
+                mstatus <= {mstatus[31:13], 2'b00, mstatus[10:8], 1'b1, mstatus[6:4], mstatus[7], mstatus[2:0]} & MASK_MSTATUS;
                 // `DEBUG_PRINT(("Time %0t: CSR - MRET triggered: mepc=0x%h, mstatus=0x%h", 
                 //           $time, mepc, mstatus));
             end
@@ -160,7 +161,7 @@ module rv32i_csr (
                 case (csr_op)
                     3'b001: begin // CSRRW - Atomic Read/Write
                         case (csr_addr)
-                            12'h300: mstatus <= csr_wdata;
+                            12'h300: mstatus <= csr_wdata & MASK_MSTATUS;
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
@@ -184,7 +185,7 @@ module rv32i_csr (
                     end
                     3'b010: begin // CSRRS - Atomic Read and Set Bits
                         case (csr_addr)
-                            12'h300: mstatus <= mstatus | csr_wdata;
+                            12'h300: mstatus <= (mstatus | csr_wdata) & MASK_MSTATUS;
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
@@ -207,7 +208,7 @@ module rv32i_csr (
                     end
                     3'b011: begin // CSRRC - Atomic Read and Clear Bits
                         case (csr_addr)
-                            12'h300: mstatus <= mstatus & ~csr_wdata;
+                            12'h300: mstatus <= (mstatus & ~csr_wdata) & MASK_MSTATUS;
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
@@ -230,7 +231,7 @@ module rv32i_csr (
                     end
                     3'b101: begin // CSRRWI - Atomic Read/Write (Immediate)
                         case (csr_addr)
-                            12'h300: mstatus <= {27'd0, csr_wdata[4:0]};
+                            12'h300: mstatus <= ({27'd0, csr_wdata[4:0]} & MASK_MSTATUS);
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
@@ -253,7 +254,7 @@ module rv32i_csr (
                     end
                     3'b110: begin // CSRRSI - Atomic Read and Set Bits (Immediate)
                         case (csr_addr)
-                            12'h300: mstatus <= mstatus | {27'd0, csr_wdata[4:0]};
+                            12'h300: mstatus <= (mstatus | {27'd0, csr_wdata[4:0]}) & MASK_MSTATUS;
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
@@ -276,7 +277,7 @@ module rv32i_csr (
                     end
                     3'b111: begin // CSRRCI - Atomic Read and Clear Bits (Immediate)
                         case (csr_addr)
-                            12'h300: mstatus <= mstatus & ~{27'd0, csr_wdata[4:0]};
+                            12'h300: mstatus <= (mstatus & ~{27'd0, csr_wdata[4:0]}) & MASK_MSTATUS;
                             12'h301: ; // MISA
                             12'h302: ; // MEDELEG
                             12'h303: ; // MIDELEG
