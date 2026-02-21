@@ -47,6 +47,10 @@ class sota_core(pluginTemplate):
         # parallel on the DUT executable. Can also be used in the build function if required.
         self.num_jobs = str(config['jobs'] if 'jobs' in config else 1)
 
+        # Timeout in seconds for the make run (compile + run all tests).
+        # Cocotb/iverilog runs are slow; increase if tests still time out.
+        self.run_timeout = int(config.get('run_timeout', 1200))
+
         # Path to the directory where this python file is located. Collect it from the config.ini
         self.pluginpath=os.path.abspath(config['pluginpath'])
 
@@ -175,7 +179,8 @@ class sota_core(pluginTemplate):
 
       # once the make-targets are done and the makefile has been created, run all the targets in
       # parallel using the make command set above.
-      make.execute_all(self.work_dir)
+      # Cocotb/iverilog simulations are slow; (configurable via run_timeout).
+      make.execute_all(self.work_dir, timeout=self.run_timeout)
 
       # if target runs are not required then we simply exit as this point after running all
       # the makefile targets.
