@@ -198,6 +198,17 @@ To test your own RISC-V program:
 
   <img src="docs/images/qspi_pmod.jpg" alt="QSPI Pmod hand-soldered" width="480"/>
 
+  **Important — 8 MB RAM only:** The SoC supports only **8 MB** of PSRAM (one chip). On the QSPI Pmod, **CS2 (RAM B)** must be disconnected: **cut the wire** (or trace) to the CS2 / RAM B chip.
+
+### Boot mode (FPGA)
+
+On FPGA, the design must run in **BOOT MODE 00**. This requires **pulling down** the boot-mode pins:
+
+- **ui[5]** — pull down.
+- **ui[6]** — pull down.
+
+Check your board schematic and `rv32e.xdc` for the physical pins that drive `ui[5]` and `ui[6]`, and ensure they are tied low (e.g. via jumper or resistor to GND) so the FPGA boots in mode 00.
+
 ### Build the bitstream (FPGA)
 
 1. Open the Vivado project:
